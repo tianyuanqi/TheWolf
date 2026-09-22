@@ -1,0 +1,24 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+*.tsbuildinfo
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.local-data/
+
+# Rust / Tauri generated build output (keep Cargo.lock).
+/apps/desktop/src-tauri/target/
+/apps/desktop/src-tauri/gen/schemas/
+
+# Python packaging output.
+*.egg-info/
+/python/build/
+
+# Local assistant memory; project state lives in docs/status.md.
+/.workbuddy/
