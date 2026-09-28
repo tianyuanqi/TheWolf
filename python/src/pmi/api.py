@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 import secrets
+import signal
+import sqlite3
+import sys
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -12,11 +16,30 @@ from pmi.snapshot import SnapshotError, read_pdf, read_snapshot
 from pmi.storage import demo_research, document_evidence, initialize_demo_data
 
 
+def _dev_origin() -> Optional[str]:
+    """仅接受显式配置的本机前端端口作为隔离验证来源。"""
+    value = os.environ.get("WOLF_DEV_PORT", "")
+    if value.isascii() and value.isdecimal() and len(value) <= 5 and 0 < int(value) <= 65535:
+        return f"http://127.0.0.1:{value}"
+    return None
+
+
+def _watch_parent_pipe() -> None:
+    """父桌面进程异常退出时由管道 EOF 触发服务正常终止。"""
+    try:
+        while sys.stdin.buffer.read(1):
+            pass
+    except OSError:
+        pass
+    os.kill(os.getpid(), signal.SIGTERM)
+
+
 app = FastAPI(title="TheWolf Local Service", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "tauri://localhost",
-                   "http://tauri.localhost"],
+    allow_origins=[origin for origin in (
+        "http://127.0.0.1:5173", "http://127.0.0.1:5174", _dev_origin(),
+        "tauri://localhost", "http://tauri.localhost") if origin],
     allow_methods=["GET"],
     allow_headers=["X-Wolf-Session"],
 )
@@ -24,7 +47,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup() -> None:
-    """仅在未配置真实切片根时初始化开发样本。"""
+    """初始化开发样本，并在桌面托管模式监视父进程管道。"""
+    if os.environ.get("WOLF_PARENT_PIPE") == "1":
+        threading.Thread(target=_watch_parent_pipe, daemon=True).start()
     if not os.environ.get("WOLF_SLICE_DATA_ROOT"):
         initialize_demo_data()
 
@@ -76,12 +101,23 @@ def _authorized(request: Request, x_wolf_session: Optional[str] = Header(default
         raise HTTPException(status_code=403, detail={"code": "bad_host",
                                                     "message": "请求主机不受信任"})
     origin = request.headers.get("origin")
-    if origin and origin not in {
-        "http://127.0.0.1:5173", "http://localhost:1420",
+    allowed_origins = {
+        "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://localhost:1420",
         "tauri://localhost", "http://tauri.localhost"
-    }:
+    }
+    dev_origin = _dev_origin()
+    if dev_origin:
+        allowed_origins.add(dev_origin)
+    if origin and origin not in allowed_origins:
         raise HTTPException(status_code=403, detail={"code": "bad_origin",
                                                     "message": "请求来源不受信任"})
+
+
+@app.get("/api/session/ready", dependencies=[Depends(_authorized)])
+def session_ready() -> Response:
+    """只对持有本次桌面会话凭据的调用方确认服务及进程身份。"""
+    return Response(content='{"status":"ready"}', media_type="application/json",
+                    headers={"X-Wolf-Service-Pid": str(os.getpid())})
 
 
 @app.get("/api/slice", dependencies=[Depends(_authorized)])
@@ -89,6 +125,9 @@ def latest_slice() -> dict:
     """返回当前已发布切片；无快照或原件损坏时给出明确错误。"""
     try:
         item = read_snapshot(_slice_root())
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=409, detail={"code": "storage_unavailable",
+                                                      "message": "本地快照数据库不可用，请检查数据目录"}) from error
     except (SnapshotError, OSError, ValueError) as error:
         raise HTTPException(status_code=409, detail={"code": "snapshot_invalid",
                                                       "message": str(error)}) from error
@@ -103,6 +142,9 @@ def fixed_snapshot(snapshot_id: str) -> dict:
     """按固定 ID 读取历史快照，不用当前指针替换旧事实。"""
     try:
         item = read_snapshot(_slice_root(), snapshot_id)
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=409, detail={"code": "storage_unavailable",
+                                                      "message": "本地快照数据库不可用，请检查数据目录"}) from error
     except (SnapshotError, OSError, ValueError) as error:
         raise HTTPException(status_code=409, detail={"code": "snapshot_invalid",
                                                       "message": str(error)}) from error
@@ -118,6 +160,9 @@ def snapshot_pdf(snapshot_id: str, object_id: str) -> Response:
     """仅返回指定快照引用的公告 PDF，禁止跨快照读取。"""
     try:
         content = read_pdf(_slice_root(), snapshot_id, object_id)
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=409, detail={"code": "storage_unavailable",
+                                                      "message": "本地快照数据库不可用，请检查数据目录"}) from error
     except (SnapshotError, OSError, ValueError) as error:
         raise HTTPException(status_code=409, detail={"code": "object_invalid",
                                                       "message": str(error)}) from error

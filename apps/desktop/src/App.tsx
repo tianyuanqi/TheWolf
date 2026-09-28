@@ -48,9 +48,9 @@ export function App() {
       setError("请通过 TheWolf 桌面开发窗口查看受保护的真实切片。");
       return;
     }
-    invoke<string>("session_token").then(setToken).catch(() => {
+    invoke<string>("session_token").then(setToken).catch((reason: unknown) => {
       setLoading(false);
-      setError("无法取得本地服务会话，请重启桌面窗口。");
+      setError(`本地服务未就绪：${String(reason)}`);
     });
   }, []);
 
@@ -104,6 +104,20 @@ export function App() {
     }
   }
 
+  /** 读取失败时先确认或重启当前子服务，再重新请求快照。 */
+  async function retryLocalService() {
+    setLoading(true);
+    try {
+      const currentToken = await invoke<string>("restart_local_service");
+      setToken(currentToken);
+      setError(undefined);
+      setAttempt((value) => value + 1);
+    } catch (reason) {
+      setLoading(false);
+      setError(`本地服务仍不可用：${String(reason)}`);
+    }
+  }
+
   const missing = slice?.unknown_missing_dates.length ?? 0;
   const documents = slice?.documents ?? (slice
     ? [{ ...slice.document, pdf_object_id: slice.pdf_object_id }] : []);
@@ -114,7 +128,7 @@ export function App() {
         <p>固定版本的真实数据切片 · 仅供资料查阅</p></header>
       {loading && <p className="status" role="status">正在读取本地快照…</p>}
       {error && <div className="status error" role="alert"><span>{error}</span>
-        <button type="button" onClick={() => setAttempt((value) => value + 1)}>重试读取</button></div>}
+        <button type="button" onClick={retryLocalService}>重试启动并读取</button></div>}
       {!loading && !slice && !error && <p className="status">尚无已发布的真实数据快照。</p>}
       {slice && <>
         <section className="card" aria-labelledby="slice-title">

@@ -1,5 +1,9 @@
 import unittest
+import json
+import hashlib
+import tempfile
 from copy import deepcopy
+from pathlib import Path
 from unittest.mock import patch
 
 from pmi.sina_slice import SINA_URL, _calendar_dates, _daily_bars, _fetch_original
@@ -7,6 +11,32 @@ from pmi.snapshot import SnapshotError
 
 
 class SinaSliceTests(unittest.TestCase):
+    def test_each_completed_download_records_own_observation(self):
+        class Response:
+            status_code = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def iter_content(self, chunk_size):
+                yield b"synthetic-source-bytes"
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch("pmi.sina_slice.requests.get", return_value=Response()):
+                self.assertEqual(_fetch_original(SINA_URL, receipt_root=root),
+                                 b"synthetic-source-bytes")
+            records = [json.loads(line) for line in
+                       (root / "original-observations.jsonl").read_text().splitlines()]
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["source_url"], SINA_URL)
+            self.assertEqual(records[0]["sha256"],
+                             hashlib.sha256(b"synthetic-source-bytes").hexdigest())
+            self.assertIn("completed_at", records[0])
+
     def test_download_rejects_other_hosts_redirects_and_oversize(self):
         with self.assertRaisesRegex(SnapshotError, "unapproved"):
             _fetch_original("http://127.0.0.1/private")

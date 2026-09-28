@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -226,8 +227,23 @@ def build_payload(sina_raw: bytes, official_raw: bytes, pdf_raw: bytes,
         additional_pdf_bytes=((formal_pdf_raw,) if formal_pdf_raw is not None else ()))
 
 
-def _fetch_original(url: str, params: Optional[dict[str, str]] = None) -> bytes:
-    """限量获取已核验的精确来源地址，拒绝重定向和超限原件。"""
+def _record_observation(root: Path, url: str, content: bytes, completed_at: str) -> None:
+    """逐原件追加获取完成凭据；旧批次没有此记录时不得补造时间。"""
+    root.mkdir(parents=True, exist_ok=True)
+    journal = root / "original-observations.jsonl"
+    record = {"source_url": url, "sha256": hashlib.sha256(content).hexdigest(),
+              "byte_count": len(content), "completed_at": completed_at}
+    line = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+    descriptor = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "ab") as stream:
+        stream.write(line)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _fetch_original(url: str, params: Optional[dict[str, str]] = None,
+                    receipt_root: Optional[Path] = None) -> bytes:
+    """限量获取精确来源，成功读完后立即记录该原件的完成时刻。"""
     # 地址和参数均由本模块固定，避免调用方指定任意 URL 或访问内网。
     if url not in {SINA_URL, SZSE_URL, PDF_URL, FORMAL_PDF_URL}:
         raise SnapshotError("unapproved original source URL")
@@ -243,7 +259,11 @@ def _fetch_original(url: str, params: Optional[dict[str, str]] = None) -> bytes:
             content.extend(chunk)
             if len(content) > _MAX_ORIGINAL_BYTES:
                 raise SnapshotError("source original exceeds one megabyte")
-        return bytes(content)
+        result = bytes(content)
+        if receipt_root is not None:
+            _record_observation(receipt_root, url, result,
+                                datetime.now(timezone.utc).isoformat())
+        return result
 
 
 def main() -> None:
@@ -268,10 +288,10 @@ def main() -> None:
         formal_pdf_raw = args.formal_pdf.read_bytes()
         retrieved_at = args.retrieved_at
     else:
-        sina_raw = _fetch_original(SINA_URL)
-        official_raw = _fetch_original(SZSE_URL, SZSE_PARAMS)
-        pdf_raw = _fetch_original(PDF_URL)
-        formal_pdf_raw = _fetch_original(FORMAL_PDF_URL)
+        sina_raw = _fetch_original(SINA_URL, receipt_root=args.data_root)
+        official_raw = _fetch_original(SZSE_URL, SZSE_PARAMS, args.data_root)
+        pdf_raw = _fetch_original(PDF_URL, receipt_root=args.data_root)
+        formal_pdf_raw = _fetch_original(FORMAL_PDF_URL, receipt_root=args.data_root)
         retrieved_at = datetime.now(timezone.utc).isoformat()
     payload = build_payload(sina_raw, official_raw, pdf_raw, retrieved_at,
                             formal_pdf_raw)

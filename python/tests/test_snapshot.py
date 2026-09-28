@@ -1,5 +1,6 @@
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,7 @@ from pmi.snapshot import (DailyBar, DocumentEvidence, MarketContract, SliceInput
 
 
 def fixture() -> SliceInput:
+    """构造跨测试模块复用的合成切片，不读取真实行情或公告。"""
     return SliceInput(
         instrument_code="002245", instrument_name="测试证券", exchange="SZSE",
         source_id="synthetic-test-only", source_version="fixture-v1",
@@ -41,6 +43,48 @@ def fixture() -> SliceInput:
 
 
 class SnapshotTests(unittest.TestCase):
+    def test_old_batch_retry_does_not_rewind_current(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = fixture()
+            old_id = publish_snapshot(root, original)
+            revised = replace(original, batch_id="synthetic-batch-2",
+                              retrieved_at="2026-09-24T09:00:00+08:00",
+                              bars=(replace(original.bars[0], close_cny="10.60"),))
+            new_id = publish_snapshot(root, revised)
+            self.assertEqual(publish_snapshot(root, original), old_id)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], new_id)
+            self.assertEqual(read_snapshot(root, old_id)["bars"][0]["close_cny"], "10.50")
+            self.assertEqual(read_snapshot(root, new_id)["bars"][0]["close_cny"], "10.60")
+            self.assertEqual(publish_snapshot(root, revised), new_id)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], new_id)
+            third = replace(revised, batch_id="synthetic-batch-3",
+                            retrieved_at="2026-09-25T09:00:00+08:00",
+                            bars=(replace(original.bars[0], close_cny="10.70"),))
+            third_id = publish_snapshot(root, third)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], third_id)
+            backfilled = replace(original, batch_id="synthetic-backfill",
+                                 retrieved_at="2026-09-22T09:00:00+08:00",
+                                 bars=(replace(original.bars[0], close_cny="10.80"),))
+            backfill_id = publish_snapshot(root, backfilled)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], third_id)
+            self.assertEqual(read_snapshot(root, backfill_id)["bars"][0]["close_cny"], "10.80")
+
+    def test_mapped_manifest_must_match_snapshot_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = fixture()
+            old_id = publish_snapshot(root, original)
+            revised = replace(original, batch_id="synthetic-batch-2",
+                              bars=(replace(original.bars[0], close_cny="10.60"),))
+            new_id = publish_snapshot(root, revised)
+            with sqlite3.connect(root / "slice.sqlite") as connection:
+                connection.execute("UPDATE snapshots SET manifest_object_id=? WHERE snapshot_id=?",
+                                   (new_id, old_id))
+            with self.assertRaisesRegex(SnapshotError, "identity|manifest"):
+                read_snapshot(root, old_id)
+            self.assertEqual(read_snapshot(root, new_id)["snapshot_id"], new_id)
+
     def test_partial_window_then_fill_preserves_fixed_view(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

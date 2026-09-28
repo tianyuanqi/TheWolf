@@ -1,10 +1,12 @@
 import asyncio
 import json
 import os
+import sqlite3
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from pmi.api import app
 from pmi.snapshot import publish_snapshot, read_snapshot
@@ -12,6 +14,7 @@ from test_snapshot import fixture
 
 
 async def asgi_get(path: str, headers: dict[str, str]) -> tuple[int, bytes]:
+    """直接调用 ASGI 应用，避免启动真实网络或执行 lifespan。"""
     messages: list[dict] = []
     scope = {
         "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
@@ -36,6 +39,35 @@ async def asgi_get(path: str, headers: dict[str, str]) -> tuple[int, bytes]:
 
 
 class SliceApiTests(unittest.TestCase):
+    def test_corrupt_database_returns_structured_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "slice.sqlite").write_bytes(b"not a SQLite database")
+            old_root = os.environ.get("WOLF_SLICE_DATA_ROOT")
+            old_token = os.environ.get("WOLF_SESSION_TOKEN")
+            os.environ["WOLF_SLICE_DATA_ROOT"] = directory
+            os.environ["WOLF_SESSION_TOKEN"] = "isolated-test-session"
+            headers = {"host": "127.0.0.1:8000", "x-wolf-session": "isolated-test-session"}
+            try:
+                for path in ("/api/slice", "/api/snapshots/" + "a" * 64,
+                             "/api/snapshots/" + "a" * 64 + "/pdf/" + "b" * 64):
+                    status, body = asyncio.run(asgi_get(path, headers))
+                    self.assertEqual(status, 409)
+                    self.assertEqual(json.loads(body)["detail"]["code"], "storage_unavailable")
+                with patch("pmi.api.read_snapshot",
+                           side_effect=sqlite3.OperationalError("database is locked")):
+                    status, body = asyncio.run(asgi_get("/api/slice", headers))
+                    self.assertEqual(status, 409)
+                    self.assertEqual(json.loads(body)["detail"]["code"], "storage_unavailable")
+            finally:
+                if old_root is None:
+                    os.environ.pop("WOLF_SLICE_DATA_ROOT", None)
+                else:
+                    os.environ["WOLF_SLICE_DATA_ROOT"] = old_root
+                if old_token is None:
+                    os.environ.pop("WOLF_SESSION_TOKEN", None)
+                else:
+                    os.environ["WOLF_SESSION_TOKEN"] = old_token
+
     def test_auth_origin_host_and_object_boundary(self):
         with tempfile.TemporaryDirectory() as directory:
             old_root = os.environ.get("WOLF_SLICE_DATA_ROOT")
@@ -47,6 +79,8 @@ class SliceApiTests(unittest.TestCase):
                 document = read_snapshot(Path(directory))
                 base = {"host": "127.0.0.1:8000", "x-wolf-session": "isolated-test-session"}
                 self.assertEqual(asyncio.run(asgi_get("/api/slice", {"host": base["host"]}))[0], 401)
+                self.assertEqual(asyncio.run(asgi_get("/api/session/ready", {"host": base["host"]}))[0], 401)
+                self.assertEqual(asyncio.run(asgi_get("/api/session/ready", base))[0], 200)
                 self.assertEqual(asyncio.run(asgi_get("/api/demo/research", base))[0], 404)
                 self.assertEqual(asyncio.run(asgi_get("/api/slice", {**base, "host": "evil.example"}))[0], 403)
                 self.assertEqual(asyncio.run(asgi_get("/api/slice", {

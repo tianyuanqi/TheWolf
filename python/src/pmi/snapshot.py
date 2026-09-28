@@ -316,8 +316,8 @@ def publish_snapshot(root: Path, payload: SliceInput,
                      checkpoint: Optional[Callable[[str], None]] = None) -> str:
     """原件全部持久化后，原子发布清单及当前快照指针。
 
-    相同事实与原件重复发布仍使用同一快照 ID；内容变化生成新版本，
-    旧清单及原件保持可读。数据库提交前失败可能留下未引用对象，
+    相同事实与原件重复发布仍使用同一快照 ID，且旧批次重试不回退当前指针；
+    新观察早于当前批次时只保留固定版本，不改变默认视图。数据库提交前失败可能留下未引用对象，
     但不会暴露半成品快照。
     """
     _validate(payload)
@@ -356,15 +356,21 @@ def publish_snapshot(root: Path, payload: SliceInput,
     if checkpoint:
         checkpoint("objects_ready")
     now = datetime.now(timezone.utc).isoformat()
+    observed_at = _utc_timestamp(payload.retrieved_at)
     with _connect(root) as connection:
-        connection.execute("""
+        inserted = connection.execute("""
             INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?, ?, ?, ?)
         """, (manifest_id, manifest_id, raw_id, pdf_id,
-              _utc_timestamp(payload.retrieved_at), now))
-        connection.execute("""
-            INSERT INTO current_snapshot VALUES (1, ?)
-            ON CONFLICT(singleton) DO UPDATE SET snapshot_id = excluded.snapshot_id
-        """, (manifest_id,))
+              observed_at, now)).rowcount == 1
+        current = connection.execute("""
+            SELECT s.first_seen_at FROM current_snapshot c
+            JOIN snapshots s ON s.snapshot_id = c.snapshot_id WHERE c.singleton = 1
+        """).fetchone()
+        if inserted and (current is None or observed_at >= current["first_seen_at"]):
+            connection.execute("""
+                INSERT INTO current_snapshot VALUES (1, ?)
+                ON CONFLICT(singleton) DO UPDATE SET snapshot_id = excluded.snapshot_id
+            """, (manifest_id,))
         if checkpoint:
             checkpoint("manifest_uncommitted")
     if checkpoint:
@@ -391,6 +397,9 @@ def read_snapshot(root: Path, snapshot_id: Optional[str] = None) -> Optional[dic
                                      (snapshot_id,)).fetchone()
     if row is None:
         return None
+    if (row["snapshot_id"] != row["manifest_object_id"] or
+            (snapshot_id is not None and row["snapshot_id"] != snapshot_id)):
+        raise SnapshotError("snapshot identity and manifest disagree")
     manifest = json.loads(_read_object(root, row["manifest_object_id"]))
     if (manifest["raw_object_id"] != row["raw_object_id"] or
             manifest["pdf_object_id"] != row["pdf_object_id"]):
