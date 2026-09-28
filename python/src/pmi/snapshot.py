@@ -336,9 +336,9 @@ def publish_snapshot(root: Path, payload: SliceInput,
     """原件全部持久化后，原子发布清单及当前快照指针。
 
     清单 ID 表示内容；清单 ID 与获取时刻共同标识一次观察。同一观察重试幂等，
-    较晚观察可重新指向旧内容，较早观察不回退当前指针。旧库首次发布时以已有
-    当前快照的首次获取时刻建立观察锚点，不改写旧快照。数据库提交前失败可能留下
-    未引用对象，但不会暴露半成品快照。
+    较晚观察可重新指向旧内容，较早观察不回退当前指针。旧库首次发布时以各旧
+    快照的首次获取时刻恢复可知的观察身份，并保留原当前顺序，不改写旧快照。
+    数据库提交前失败可能留下未引用对象，但不会暴露半成品快照。
     """
     _validate(payload)
     raw_id = _write_object(root, payload.raw_response)
@@ -383,10 +383,6 @@ def publish_snapshot(root: Path, payload: SliceInput,
     with _connect(root) as connection:
         connection.execute("BEGIN IMMEDIATE")
         _ensure_observation_schema(connection)
-        connection.execute("""
-            INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?, ?, ?, ?)
-        """, (manifest_id, manifest_id, raw_id, pdf_id,
-              observed_at, now))
         current = connection.execute("""
             SELECT c.snapshot_id, s.first_seen_at, o.observation_id, o.observed_at,
                    o.snapshot_id AS observed_snapshot_id
@@ -396,15 +392,21 @@ def publish_snapshot(root: Path, payload: SliceInput,
             WHERE c.singleton = 1
         """).fetchone()
         if current is not None and current["observation_id"] is None:
-            # 旧库只有内容指针；以其原始 first_seen_at 建立一次性顺序锚点。
-            legacy_at = current["first_seen_at"]
+            # 先登记旧库全部内容的首次观察，再接受本次输入；否则旧重试会被当成新观察。
+            for legacy in connection.execute(
+                    "SELECT snapshot_id, first_seen_at FROM snapshots"):
+                legacy_at = _utc_timestamp(legacy["first_seen_at"])
+                legacy_id = _digest(_canonical_bytes({
+                    "snapshot_id": legacy["snapshot_id"], "observed_at": legacy_at,
+                }))
+                connection.execute("""
+                    INSERT OR IGNORE INTO snapshot_observations VALUES (?, ?, ?, ?, ?)
+                """, (legacy_id, legacy["snapshot_id"], legacy_at, now,
+                      "legacy_snapshot_first_seen"))
+            legacy_at = _utc_timestamp(current["first_seen_at"])
             legacy_id = _digest(_canonical_bytes({
                 "snapshot_id": current["snapshot_id"], "observed_at": legacy_at,
             }))
-            connection.execute("""
-                INSERT OR IGNORE INTO snapshot_observations VALUES (?, ?, ?, ?, ?)
-            """, (legacy_id, current["snapshot_id"], legacy_at, now,
-                  "legacy_snapshot_first_seen"))
             connection.execute("INSERT INTO current_observation VALUES (1, ?)",
                                (legacy_id,))
             current_at = legacy_at
@@ -414,6 +416,10 @@ def publish_snapshot(root: Path, payload: SliceInput,
             current_at = current["observed_at"]
         else:
             current_at = None
+        connection.execute("""
+            INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?, ?, ?, ?)
+        """, (manifest_id, manifest_id, raw_id, pdf_id,
+              observed_at, now))
         inserted_observation = connection.execute("""
             INSERT OR IGNORE INTO snapshot_observations VALUES (?, ?, ?, ?, ?)
         """, (observation_id, manifest_id, observed_at, now,

@@ -104,6 +104,64 @@ class SnapshotTests(unittest.TestCase):
                 self.assertIn((b_id, "legacy_snapshot_first_seen"), rows)
                 self.assertEqual(rows[-1], (a_id, "payload_retrieved_at"))
 
+    def test_legacy_same_time_retry_preserves_order_and_fixed_views(self):
+        """旧库同刻 A/B 的重试身份须随迁移保留，失败后可原样重试。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            a = fixture()
+            b = replace(a, batch_id="synthetic-same-time-b",
+                        raw_response=b"synthetic equal-time source B",
+                        bars=(replace(a.bars[0], close_cny="10.60"),))
+            a_id = publish_snapshot(root, a)
+            b_id = publish_snapshot(root, b)
+            fixed_a = read_snapshot(root, a_id)
+            fixed_b = read_snapshot(root, b_id)
+            with sqlite3.connect(root / "slice.sqlite") as connection:
+                connection.execute("DROP TABLE current_observation")
+                connection.execute("DROP TABLE snapshot_observations")
+            self.assertEqual(read_snapshot(root)["snapshot_id"], b_id)
+
+            def fail_before_commit(stage):
+                if stage == "manifest_uncommitted":
+                    raise OSError("synthetic interrupted same-time migration")
+
+            with self.assertRaisesRegex(OSError, "interrupted same-time migration"):
+                publish_snapshot(root, a, checkpoint=fail_before_commit)
+            with sqlite3.connect(root / "slice.sqlite") as connection:
+                self.assertIsNone(connection.execute(
+                    "SELECT name FROM sqlite_master WHERE name='snapshot_observations'"
+                ).fetchone())
+            self.assertEqual(read_snapshot(root)["snapshot_id"], b_id)
+
+            self.assertEqual(publish_snapshot(root, a), a_id)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], b_id)
+            with sqlite3.connect(root / "slice.sqlite") as connection:
+                legacy = connection.execute(
+                    "SELECT snapshot_id, observed_at, time_basis FROM snapshot_observations"
+                ).fetchall()
+            self.assertEqual(set(legacy), {
+                (a_id, "2026-09-23T01:00:00+00:00", "legacy_snapshot_first_seen"),
+                (b_id, "2026-09-23T01:00:00+00:00", "legacy_snapshot_first_seen"),
+            })
+
+            c = replace(b, batch_id="synthetic-same-time-c",
+                        raw_response=b"synthetic equal-time source C",
+                        bars=(replace(a.bars[0], close_cny="10.70"),))
+            c_id = publish_snapshot(root, c)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], c_id)
+            later_a = replace(a, retrieved_at="2026-09-24T09:00:00+08:00")
+            self.assertEqual(publish_snapshot(root, later_a), a_id)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], a_id)
+            self.assertEqual(publish_snapshot(root, b), b_id)
+            self.assertEqual(read_snapshot(root)["snapshot_id"], a_id)
+            self.assertEqual(read_snapshot(root, a_id), fixed_a)
+            self.assertEqual(read_snapshot(root, b_id), fixed_b)
+            self.assertEqual(read_snapshot(root, c_id)["bars"][0]["close_cny"], "10.70")
+            with sqlite3.connect(root / "slice.sqlite") as connection:
+                self.assertEqual(connection.execute(
+                    "SELECT COUNT(*) FROM snapshot_observations"
+                ).fetchone()[0], 4)
+
     def test_old_batch_retry_does_not_rewind_current(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
