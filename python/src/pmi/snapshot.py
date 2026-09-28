@@ -312,13 +312,33 @@ def _connect(root: Path) -> Iterator[sqlite3.Connection]:
         connection.close()
 
 
+def _ensure_observation_schema(connection: sqlite3.Connection) -> None:
+    """仅在发布事务内追加观察索引；读取旧快照不迁移数据库。"""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS snapshot_observations (
+            observation_id TEXT PRIMARY KEY,
+            snapshot_id TEXT NOT NULL REFERENCES snapshots(snapshot_id),
+            observed_at TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            time_basis TEXT NOT NULL
+        )
+    """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS current_observation (
+            singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+            observation_id TEXT NOT NULL REFERENCES snapshot_observations(observation_id)
+        )
+    """)
+
+
 def publish_snapshot(root: Path, payload: SliceInput,
                      checkpoint: Optional[Callable[[str], None]] = None) -> str:
     """原件全部持久化后，原子发布清单及当前快照指针。
 
-    相同事实与原件重复发布仍使用同一快照 ID，且旧批次重试不回退当前指针；
-    新观察早于当前批次时只保留固定版本，不改变默认视图。数据库提交前失败可能留下未引用对象，
-    但不会暴露半成品快照。
+    清单 ID 表示内容；清单 ID 与获取时刻共同标识一次观察。同一观察重试幂等，
+    较晚观察可重新指向旧内容，较早观察不回退当前指针。旧库首次发布时以已有
+    当前快照的首次获取时刻建立观察锚点，不改写旧快照。数据库提交前失败可能留下
+    未引用对象，但不会暴露半成品快照。
     """
     _validate(payload)
     raw_id = _write_object(root, payload.raw_response)
@@ -357,20 +377,59 @@ def publish_snapshot(root: Path, payload: SliceInput,
         checkpoint("objects_ready")
     now = datetime.now(timezone.utc).isoformat()
     observed_at = _utc_timestamp(payload.retrieved_at)
+    observation_id = _digest(_canonical_bytes({
+        "snapshot_id": manifest_id, "observed_at": observed_at,
+    }))
     with _connect(root) as connection:
-        inserted = connection.execute("""
+        connection.execute("BEGIN IMMEDIATE")
+        _ensure_observation_schema(connection)
+        connection.execute("""
             INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?, ?, ?, ?)
         """, (manifest_id, manifest_id, raw_id, pdf_id,
-              observed_at, now)).rowcount == 1
+              observed_at, now))
         current = connection.execute("""
-            SELECT s.first_seen_at FROM current_snapshot c
-            JOIN snapshots s ON s.snapshot_id = c.snapshot_id WHERE c.singleton = 1
+            SELECT c.snapshot_id, s.first_seen_at, o.observation_id, o.observed_at,
+                   o.snapshot_id AS observed_snapshot_id
+            FROM current_snapshot c JOIN snapshots s ON s.snapshot_id = c.snapshot_id
+            LEFT JOIN current_observation co ON co.singleton = c.singleton
+            LEFT JOIN snapshot_observations o ON o.observation_id = co.observation_id
+            WHERE c.singleton = 1
         """).fetchone()
-        if inserted and (current is None or observed_at >= current["first_seen_at"]):
+        if current is not None and current["observation_id"] is None:
+            # 旧库只有内容指针；以其原始 first_seen_at 建立一次性顺序锚点。
+            legacy_at = current["first_seen_at"]
+            legacy_id = _digest(_canonical_bytes({
+                "snapshot_id": current["snapshot_id"], "observed_at": legacy_at,
+            }))
+            connection.execute("""
+                INSERT OR IGNORE INTO snapshot_observations VALUES (?, ?, ?, ?, ?)
+            """, (legacy_id, current["snapshot_id"], legacy_at, now,
+                  "legacy_snapshot_first_seen"))
+            connection.execute("INSERT INTO current_observation VALUES (1, ?)",
+                               (legacy_id,))
+            current_at = legacy_at
+        elif current is not None:
+            if current["snapshot_id"] != current["observed_snapshot_id"]:
+                raise SnapshotError("current snapshot and observation disagree")
+            current_at = current["observed_at"]
+        else:
+            current_at = None
+        inserted_observation = connection.execute("""
+            INSERT OR IGNORE INTO snapshot_observations VALUES (?, ?, ?, ?, ?)
+        """, (observation_id, manifest_id, observed_at, now,
+              "payload_retrieved_at")).rowcount == 1
+        # 相同时刻的不同新观察按首次入库顺序前进；已有观察的重试不改变指针。
+        if current_at is None or (inserted_observation and
+                                  datetime.fromisoformat(observed_at) >=
+                                  datetime.fromisoformat(current_at)):
             connection.execute("""
                 INSERT INTO current_snapshot VALUES (1, ?)
                 ON CONFLICT(singleton) DO UPDATE SET snapshot_id = excluded.snapshot_id
             """, (manifest_id,))
+            connection.execute("""
+                INSERT INTO current_observation VALUES (1, ?)
+                ON CONFLICT(singleton) DO UPDATE SET observation_id = excluded.observation_id
+            """, (observation_id,))
         if checkpoint:
             checkpoint("manifest_uncommitted")
     if checkpoint:
