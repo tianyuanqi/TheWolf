@@ -79,3 +79,22 @@ python/.venv/bin/python -m pmi.sina_slice --data-root "$PWD/.local-data/slice-00
 此命令会核对完整 60 日、深交所同日 OHLC/成交额和成交量舍入范围，以及两份公告 PDF 的固定哈希；失败不更新当前快照。今后每份在线原件完整读取后会在数据根追加 `original-observations.jsonl`，记录原件哈希与各自的获取完成时刻；旧批次没有此日志，不能据批次时刻反推逐原件时间。桌面开发窗口默认读取独立的 `.local-data/slice-002245-sina`，也可显式设置 `WOLF_SLICE_DATA_ROOT` 指向另一切片根。受保护 API 会话凭据仅由 Tauri 提供，普通浏览器不能直接查看真实切片。页面分别展示两份公告的本地原件，原始出处按钮调用系统浏览器打开对应的深交所 PDF。无快照时页面显示错误和重试。旧样本接口仍仅作为显式开发夹具，真实切片模式下禁用；合成冒烟不能替代上述真实来源验证。
 
 前端依赖锁定在 [apps/desktop/package-lock.json](apps/desktop/package-lock.json)；Python 依赖声明及本机受测版本分别见 [python/pyproject.toml](python/pyproject.toml)、[python/requirements.lock](python/requirements.lock)。
+
+### 日线手动更新（隔离根）
+
+在已准备两份公告的隔离根使用上方 `run_qa.py` 启动桌面，点击“更新日线”。QA 入口显式启用 `WOLF_ENABLE_DATA_UPDATE=1`；默认桌面服务不启用写入，原库切换须另行授权和完成一致性备份/恢复验证。空库先准备切片，不能用更新按钮发现或补下载公告。
+
+更新只采集 002245 新浪未复权日线及深交所对照，按[官方日历](python/src/pmi/trading_calendar.py)展示最近 60 个完整开市日，不含上海时区当日。当前日历覆盖 2026 年，覆盖外或不足 60 日拒绝更新。旧快照和两份 PDF 保留，失败可继续离线阅读。每源一次请求、无自动重试，单源 45 秒硬截止，连接/读取超时 5/15 秒，原响应上限 1 MB；不会自动定时采集。客户端超时先“核对结果”，该操作只查询本地任务。
+
+受保护接口为 `POST /api/slice/update`（空 JSON 对象）和 `GET /api/slice/update`。服务端固定证券、URL、时间与数据根；POST 禁止额外字段和查询参数。文件锁协调 CLI 与服务，启动时以本地观察索引核对未完成任务。
+
+V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、新响应可读；无外部网络，临时模块自动清理。
+
+V-PY 自动包含 `test_data_update` 与 API 更新反例。V-MIG 的新增旧代码合成库专项入口：从仓库根先导出真实旧版存储模块，再执行；脚本只使用自动清理的临时数据根，不联网、不写原库。
+
+```bash
+git show c39ee17514746e41b213b959f9a84417f0d61342:python/src/pmi/snapshot.py > /tmp/thewolf-legacy-snapshot.py
+PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/legacy_update_smoke.py --legacy-snapshot /tmp/thewolf-legacy-snapshot.py
+```
+
+退出 0 且输出 `legacy code A/B same-time ... PASS` 表示旧代码建库、同刻重试、更新中断、固定视图及备份恢复断言通过。不存在旧提交/源码时记录材料缺失，不能用当前代码建库冒充。实际真实来源、桌面及原库切换证据仍须按任务单独核对。

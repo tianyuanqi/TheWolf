@@ -53,6 +53,9 @@ class DocumentEvidence:
     publication_precision: str
     physical_page: int
     evidence_text: str
+    inherited_public_available_at: Optional[str] = None
+    original_retrieved_at: Optional[str] = None
+    original_retrieval_basis: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -183,6 +186,9 @@ def _validate(payload: SliceInput) -> None:
     if len({item.document_id for item in documents}) != len(documents):
         raise SnapshotError("document IDs must be unique")
     for document in documents:
+        for timestamp in (document.inherited_public_available_at, document.original_retrieved_at):
+            if timestamp is not None:
+                _utc_timestamp(timestamp)
         if not all((document.document_id, document.title, document.issuer_name,
                     document.source_url, document.evidence_text)):
             raise SnapshotError("document identity and evidence are required")
@@ -268,6 +274,8 @@ def _read_object(root: Path, object_id: str) -> bytes:
 
 def _public_available_at(document: dict, first_seen_at: str) -> str:
     """按公告时间精度计算保守可用时刻；未知时使用首次获取时刻。"""
+    if document.get("inherited_public_available_at"):
+        return _utc_timestamp(document["inherited_public_available_at"])
     if document["publication_precision"] == "date":
         # 只有发布日期时，不假定公告在当天任一盘中时刻已可见。
         next_day = date.fromisoformat(document["published_at"]) + timedelta(days=1)
@@ -350,6 +358,10 @@ def publish_snapshot(root: Path, payload: SliceInput,
                                for content in payload.additional_pdf_bytes)
     documents = (payload.document,) + payload.additional_documents
     pdf_ids = (pdf_id,) + additional_pdf_ids
+    # 新公告时间继承字段只在明确提供时写入，旧固定输入重放保持原清单身份。
+    document_records = [{key: value for key, value in document.__dict__.items()
+                         if value is not None or key == "published_at"}
+                        for document in documents]
     manifest = {
         "contract_version": 4,
         "instrument_code": payload.instrument_code,
@@ -365,9 +377,9 @@ def publish_snapshot(root: Path, payload: SliceInput,
         "pit_grade": "latest_only",
         "calendar_dates": list(payload.calendar_dates),
         "bars": [bar.__dict__ for bar in payload.bars],
-        "document": payload.document.__dict__,
-        "documents": [{**document.__dict__, "pdf_object_id": object_id}
-                      for document, object_id in zip(documents, pdf_ids)],
+        "document": document_records[0],
+        "documents": [{**record, "pdf_object_id": object_id}
+                      for record, object_id in zip(document_records, pdf_ids)],
         "raw_object_id": raw_id,
         "verification_object_id": verification_id,
         "pdf_object_id": pdf_id,

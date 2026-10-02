@@ -13,19 +13,20 @@ from pmi.snapshot import publish_snapshot, read_snapshot
 from test_snapshot import fixture
 
 
-async def asgi_get(path: str, headers: dict[str, str]) -> tuple[int, bytes]:
+async def asgi_get(path: str, headers: dict[str, str], method: str = "GET",
+                   body: bytes = b"", query: bytes = b"") -> tuple[int, bytes]:
     """直接调用 ASGI 应用，避免启动真实网络或执行 lifespan。"""
     messages: list[dict] = []
     scope = {
         "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
-        "method": "GET", "scheme": "http", "path": path, "raw_path": path.encode(),
-        "query_string": b"", "root_path": "", "client": ("127.0.0.1", 50000),
+        "method": method, "scheme": "http", "path": path, "raw_path": path.encode(),
+        "query_string": query, "root_path": "", "client": ("127.0.0.1", 50000),
         "server": ("127.0.0.1", 8000),
         "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()],
     }
 
     async def receive() -> dict:
-        return {"type": "http.request", "body": b"", "more_body": False}
+        return {"type": "http.request", "body": body, "more_body": False}
 
     async def send(message: dict) -> None:
         messages.append(message)
@@ -39,6 +40,29 @@ async def asgi_get(path: str, headers: dict[str, str]) -> tuple[int, bytes]:
 
 
 class SliceApiTests(unittest.TestCase):
+    def test_update_rejects_unauthorized_and_injected_requests_without_work(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "WOLF_SLICE_DATA_ROOT": directory, "WOLF_SESSION_TOKEN": "synthetic",
+            "WOLF_ALLOWED_HOST": "127.0.0.1:8000", "WOLF_ENABLE_DATA_UPDATE": "1"}), \
+                patch("pmi.api.start_update", return_value={"stage": "preparing", "job_id": "fixture"}) as start:
+            base = {"host": "127.0.0.1:8000", "x-wolf-session": "synthetic", "content-type": "application/json"}
+            for method in ("GET", "POST"):
+                for headers, expected in (({"host": base["host"]}, 401),
+                                          ({**base, "host": "evil.invalid"}, 403),
+                                          ({**base, "origin": "http://evil.invalid"}, 403)):
+                    self.assertEqual(asyncio.run(asgi_get("/api/slice/update", headers, method, b"{}"))[0], expected)
+            for key in ("url", "data_root", "security", "observed_at"):
+                self.assertEqual(asyncio.run(asgi_get("/api/slice/update", base, "POST", json.dumps({key: "injected"}).encode()))[0], 422)
+            self.assertEqual(asyncio.run(asgi_get("/api/slice/update", base, "POST", b"{}", b"url=evil"))[0], 422)
+            with patch.dict(os.environ, {"WOLF_ENABLE_DATA_UPDATE": "0"}):
+                self.assertEqual(asyncio.run(asgi_get("/api/slice/update", base, "POST", b"{}"))[0], 403)
+            start.assert_not_called()
+            self.assertEqual(list(Path(directory).iterdir()), [])
+            status, body = asyncio.run(asgi_get("/api/slice/update", base, "POST", b"{}"))
+            self.assertEqual(status, 202)
+            self.assertEqual(json.loads(body)["job_id"], "fixture")
+            start.assert_called_once_with(Path(directory))
+
     def test_corrupt_database_returns_structured_error(self):
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / "slice.sqlite").write_bytes(b"not a SQLite database")

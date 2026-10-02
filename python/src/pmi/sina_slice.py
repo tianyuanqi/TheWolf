@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -18,7 +19,7 @@ from typing import Optional
 
 import requests
 from akshare.stock.cons import hk_js_decode
-from py_mini_racer import MiniRacer
+from py_mini_racer import JSEvalException, MiniRacer
 
 from pmi.snapshot import (DailyBar, DocumentEvidence, MarketContract, SliceInput,
                           SnapshotError, publish_snapshot, read_snapshot)
@@ -76,8 +77,9 @@ def _whole_number(value: object, label: str) -> int:
     return value
 
 
-def _decode_sina(raw: bytes) -> dict[str, dict]:
-    """解码保真的 KLC 原响应，只选择固定窗口并拒绝缺日或重复日。"""
+def _decode_sina(raw: bytes, calendar_dates: Optional[tuple[str, ...]] = None) -> dict[str, dict]:
+    """解码保真的 KLC 原响应，选择已核验窗口并拒绝缺日或重复日。"""
+    days = calendar_dates or _calendar_dates()
     if not raw or len(raw) > _MAX_ORIGINAL_BYTES:
         raise SnapshotError("Sina original size is outside the verified limit")
     try:
@@ -88,8 +90,13 @@ def _decode_sina(raw: bytes) -> dict[str, dict]:
     if not match:
         raise SnapshotError("Sina original is not the verified 002245 KLC payload")
     decoder = MiniRacer()
-    decoder.eval(hk_js_decode)
-    decoded = decoder.call("d", match.group(1))
+    try:
+        decoder.eval(hk_js_decode, timeout_sec=5, max_memory=64_000_000)
+        decoded = decoder.call("d", match.group(1), timeout_sec=5, max_memory=64_000_000)
+    except JSEvalException as error:
+        raise SnapshotError("Sina KLC decode failed within bounded runtime") from error
+    finally:
+        decoder.close()
     if not isinstance(decoded, list) or len(decoded) > 10_000:
         raise SnapshotError("Sina decoded history has an invalid shape")
     selected: dict[str, dict] = {}
@@ -100,17 +107,18 @@ def _decode_sina(raw: bytes) -> dict[str, dict]:
         if not date_match:
             raise SnapshotError("Sina trade date has unexpected precision")
         trade_date = date_match.group(1)
-        if START_DATE.isoformat() <= trade_date <= END_DATE.isoformat():
+        if days[0] <= trade_date <= days[-1]:
             if trade_date in selected:
                 raise SnapshotError("duplicate Sina trade date")
             selected[trade_date] = row
-    if set(selected) != set(_calendar_dates()):
+    if set(selected) != set(days):
         raise SnapshotError("Sina rows do not cover every expected open session")
     return selected
 
 
-def _official_rows(raw: bytes) -> tuple[str, dict[str, list]]:
+def _official_rows(raw: bytes, calendar_dates: Optional[tuple[str, ...]] = None) -> tuple[str, dict[str, list]]:
     """读取深交所原响应，核实证券映射及窗口内逐日覆盖。"""
+    days = calendar_dates or _calendar_dates()
     if not raw or len(raw) > _MAX_ORIGINAL_BYTES:
         raise SnapshotError("SZSE comparison size is outside the verified limit")
     try:
@@ -130,37 +138,38 @@ def _official_rows(raw: bytes) -> tuple[str, dict[str, list]]:
         if not isinstance(row, list) or len(row) < 9 or not isinstance(row[0], str):
             raise SnapshotError("invalid SZSE daily record")
         trade_date = row[0]
-        if START_DATE.isoformat() <= trade_date <= END_DATE.isoformat():
+        if days[0] <= trade_date <= days[-1]:
             if trade_date in selected:
                 raise SnapshotError("duplicate SZSE trade date")
             selected[trade_date] = row
-    if set(selected) != set(_calendar_dates()):
+    if set(selected) != set(days):
         raise SnapshotError("SZSE rows do not cover every expected open session")
     return data["name"], selected
 
 
-def _daily_bars(sina_rows: dict[str, dict], official_rows: dict[str, list]) -> tuple[DailyBar, ...]:
+def _daily_bars(sina_rows: dict[str, dict], official_rows: dict[str, list],
+                calendar_dates: Optional[tuple[str, ...]] = None) -> tuple[DailyBar, ...]:
     """逐日对照未复权价格、股数和人民币成交额后生成标准化日线。
 
     深交所成交量以手展示，允许因整手显示产生至多半手的股数差；
     开高低收与成交额须精确一致。
     """
     bars: list[DailyBar] = []
-    for trade_date in _calendar_dates():
+    for trade_date in calendar_dates or _calendar_dates():
         source = sina_rows[trade_date]
         official = official_rows[trade_date]
         prices = {name: _price(source.get(name), name)
                   for name in ("open", "high", "low", "close")}
         # 深交所行情数组依次为开、收、低、高；新浪字段为开、高、低、收。
         for name, index in (("open", 1), ("close", 2), ("low", 3), ("high", 4)):
-            if prices[name] != Decimal(str(official[index])):
+            if prices[name] != _official_decimal(official[index], name):
                 raise SnapshotError(f"SZSE/Sina {name} differs on {trade_date}")
         volume = _whole_number(source.get("volume"), "Sina share volume")
         amount = _whole_number(source.get("amount"), "Sina yuan amount")
         official_hands = _whole_number(official[7], "SZSE hand volume")
         if abs(volume - official_hands * 100) > 50:
             raise SnapshotError(f"SZSE/Sina volume differs on {trade_date}")
-        if Decimal(amount) != Decimal(str(official[8])):
+        if Decimal(amount) != _official_decimal(official[8], "amount"):
             raise SnapshotError(f"SZSE/Sina amount differs on {trade_date}")
         bars.append(DailyBar(
             trade_date=trade_date,
@@ -170,6 +179,19 @@ def _daily_bars(sina_rows: dict[str, dict], official_rows: dict[str, list]) -> t
             close_cny=format(prices["close"], ".2f"),
             volume_shares=str(volume), amount_cny=str(amount)))
     return tuple(bars)
+
+
+def _official_decimal(value: object, label: str) -> Decimal:
+    """拒绝官方价格/成交额中的布尔、缺失、非数值与非有限值，不填零。"""
+    if isinstance(value, bool) or not isinstance(value, (str, int, Decimal)):
+        raise SnapshotError(f"invalid SZSE {label}")
+    try:
+        result = Decimal(str(value))
+    except InvalidOperation as error:
+        raise SnapshotError(f"invalid SZSE {label}") from error
+    if not result.is_finite() or result < 0:
+        raise SnapshotError(f"invalid SZSE {label}")
+    return result
 
 
 def build_payload(sina_raw: bytes, official_raw: bytes, pdf_raw: bytes,
@@ -250,12 +272,16 @@ def _fetch_original(url: str, params: Optional[dict[str, str]] = None,
     if (url == SZSE_URL and params != SZSE_PARAMS) or \
             (url != SZSE_URL and params is not None):
         raise SnapshotError("unapproved original source parameters")
+    started = time.monotonic()
     with requests.get(url, params=params, timeout=(5, 15),
                       allow_redirects=False, stream=True) as response:
         if response.status_code != 200:
             raise SnapshotError(f"source HTTP status {response.status_code}")
         content = bytearray()
         for chunk in response.iter_content(chunk_size=65536):
+            # 总读取预算 30 秒；阻塞读取另受 15 秒 read timeout 限制。
+            if time.monotonic() - started > 30:
+                raise SnapshotError("source total read deadline exceeded")
             content.extend(chunk)
             if len(content) > _MAX_ORIGINAL_BYTES:
                 raise SnapshotError("source original exceeds one megabyte")
@@ -276,6 +302,15 @@ def main() -> None:
     parser.add_argument("--formal-pdf", type=Path)
     parser.add_argument("--retrieved-at")
     args = parser.parse_args()
+    if args.data_root.is_symlink() or (args.data_root / "metadata.sqlite").exists():
+        parser.error("data root must be a separate, non-demo slice directory")
+    from pmi.writer_lock import writer_lock
+    with writer_lock(args.data_root):
+        _run_import(args, parser)
+
+
+def _run_import(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """在跨进程独占锁内执行原固定窗口导入，保持旧重放契约。"""
     supplied = (args.sina_raw, args.official_raw, args.pdf, args.formal_pdf)
     if any(supplied) and (not all(supplied) or not args.retrieved_at):
         parser.error("replay requires all four originals and their retrieval timestamp")

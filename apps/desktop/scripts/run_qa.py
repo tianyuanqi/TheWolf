@@ -75,6 +75,7 @@ def main() -> int:
         WOLF_DEV_PORT=str(args.frontend_port),
         WOLF_SERVICE_PORT=str(args.service_port),
         WOLF_SLICE_DATA_ROOT=str(data_root),
+        WOLF_ENABLE_DATA_UPDATE="1",
     )
     with tempfile.TemporaryDirectory(prefix="thewolf-qa-config-") as directory:
         config = Path(directory) / "tauri-qa.json"

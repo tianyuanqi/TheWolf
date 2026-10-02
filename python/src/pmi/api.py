@@ -7,11 +7,13 @@ import sqlite3
 import sys
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, Field
 
+from pmi.data_update import start_update, update_status
 from pmi.snapshot import SnapshotError, read_pdf, read_snapshot
 from pmi.storage import demo_research, document_evidence, initialize_demo_data
 
@@ -40,7 +42,7 @@ app.add_middleware(
     allow_origins=[origin for origin in (
         "http://127.0.0.1:5173", "http://127.0.0.1:5174", _dev_origin(),
         "tauri://localhost", "http://tauri.localhost") if origin],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["X-Wolf-Session"],
 )
 
@@ -169,3 +171,51 @@ def snapshot_pdf(snapshot_id: str, object_id: str) -> Response:
     return Response(content, media_type="application/pdf",
                     headers={"Cache-Control": "no-store",
                              "Content-Disposition": "inline; filename=announcement.pdf"})
+
+
+class UpdateRequest(BaseModel):
+    """更新不接受客户端来源、目录、证券或时间参数。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UpdateStatus(BaseModel):
+    """定义本地更新任务阶段、结果和固定快照关联的输出契约。"""
+
+    stage: Literal["idle", "preparing", "fetching_sina", "fetching_szse", "validating", "publishing", "completed", "failed", "interrupted"]
+    job_id: Optional[str] = None
+    result: Optional[Literal["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"]] = None
+    enabled: bool = False
+    message: Optional[str] = None
+    started_at: Optional[str] = None
+    observed_at: Optional[str] = None
+    last_success_at: Optional[str] = None
+    target_start: Optional[str] = None
+    target_end: Optional[str] = None
+    previous_snapshot_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    added_dates: list[str] = Field(default_factory=list)
+    removed_dates: list[str] = Field(default_factory=list)
+    revised_dates: list[str] = Field(default_factory=list)
+
+
+@app.get("/api/slice/update", dependencies=[Depends(_authorized)], response_model=UpdateStatus)
+def slice_update_status() -> dict:
+    """返回本地检查状态及写入启用状态，轮询不采集上游。"""
+    try:
+        return {**update_status(_slice_root()), "enabled": os.environ.get("WOLF_ENABLE_DATA_UPDATE") == "1"}
+    except (SnapshotError, OSError, ValueError, sqlite3.Error) as error:
+        raise HTTPException(status_code=409, detail={"code": "update_status_invalid", "message": "本地更新状态不可用"}) from error
+
+
+@app.post("/api/slice/update", dependencies=[Depends(_authorized)], status_code=202, response_model=UpdateStatus)
+def slice_update(body: UpdateRequest, request: Request) -> dict:
+    """仅在显式启用的服务数据根启动手动更新，拒绝客户端参数注入。"""
+    if request.query_params:
+        raise HTTPException(status_code=422, detail={"code": "unexpected_parameters", "message": "更新不接受自选参数"})
+    if os.environ.get("WOLF_ENABLE_DATA_UPDATE") != "1":
+        raise HTTPException(status_code=403, detail={"code": "update_disabled", "message": "此数据根尚未启用更新，请先完成隔离验证或原库切换"})
+    try:
+        return {**start_update(_slice_root()), "enabled": True}
+    except (SnapshotError, OSError, ValueError, sqlite3.Error) as error:
+        raise HTTPException(status_code=409, detail={"code": "update_unavailable", "message": str(error) if isinstance(error, SnapshotError) else "本地更新任务不可用"}) from error

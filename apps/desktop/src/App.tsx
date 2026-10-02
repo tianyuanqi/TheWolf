@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
 type Bar = { trade_date: string; open_cny: string; high_cny: string; low_cny: string;
@@ -14,11 +14,26 @@ type Slice = {
   document: Omit<DocumentRecord, "pdf_object_id">;
   documents?: DocumentRecord[];
 };
+type UpdateStatus = { job_id?: string | null; stage: string; result?: string | null; message?: string | null;
+  last_success_at?: string | null; enabled?: boolean; snapshot_id?: string };
+const ACTIVE_STAGES = ["preparing", "fetching_sina", "fetching_szse", "validating", "publishing"];
+const STAGE_LABELS: Record<string, string> = { preparing: "准备更新", fetching_sina: "获取新浪日线",
+  fetching_szse: "获取深交所对照", validating: "校验完整窗口", publishing: "保存新快照" };
+
+/** 将来源连接失败转为操作提示；原始诊断仍保留在本地任务状态中。 */
+function updateStatusText(status?: UpdateStatus): string | undefined {
+  if (status?.stage === "failed" && status.message?.startsWith("source network unavailable")) {
+    return "无法连接行情来源，此次检查未完成。已保存的日线和公告仍可读取，最近成功检查时间未更新。请检查网络或代理设置后重试。";
+  }
+  return status?.message ?? undefined;
+}
 
 /** 携带桌面会话凭据读取本地 API，并将服务端错误转为可见提示。 */
-async function request(path: string, token: string): Promise<Response> {
+async function request(path: string, token: string, method = "GET"): Promise<Response> {
   const response = await fetch(path, {
-    headers: { "X-Wolf-Session": token }, signal: AbortSignal.timeout(8000),
+    method, body: method === "POST" ? "{}" : undefined,
+    headers: { "X-Wolf-Session": token, ...(method === "POST" ? { "Content-Type": "application/json" } : {}) },
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: { message?: string } } | null;
@@ -31,6 +46,13 @@ function formatInteger(value: string): string {
   return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/** PDF 响应完整读取后再次核对选择代次，过期响应不创建或展示对象 URL。 */
+export async function readEvidencePdf(path: string, token: string, isCurrent: () => boolean): Promise<string | undefined> {
+  const response = await request(path, token);
+  const blob = await response.blob();
+  return isCurrent() ? URL.createObjectURL(blob) : undefined;
+}
+
 /** 展示固定快照的日线与公告，并按公告对象读取同版本原件。 */
 export function App() {
   const [token, setToken] = useState<string>();
@@ -41,6 +63,15 @@ export function App() {
   const [pdfUrl, setPdfUrl] = useState<string>();
   const [selectedPdfId, setSelectedPdfId] = useState<string>();
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [update, setUpdate] = useState<UpdateStatus>();
+  const [updating, setUpdating] = useState(false);
+  const [startingUpdate, setStartingUpdate] = useState(false);
+  const [updateError, setUpdateError] = useState<string>();
+  const pdfGeneration = useRef(0);
+  const pollStarted = useRef(0);
+  const updateStarting = useRef(false);
+  const uncertainPost = useRef(false);
+  const previousJob = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!isTauri()) {
@@ -61,6 +92,10 @@ export function App() {
     request("/api/slice", token).then((response) => response.json() as Promise<Slice>)
       .then((nextSlice) => {
         if (cancelled) return;
+        pdfGeneration.current += 1;
+        setPdfUrl(undefined);
+        setSelectedPdfId(undefined);
+        setPdfLoading(false);
         setSlice(nextSlice);
         setError(undefined);
         setLoading(false);
@@ -76,21 +111,105 @@ export function App() {
     return () => { cancelled = true; };
   }, [token, attempt]);
 
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    request("/api/slice/update", token).then((response) => response.json() as Promise<UpdateStatus>)
+      .then((status) => {
+        if (cancelled) return;
+        setUpdate(status);
+        if (ACTIVE_STAGES.includes(status.stage)) {
+          pollStarted.current = Date.now();
+          setUpdating(true);
+        }
+      }).catch(() => { if (!cancelled) setUpdateError("更新状态读取失败，可点击核对结果"); });
+    return () => { cancelled = true; };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !updating) return;
+    let cancelled = false;
+    let timer: number;
+    async function poll() {
+      try {
+        const status = await (await request("/api/slice/update", token!)).json() as UpdateStatus;
+        if (cancelled) return;
+        setUpdate(status);
+        const awaitingSubmission = uncertainPost.current && status.job_id === previousJob.current;
+        if (!awaitingSubmission) {
+          uncertainPost.current = false;
+          setUpdateError(undefined);
+        }
+        if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
+          setUpdating(false);
+          if (status.stage === "completed") setAttempt((value) => value + 1);
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+        setUpdateError("服务暂时无法连接，正在核对本地结果；请勿重复发起采集");
+      }
+      if (Date.now() - pollStarted.current > 120000) {
+        setUpdating(false);
+        setUpdateError("更新结果待核对，请点击核对结果后再发起新任务");
+        return;
+      }
+      timer = window.setTimeout(poll, 800);
+    }
+    void poll();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [token, updating]);
+
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
   /** 从当前固定快照读取公告原件，避免切换快照后误用其他版本的 PDF。 */
   async function openEvidence(document: DocumentRecord) {
     if (!slice || !token) return;
+    const generation = ++pdfGeneration.current;
     setPdfLoading(true);
     try {
-      const response = await request(`/api/snapshots/${slice.snapshot_id}/pdf/${document.pdf_object_id}`, token);
-      setPdfUrl(URL.createObjectURL(await response.blob()));
+      const nextPdfUrl = await readEvidencePdf(`/api/snapshots/${slice.snapshot_id}/pdf/${document.pdf_object_id}`, token,
+        () => generation === pdfGeneration.current);
+      if (!nextPdfUrl) return;
+      if (generation !== pdfGeneration.current) { URL.revokeObjectURL(nextPdfUrl); return; }
+      setPdfUrl(nextPdfUrl);
       setSelectedPdfId(document.pdf_object_id);
       setError(undefined);
     } catch (reason) {
+      if (generation !== pdfGeneration.current) return;
       setError(reason instanceof Error ? reason.message : "公告原件不可用");
     } finally {
-      setPdfLoading(false);
+      if (generation === pdfGeneration.current) setPdfLoading(false);
+    }
+  }
+
+  /** POST 超时也先查本地状态，避免重复抓取；核对按钮始终只读取结果。 */
+  async function updateDailyBars(checkOnly = false) {
+    if (!token || updateStarting.current) return;
+    updateStarting.current = true;
+    setStartingUpdate(true);
+    if (!checkOnly) {
+      previousJob.current = update?.job_id;
+      uncertainPost.current = true;
+    }
+    pollStarted.current = Date.now();
+    setUpdateError(undefined);
+    try {
+      const status = await (await request("/api/slice/update", token, checkOnly ? "GET" : "POST"))
+        .json() as UpdateStatus;
+      setUpdate((previous) => ({ ...previous, ...status }));
+      const awaitingSubmission = checkOnly && uncertainPost.current && status.job_id === previousJob.current;
+      if (!awaitingSubmission) uncertainPost.current = false;
+      if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
+        setUpdating(false);
+        if (status.stage === "completed") setAttempt((value) => value + 1);
+      } else setUpdating(true);
+    } catch {
+      setUpdateError("请求结果待核对，正在查询本地任务状态");
+      setUpdating(true);
+    } finally {
+      updateStarting.current = false;
+      setStartingUpdate(false);
     }
   }
 
@@ -148,7 +267,17 @@ export function App() {
         </section>
         <section className="card" aria-labelledby="bars-title">
           <div className="section-heading"><h2 id="bars-title">未复权日线</h2>
+            <button type="button" disabled={startingUpdate || updating || !update?.enabled || !!updateError}
+              onClick={() => updateDailyBars()}>更新日线</button>
             <span>{slice.bars.length} 行 · 价格 元/股 · 成交量 股 · 成交额 元</span></div>
+          <p className="note">完整日线不含上海时区当日 · 最近成功检查：{update?.last_success_at
+            ? new Date(update.last_success_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "未知"}</p>
+          {!update?.enabled && <p className="note">此数据根尚未启用更新。</p>}
+          <p role="status" className={update?.stage === "failed" || update?.stage === "interrupted" ? "warning" : "coverage"}>
+            {startingUpdate ? "正在发起更新…" : updating ? `${STAGE_LABELS[update?.stage ?? ""] ?? "核对更新结果"}…` : updateStatusText(update)}</p>
+          {updateError && <p role="alert" className="warning">{updateError}</p>}
+          {(updateError || update?.stage === "interrupted") && <button type="button" disabled={updating}
+            onClick={() => updateDailyBars(true)}>核对结果</button>}
           <div className="table-scroll" role="region" aria-label="日线数据表" tabIndex={0}>
             <table><thead><tr><th scope="col">交易日</th><th scope="col">开盘</th>
               <th scope="col">最高</th><th scope="col">最低</th><th scope="col">收盘</th>
