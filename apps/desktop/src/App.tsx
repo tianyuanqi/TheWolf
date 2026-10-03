@@ -17,6 +17,7 @@ type Slice = {
 type UpdateStatus = { job_id?: string | null; stage: string; result?: string | null; message?: string | null;
   last_success_at?: string | null; enabled?: boolean; snapshot_id?: string };
 const ACTIVE_STAGES = ["preparing", "fetching_sina", "fetching_szse", "validating", "publishing"];
+const UPDATE_POLL_LIMIT_MS = 120000;
 const STAGE_LABELS: Record<string, string> = { preparing: "准备更新", fetching_sina: "获取新浪日线",
   fetching_szse: "获取深交所对照", validating: "校验完整窗口", publishing: "保存新快照" };
 
@@ -67,10 +68,12 @@ export function App() {
   const [updating, setUpdating] = useState(false);
   const [startingUpdate, setStartingUpdate] = useState(false);
   const [updateError, setUpdateError] = useState<string>();
+  const [updateNotice, setUpdateNotice] = useState<string>();
   const pdfGeneration = useRef(0);
   const pollStarted = useRef(0);
   const updateStarting = useRef(false);
   const uncertainPost = useRef(false);
+  const submissionStarted = useRef(0);
   const previousJob = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export function App() {
         if (cancelled) return;
         setUpdateError("服务暂时无法连接，正在核对本地结果；请勿重复发起采集");
       }
-      if (Date.now() - pollStarted.current > 120000) {
+      if (Date.now() - pollStarted.current > UPDATE_POLL_LIMIT_MS) {
         setUpdating(false);
         setUpdateError("更新结果待核对，请点击核对结果后再发起新任务");
         return;
@@ -183,7 +186,7 @@ export function App() {
     }
   }
 
-  /** POST 超时也先查本地状态，避免重复抓取；核对按钮始终只读取结果。 */
+  /** POST 超时先只读核对；等待截止后确认没有新任务且本地任务未运行，才恢复人工发起入口。 */
   async function updateDailyBars(checkOnly = false) {
     if (!token || updateStarting.current) return;
     updateStarting.current = true;
@@ -191,6 +194,8 @@ export function App() {
     if (!checkOnly) {
       previousJob.current = update?.job_id;
       uncertainPost.current = true;
+      submissionStarted.current = Date.now();
+      setUpdateNotice(undefined);
     }
     pollStarted.current = Date.now();
     setUpdateError(undefined);
@@ -199,6 +204,15 @@ export function App() {
         .json() as UpdateStatus;
       setUpdate((previous) => ({ ...previous, ...status }));
       const awaitingSubmission = checkOnly && uncertainPost.current && status.job_id === previousJob.current;
+      // 相同旧终态不能证明本次成功。只在等待截止后的人工 GET 成功时解除等待，绝不自动补发 POST。
+      // 提示仅说明此刻未发现新任务；之后的手动请求仍由服务端单写者锁协调。
+      if (awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)
+          && Date.now() - submissionStarted.current > UPDATE_POLL_LIMIT_MS) {
+        uncertainPost.current = false;
+        setUpdating(false);
+        setUpdateNotice("未发现新的更新任务。已结束本次等待，可手动再次点击“更新日线”。已保存的日线和公告仍可读取。");
+        return;
+      }
       if (!awaitingSubmission) uncertainPost.current = false;
       if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
         setUpdating(false);
@@ -274,7 +288,8 @@ export function App() {
             ? new Date(update.last_success_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "未知"}</p>
           {!update?.enabled && <p className="note">此数据根尚未启用更新。</p>}
           <p role="status" className={update?.stage === "failed" || update?.stage === "interrupted" ? "warning" : "coverage"}>
-            {startingUpdate ? "正在发起更新…" : updating ? `${STAGE_LABELS[update?.stage ?? ""] ?? "核对更新结果"}…` : updateStatusText(update)}</p>
+            {startingUpdate ? "正在发起更新…" : updating ? `${STAGE_LABELS[update?.stage ?? ""] ?? "核对更新结果"}…`
+              : updateNotice ?? (uncertainPost.current ? "尚未确认新的更新任务，已保存的数据仍可读取。" : updateStatusText(update))}</p>
           {updateError && <p role="alert" className="warning">{updateError}</p>}
           {(updateError || update?.stage === "interrupted") && <button type="button" disabled={updating}
             onClick={() => updateDailyBars(true)}>核对结果</button>}

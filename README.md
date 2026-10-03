@@ -90,6 +90,8 @@ python/.venv/bin/python -m pmi.sina_slice --data-root "$PWD/.local-data/slice-00
 
 V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、新响应可读；无外部网络，临时模块自动清理。
 
+V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 App 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
+
 V-PY 自动包含 `test_data_update` 与 API 更新反例。V-MIG 的新增旧代码合成库专项入口：从仓库根先导出真实旧版存储模块，再执行；脚本只使用自动清理的临时数据根，不联网、不写原库。
 
 ```bash
