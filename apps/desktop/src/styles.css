@@ -18,7 +18,7 @@ dd { margin: 4px 0 0; font-weight: 700; overflow-wrap: anywhere; }
 .status.error { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 button { border: 0; border-radius: 8px; padding: 10px 14px; color: #07101f; background: #9cc4ff; cursor: pointer; font-weight: 700; }
 button:hover { background: #c0d9ff; }
-button:disabled { opacity: .65; cursor: wait; }
+button:disabled { opacity: .65; cursor: not-allowed; }
 button:focus-visible, a:focus-visible, .table-scroll:focus-visible { outline: 3px solid #f5d27a; outline-offset: 3px; }
 a { color: #a8ccff; }
 .external-link { padding: 0; border: 0; background: none; color: #a8ccff; text-decoration: underline; font: inherit; font-weight: 500; cursor: pointer; }

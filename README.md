@@ -68,7 +68,15 @@ python/.venv/bin/python -m pip install -e python
 WOLF_DATA_ROOT="$PWD/.local-data" python/.venv/bin/python -m uvicorn pmi.api:app --app-dir python/src --host 127.0.0.1 --port 8000
 ```
 
-真实切片页面须用 Tauri 桌面开发窗口；它管理本地 Python 服务和会话凭据，无需先手工启动服务：
+日常使用从以下入口打开Tauri桌面窗口；它管理本地Python服务和会话凭据，无需先手工启动服务或设置数据环境变量：
+
+```bash
+cd apps/desktop && npm start
+```
+
+日常入口固定读取`.local-data/slice-002245-sina`并启用“更新日线”。启动只读取本地快照，不请求行情来源、不复制测试库、不提前迁移；用户主动点击后才获取/校验/发布。旧结构在首次成功发布事务中按已验证路径追加观察索引，旧快照和公告保留；首次启用前的一致性备份与恢复证据见[当前状态](docs/status.md)。独立QA入口仍只操作指定隔离根。
+
+需要只读开发窗口时使用以下入口；默认不启用更新，显式传入`WOLF_ENABLE_DATA_UPDATE=0`可覆盖调用环境：
 
 ```bash
 cd apps/desktop && npm run tauri -- dev
@@ -105,7 +113,7 @@ python/.venv/bin/python -m pmi.sina_slice --data-root "$PWD/.local-data/slice-00
 
 ### 日线手动更新（隔离根）
 
-在已准备两份公告的隔离根使用上方 `run_qa.py` 启动桌面，点击“更新日线”。QA 入口显式启用 `WOLF_ENABLE_DATA_UPDATE=1`；默认桌面服务不启用写入，原库切换须另行授权和完成一致性备份/恢复验证。空库先准备切片，不能用更新按钮发现或补下载公告。
+在已准备两份公告的隔离根使用上方 `run_qa.py` 启动桌面，点击“更新日线”。QA入口显式启用`WOLF_ENABLE_DATA_UPDATE=1`；只读开发入口默认不启用写入，日常`npm start`入口启用正式库手动更新。空库先准备切片，不能用更新按钮发现或补下载公告。
 
 更新只采集 002245 新浪未复权日线及深交所对照，按[官方日历](python/src/pmi/trading_calendar.py)展示最近 60 个完整开市日，不含上海时区当日。当前日历覆盖 2026 年，覆盖外或不足 60 日拒绝更新。旧快照和两份 PDF 保留，失败可继续离线阅读。每源一次请求、无自动重试，单源 45 秒硬截止，连接/读取超时 5/15 秒，原响应上限 1 MB；不会自动定时采集。客户端超时先“核对结果”，该操作只查询本地任务。
 
@@ -114,6 +122,8 @@ python/.venv/bin/python -m pmi.sina_slice --data-root "$PWD/.local-data/slice-00
 V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、新响应可读；无外部网络，临时模块自动清理。
 
 V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 App 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
+
+V-FE的日常启动入口专项：在`apps/desktop`运行`node --test scripts/start_daily.test.mjs`，以临时npm替身核对固定正式根/端口/构建目录、覆盖QA环境及非零退出/终止信号。替身不启动真实Tauri、不读取或写入正式数据、不请求来源；实际桌面启动和正式库保持按任务另外核验。
 
 V-PY 自动包含 `test_data_update` 与 API 更新反例。V-MIG 的新增旧代码合成库专项入口：从仓库根先导出真实旧版存储模块，再执行；脚本只使用自动清理的临时数据根，不联网、不写原库。
 
