@@ -220,3 +220,45 @@ test('重复点击保护及正常受理后运行/完成路径保持', async () =
     assert.equal(h.state.slices, 2);
   } finally { h.close(); }
 });
+
+for (const route of ['direct', 'running', 'poll']) {
+  for (const terminal of ['completed', 'failed', 'interrupted']) {
+    test(`R02：恢复后只读核对晚到任务，${route}/${terminal} 清除过期提示`, async () => {
+      const h = await harness({ stage: 'interrupted', job_id: 'old-job', message: '旧中断结果' });
+      try {
+        await h.click('更新日线'); await h.advance(120001); await h.click('核对结果');
+        assert.equal(h.button('更新日线').props.disabled, false, '保持R01有限恢复');
+        assert.match(h.text(), /未发现新的更新任务/);
+        await h.click('核对结果');
+        assert.match(h.text(), /未发现新的更新任务/, '旧任务未变时仍保留恢复提示');
+        assert.equal(h.state.slices, 1);
+        if (route === 'running') {
+          h.state.status = { ...h.state.status, stage: 'fetching_sina', job_id: 'late-job' };
+          await h.click('核对结果');
+          assert.equal(h.button('更新日线').props.disabled, true);
+          assert.match(h.text(), /获取新浪日线/);
+        }
+        if (route === 'poll') {
+          // 人工 GET 暂时失败，随后由轮询首次发现晚到任务，单独覆盖轮询清理提示的路径。
+          h.state.getFails = true;
+          await h.click('核对结果');
+          assert.equal(h.button('更新日线').props.disabled, true);
+          h.state.getFails = false;
+        }
+        const message = `晚到任务真实结果：${terminal}`;
+        const successAt = terminal === 'completed' ? '2026-10-03T01:00:00Z' : oldSuccess;
+        h.state.status = { ...h.state.status, job_id: 'late-job', stage: terminal, message,
+          last_success_at: successAt };
+        if (route === 'direct') await h.click('核对结果');
+        else await h.advance(800);
+        assert.match(h.text(), new RegExp(message));
+        assert.ok(!h.text().includes('未发现新的更新任务'));
+        assert.equal(h.button('更新日线').props.disabled, false);
+        assert.equal(h.state.posts, 1, '全部核对和轮询均只读，不自动重发');
+        assert.equal(h.state.slices, terminal === 'completed' ? 2 : 1, '仅成功刷新，失败和中断保留旧数据');
+        const displayedSuccess = new Date(successAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        assert.ok(h.text().includes(displayedSuccess), '消费者显示服务端确认的成功时间');
+      } finally { h.close(); }
+    });
+  }
+}

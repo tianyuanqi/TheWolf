@@ -138,6 +138,8 @@ export function App() {
         const status = await (await request("/api/slice/update", token!)).json() as UpdateStatus;
         if (cancelled) return;
         setUpdate(status);
+        // 新任务证据取代旧请求的恢复提示；相同旧任务仍保留“未发现新任务”。
+        if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
         const awaitingSubmission = uncertainPost.current && status.job_id === previousJob.current;
         if (!awaitingSubmission) {
           uncertainPost.current = false;
@@ -203,6 +205,7 @@ export function App() {
       const status = await (await request("/api/slice/update", token, checkOnly ? "GET" : "POST"))
         .json() as UpdateStatus;
       setUpdate((previous) => ({ ...previous, ...status }));
+      if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
       const awaitingSubmission = checkOnly && uncertainPost.current && status.job_id === previousJob.current;
       // 相同旧终态不能证明本次成功。只在等待截止后的人工 GET 成功时解除等待，绝不自动补发 POST。
       // 提示仅说明此刻未发现新任务；之后的手动请求仍由服务端单写者锁协调。
