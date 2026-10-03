@@ -4,6 +4,33 @@
 
 协作规则见 [AGENTS.md](AGENTS.md)；当前阶段、授权、进展与下一步统一见 [项目状态](docs/status.md)。
 
+## 验证入口
+
+本节是当前验证命令的统一索引；按 [Task-Workflow 第 10 节](docs/Task-Workflow.md#10-稳定验证入口与证据)选取适用项，不要求每次全部执行。下列路径相对仓库根目录，工作目录另列；从固定导出验证时，路径应指向该导出，解释器可复用已核对的本地环境，源码导入必须固定到被测版本。
+
+环境：Python 命令使用项目 `python/.venv`（当前受测组合为 macOS arm64 / Python 3.12，准备方式见下文）；前端需已安装锁文件对应依赖和 Node/npm；Rust 需工具链及本机 Tauri SDK，`--offline` 还需缓存依赖齐备。缺失时记录阻塞并按任务授权处理，不把环境失败算作业务断言失败。回环冒烟需要本机 socket 权限。
+
+| ID / 范围 | 工作目录 | 实际入口 | 结果信号与边界 |
+|---|---|---|---|
+| V-DOC 文档 | 仓库根 | `git diff --check`；有暂存内容时另执行 `git diff --cached --check` | 退出 0 仅说明对应差异空白检查通过；另检查本轮全部候选 Markdown 的本地链接/锚点、围栏和引用，含未跟踪文件。当前无统一纳管 Markdown 检查器，须记录所用方法 |
+| V-PY Python | 仓库根 | `PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest discover -s python/tests -v` | 测试退出 0 且无失败；合成夹具与临时数据，覆盖范围以实际测试为准，不代表真实来源或原库迁移通过 |
+| V-API 实际回环 API | 仓库根 | `PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/live_service_smoke.py` | 临时合成快照；health/snapshot/PDF 200、缺凭据 401、退出后端口关闭；不验证原生 UI |
+| V-FE 前端 | `apps/desktop` | `npm run build` | `package.json` 实际执行 `tsc -b` 和 Vite 构建；退出 0，产物为构建输出，不代替 UI 检查 |
+| V-RUST 桌面 Rust | `apps/desktop/src-tauri` | `cargo fmt --check`、`cargo check --locked --offline`、`cargo test --locked --offline`（按改动选择，分别记录结果） | 格式/编译/生命周期单测各有结果；会生成本地构建产物，不证明分发包可用 |
+| V-LIFE 父进程退出 | 仓库根 | `PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/service_parent_smoke.py` | 临时隔离根与动态回环端口；父管道关闭后子服务退出、端口释放；不等同全部原生关闭路径 |
+| V-UI 原生界面 | 仓库根 | [桌面隔离验证](#桌面隔离验证)中的 `run_qa.py` | 需要预先准备独立数据根；按任务操作检查加载/错误/恢复、受影响按钮、窗口及键盘路径，记录实测或用户反馈，退出后核对本次端口/进程 |
+| V-MIG 存储与迁移 | 仓库根或固定隔离导出 | V-PY 中 `test_snapshot`、`test_sina_slice` 的适用测试；旧代码建库和完整适配器专项复现参考[已归档报告 §12](docs/test-reports/TASK-20260927-01-review.md#12-文档归档与临时证据重建--2026-09-29) | 检查旧固定视图、观察顺序、失败恢复；单元夹具不能代替真实旧版本建库的兼容验证。报告探针固定于其中 SHA，新任务须核对/适配目标版本；需真实原件时核对外部副本哈希，缺失如实记录 |
+
+V-PY 可按影响选择模块，例如仅存储/适配器回归时，从仓库根运行：
+
+```bash
+PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_snapshot test_sina_slice -v
+```
+
+选择子集时说明覆盖理由；修改公共基础、依赖或影响难以限定时运行全套。无论脚本是否正常退出，都按 [Task-Workflow 第 10.3 节](docs/Task-Workflow.md#103-测试结束后的配置与状态恢复)核验临时服务/数据清理及配置、代理、数据指向和应用状态恢复，不停止其他会话的服务。运行结果与恢复情况按 Task-Workflow 第 7/10 节记录，README 不维护实时通过状态。
+
+以上入口在 2026-09-30 按现有源码、配置和脚本静态核对；既往运行证据见[评审报告](docs/test-reports/TASK-20260927-01-review.md)。本轮整理没有重新执行业务测试。文档检查器、通用旧库迁移测试入口仍有工具化空间，不能宣称已有统一脚本。
+
 ## 设计交付包 · 2026-09-18
 
 建议依次阅读：
@@ -49,7 +76,9 @@ cd apps/desktop && npm run tauri -- dev
 
 此命令依赖项目 `python/.venv`，默认占用本机 8000/5173 端口。同一配置只保留一个桌面进程；再次打开会唤起已有窗口。验证时复用该窗口，退出后再启动下一轮；端口仍被占用时先查明并退出占用者，再点“重试启动并读取”。当前 release 产物没有携带 Python 运行时，不能视为可分发安装包。
 
-确需并行验证时，先准备各自的隔离数据目录，再为每个会话指定不同的前端及服务端口。以下脚本生成对应的临时 Tauri 配置与独立应用标识，不修改默认配置或已有数据：
+### 桌面隔离验证
+
+先准备本次验证的隔离数据目录；确需并行验证时，为每个会话指定不同的前端及服务端口。以下脚本生成对应的临时 Tauri 配置与独立应用标识，不修改默认配置或已有数据；从仓库根目录执行：
 
 ```bash
 python/.venv/bin/python apps/desktop/scripts/run_qa.py \
@@ -58,17 +87,11 @@ python/.venv/bin/python apps/desktop/scripts/run_qa.py \
 
 `--data-root` 必须指向已存在的隔离目录，且不能是项目原始 `.local-data`。脚本也为每组端口使用独立的 Cargo 构建目录，避免并行热重载互相覆盖可执行文件。任一端口已被占用时会停止启动并提示复用旧窗口或换端口；退出验证会话后，应确认两个端口均已释放。不要让不同会话共用同一数据目录。
 
-执行 Python 存储验证：
+Python 测试和隔离回环冒烟统一见上方[验证入口](#验证入口) V-PY/V-API。
 
-```bash
-PYTHONPATH=python/src python/.venv/bin/python -m unittest discover -s python/tests -v
-```
+### 手动真实来源采集
 
-TASK-20260923-01 执行中的源中立存储和受保护 API 可用隔离合成夹具冒烟；此命令只绑定 loopback、自动清理临时数据，不采集真实行情：
-
-```bash
-PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/live_service_smoke.py
-```
+以下是会请求外部来源并写入真实数据根的业务操作，不属于默认验证入口；执行前核对当前授权，涉及旧库升级时先落实一致性备份与恢复方案。
 
 002245 的新浪未复权日线已在固定的 2026-07-03 至 2026-09-24 窗口按深交所官方接口逐日对账，并与 7 月业绩预告、8 月正式半年度报告存入独立的 `.local-data/slice-002245-sina`。旧单公告快照仍可按固定 ID 读取。手动重新获取并校验同一固定窗口的命令如下；新浪底层接口会返回该证券的完整历史响应，但只将目标 60 日标准化发布，原响应完整归档。新浪文档提示多次获取可能封禁 IP，不要频繁运行或设定时任务。
 
