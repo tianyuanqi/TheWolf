@@ -1,0 +1,3382 @@
+--- HEAD/README.md
++++ r4/README.md
+@@ -1,6 +1,8 @@
+-# Personal Market Intelligence
++# TheWolf
+ 
+-面向中长期投资者的本地个人市场研究系统。广度放在 A 股市场，深度放在少数重点公司。
++面向个人中长线投资者的本地研究工作台：提供 A 股与港股市场、行情、公司及资料看板，并围绕投资论点记录研究依据、决定及后续复核。默认入口为收盘后使用的市场总览，海外与商品序列提供外部环境。
++
++2026-10-04 已确认的产品范围见 [PRD](docs/PRD-V0.1.md)，交付顺序见 [路线图](docs/Implementation-Plan-V0.1.md)：先完成第一批市场与指标看板，再做论点—决策—复核闭环。当前可运行能力仍是下方单股日线与两份公告切片；新方向不表示上述功能已经实现。
+ 
+ 协作规则见 [AGENTS.md](AGENTS.md)；当前阶段、授权、进展与下一步统一见 [项目状态](docs/status.md)。
+ 
+@@ -31,22 +33,24 @@
+ 
+ 以上入口在 2026-09-30 按现有源码、配置和脚本静态核对；既往运行证据见[评审报告](docs/test-reports/TASK-20260927-01-review.md)。本轮整理没有重新执行业务测试。文档检查器、通用旧库迁移测试入口仍有工具化空间，不能宣称已有统一脚本。
+ 
+-## 设计交付包 · 2026-09-18
++## 产品与设计文档
++
++文档沿用原路径，2026-10-04 按方向讨论稿 v0.4 及后续确认修订；文件名 V0.1 和讨论稿 v0.4 都不能视为软件交付状态。
+ 
+ 建议依次阅读：
+ 
+ 1. [PRD V0.1](docs/PRD-V0.1.md)：产品目标、研究流程、页面、范围与验收。
+ 2. [Architecture V0.1](docs/Architecture-V0.1.md)：模块、数据流、运行方式、AI、证据、同步与恢复。
+-3. [Implementation Plan V0.1](docs/Implementation-Plan-V0.1.md)：版本路线、依赖、开发任务和发布门槛。
++3. [总体方向与分步开发计划 V0.1](docs/Implementation-Plan-V0.1.md)：后续开发的统一计划入口，包含 PLAN-P01/P02、M01–M08、R01–R03 的目标、依赖、交付物与完成条件；具体任务须关联相应步骤，计划本身不授权执行。
+ 
+ 架构附录：
+ 
+ - [核心数据模型](docs/Data-Model-V0.1.md)：时间语义、核心 schema、指标口径和存储预算。
+ - [数据源与验证清单](docs/Data-Sources-V0.1.md)：来源优先级、fallback、调研依据和技术风险。
+ 
+-设计依据为用户提供的项目说明。已明确的投资习惯、A 股为主、日线、单用户、本地优先、150 GB 软上限、证据要求、非交易系统等均作为约束保留。文档中的“建议默认值”是本次提案，可在设计确认时修改。
++已确认范围包括 A 股与港股主要指数、少量长期公共序列、重点证券、首批七组指标和后续论点闭环。日线级别、历史最终至少五年、默认不滚动删除、取消自选保留历史、150 GB 软上限与证据/时间正确性分别落实到需求和数据文档；具体序列、视觉、更新触发及历史能力仍有待设计或验证的部分。
+ 
+-上述 2026-09-18 设计包当时只核验了官方文档与公开页面。其后已完成本页下述 002245 真实切片和本地环境验证；完整历史覆盖、其他来源权限及分发打包仍待验证，进展以 [项目状态](docs/status.md) 为准。
++架构和数据模型包含演进候选，不能据表或目录存在认定已实现。旧路线完整保留作历史参考，旧任务书与审查结论不追溯改写；当前实现、授权和验证统一见项目状态。文档修订不启动开发任务、批量采集或数据库迁移。
+ 
+ ## 最小本地验证
+ 
+@@ -119,9 +123,9 @@
+ 
+ 受保护接口为 `POST /api/slice/update`（空 JSON 对象）和 `GET /api/slice/update`。服务端固定证券、URL、时间与数据根；POST 禁止额外字段和查询参数。文件锁协调 CLI 与服务，启动时以本地观察索引核对未完成任务。
+ 
+-V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、新响应可读；无外部网络，临时模块自动清理。
++V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、body读取中卸载后不遗留对象URL、已有PDF卸载/关闭/选择切换回收，以及新响应仍可读；使用真实Blob URL，网络全部隔离替代，临时模块与对象URL在测试结束时清理。
+ 
+-V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 App 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
++V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 LegacySliceView 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
+ 
+ V-FE的日常启动入口专项：在`apps/desktop`运行`node --test scripts/start_daily.test.mjs`，以临时npm替身核对固定正式根/端口/构建目录、覆盖QA环境及非零退出/终止信号。替身不启动真实Tauri、不读取或写入正式数据、不请求来源；实际桌面启动和正式库保持按任务另外核验。
+ 
+@@ -133,3 +137,27 @@
+ ```
+ 
+ 退出 0 且输出 `legacy code A/B same-time ... PASS` 表示旧代码建库、同刻重试、更新中断、固定视图及备份恢复断言通过。不存在旧提交/源码时记录材料缺失，不能用当前代码建库冒充。实际真实来源、桌面及原库切换证据仍须按任务单独核对。
++
++### 沪深300价格首版隔离验证
++
++本入口对应[任务 TASK-20261005-01](docs/tasks/TASK-20261005-01-csi300-price-slice.md)。指数写入由独立开关控制：QA追加 `--enable-index-update` 才启用；日常启动入口明确关闭指数写入。仍只在点击时更新，启动和GET不采集。指数位于所选父根的 `indices/csi000300`，与002245共用父根写锁，原002245接口和写开关保留。
++
++从仓库根执行专项检查：
++
++```bash
++PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_index test_index_tencent -v
++PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_service_smoke.py
++```
++
++第一条使用合成双源反例及真实中断子进程；第二条使用隔离合成库与真实回环服务，检查指数当前/固定视图、证据、旧切片和权限，并核验父管道退出及端口释放。均不访问金融来源、不操作正式库。前端在 `apps/desktop` 执行 `node --test scripts/index_view.test.cjs scripts/evidence_read.test.mjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs`，覆盖实际组件回调、绘图范围、迟到证据、更新结果及旧行为；React调度/传输替身不能代替原生界面验收。
++
++腾讯候选及P01中证原件离线重放使用下列命令；替换为本机真实证据根与新空隔离根。脚本校验固定两源/日历哈希及原始获取记录，保留原时间，不联网；材料缺失时失败，不补造原件或时间。此检查不代表新鲜手动更新成功。新发布只使用腾讯day分支和中证；旧东财契约快照及证据按原策略只读核验，不迁移或重写。
++
++```bash
++PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_replay_smoke.py \
++  --p01-root /absolute/path/to/p01-evidence \
++  --tencent-root /absolute/path/to/tencent-candidate-evidence \
++  --data-root /absolute/path/to/new-empty-isolated-root
++```
++
++原生UI沿用上方QA入口，可用成对 `--window-width 520 --window-height 560` 或 `1280/720` 覆盖本次临时窗口尺寸；不改正式Tauri配置。真实更新验证必须遵守任务书2026-10-06腾讯换源增补后的合计8个job/12次尝试/64 MiB预算，实际授权与剩余额度见[status](docs/status.md)；通过本次QA进程环境 `WOLF_INDEX_BUDGET_LEDGER=/absolute/path/to/shared-network-ledger.jsonl` 共用账本，换窗口继续原计数。该环境值仅供受控验证；每源单次请求、无重定向/重试、8 MiB正文上限、45秒硬截止及5/15秒连接/读取超时，保留代理/TLS。新鲜来源不可用时记录阻塞，不把离线重放改判A04成功。
+--- HEAD/apps/desktop/scripts/evidence_read.test.mjs
++++ r4/apps/desktop/scripts/evidence_read.test.mjs
+@@ -4,15 +4,141 @@
+ import path from "node:path";
+ import { fileURLToPath } from "node:url";
+ import test from "node:test";
++import vm from "node:vm";
++import { createRequire } from "node:module";
+ import ts from "typescript";
+ 
+ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const dependency = createRequire(path.join(appRoot, "package.json"));
++
++/** 执行真实组件及所有effect清理，使用可读/可撤销的真实Blob URL核验资源归属。 */
++async function componentHarness({ delayedBody = false, unmountOnCreate = false } = {}) {
++  const hooks = [], effects = [], created = [], revoked = [];
++  let cursor = 0, tree, completeBody, bodyStarted, mounted = true;
++  const started = new Promise(resolve => { bodyStarted = resolve; });
++  const react = {
++    useState(initial) {
++      const index = cursor++;
++      if (!hooks[index]) hooks[index] = { value: initial };
++      return [hooks[index].value, value => { hooks[index].value = typeof value === "function" ? value(hooks[index].value) : value; }];
++    },
++    useRef(initial) {
++      const index = cursor++;
++      if (!hooks[index]) hooks[index] = { current: initial };
++      return hooks[index];
++    },
++    useEffect(callback, dependencies) {
++      const index = cursor++, previous = hooks[index];
++      if (!previous || dependencies.some((value, i) => value !== previous.dependencies[i])) {
++        hooks[index] = { dependencies };
++        effects.push(() => { previous?.cleanup?.(); hooks[index].cleanup = callback(); });
++      }
++    },
++  };
++  const documents = ["forecast", "report"].map(id => ({ title: `合成${id}公告`, pdf_object_id: id,
++    issuer_name: "合成", published_at: null, physical_page: 1, evidence_text: "合成",
++    publication_precision: "unknown", source_url: "https://synthetic.invalid" }));
++  const slice = { snapshot_id: "fixed", instrument_code: "002245", instrument_name: "合成", exchange: "SZSE",
++    source_id: "synthetic", market_contract: { raw_publisher: "synthetic" }, calendar_dates: ["2026-09-30"],
++    bars: [], open_session_count: 1, observed_count: 0, unknown_missing_dates: [], complete_through_date: "2026-09-30", documents };
++  const source = await readFile(path.join(appRoot, "src", "LegacySliceView.tsx"), "utf8");
++  const code = ts.transpileModule(source, { compilerOptions: {
++    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
++  } }).outputText;
++  const module = { exports: {} };
++  function unmount() {
++    if (!mounted) return;
++    mounted = false;
++    for (const hook of hooks) hook?.cleanup?.();
++  }
++  vm.runInNewContext(code, {
++    module, exports: module.exports,
++    require: name => name === "react" ? react : name === "@tauri-apps/api/core" ? { invoke: async () => {} } : dependency(name),
++    fetch: async path => ({ ok: true,
++      json: async () => path.endsWith("/update") ? { enabled: false, stage: "idle" } : slice,
++      blob: () => {
++        bodyStarted();
++        if (delayedBody) return new Promise(resolve => { completeBody = resolve; });
++        return Promise.resolve(new Blob([path]));
++      },
++    }),
++    URL: {
++      createObjectURL(blob) {
++        const url = URL.createObjectURL(blob); created.push(url);
++        if (unmountOnCreate) unmount();
++        return url;
++      },
++      revokeObjectURL(url) { revoked.push(url); URL.revokeObjectURL(url); },
++    },
++    AbortSignal, Date, window: { setTimeout, clearTimeout },
++  });
++  function nodes(value) {
++    if (Array.isArray(value)) return value.flatMap(nodes);
++    if (!value || typeof value !== "object") return [];
++    return [value, ...nodes(value.props?.children)];
++  }
++  async function settle() {
++    assert.ok(mounted, "卸载后不得再次执行effect来代替生产回收");
++    for (let i = 0; i < 6; i++) {
++      cursor = 0; tree = module.exports.LegacySliceView({ sessionToken: "synthetic" });
++      while (effects.length) effects.shift()();
++      await new Promise(resolve => setImmediate(resolve));
++    }
++  }
++  await settle();
++  return { created, revoked, started, unmount, settle,
++    complete: () => completeBody(new Blob(["合成迟到PDF body"])),
++    open: index => nodes(tree).filter(node => node.type === "button" && node.props.children === "打开同版本原件")[index].props.onClick(),
++    close: () => nodes(tree).find(node => node.type === "button" && node.props.children === "关闭").props.onClick(),
++    frames: () => nodes(tree).filter(node => node.type === "iframe"),
++    cleanup: () => { unmount(); for (const url of created) URL.revokeObjectURL(url); },
++  };
++}
++
++test("M01-R01：body读取中卸载，迟到结果不创建对象URL", async () => {
++  const h = await componentHarness({ delayedBody: true });
++  try {
++    const pending = h.open(0); await h.started; h.unmount(); h.complete(); await pending;
++    assert.equal(h.created.length, 0); assert.equal(h.revoked.length, 0);
++  } finally { h.cleanup(); }
++});
++
++test("已有PDF在组件卸载时回收，真实Blob URL无法继续读取", async () => {
++  const h = await componentHarness();
++  try {
++    await h.open(0); await h.settle(); assert.equal(h.frames().length, 1);
++    const url = h.created[0]; assert.match(await (await fetch(url)).text(), /forecast/);
++    h.unmount(); assert.deepEqual(h.revoked, [url]); await assert.rejects(fetch(url));
++  } finally { h.cleanup(); }
++});
++
++test("正常PDF关闭与公告选择切换均回收旧URL，当前原件仍可读", async () => {
++  const h = await componentHarness();
++  try {
++    await h.open(0); await h.settle(); const first = h.created[0];
++    assert.match(h.frames()[0].props.title, /forecast/);
++    await h.open(1); await h.settle(); const second = h.created[1];
++    assert.deepEqual(h.revoked, [first]); await assert.rejects(fetch(first));
++    assert.match(h.frames()[0].props.title, /report/); assert.match(await (await fetch(second)).text(), /report/);
++    h.close(); await h.settle(); assert.equal(h.frames().length, 0);
++    assert.deepEqual(h.revoked, [first, second]); await assert.rejects(fetch(second));
++    await h.open(0); await h.settle(); assert.match(await (await fetch(h.created[2])).text(), /forecast/);
++  } finally { h.cleanup(); }
++});
++
++test("对象URL已创建但组件在接收前卸载，后置代次核对立即回收", async () => {
++  const h = await componentHarness({ unmountOnCreate: true });
++  try {
++    await h.open(0); assert.equal(h.created.length, 1);
++    assert.deepEqual(h.revoked, h.created); await assert.rejects(fetch(h.created[0]));
++  } finally { h.cleanup(); }
++});
+ 
+ test("加载中的旧 PDF 在快照切换后不显示，新响应仍可读取", async () => {
+   const directory = await mkdtemp(path.join(appRoot, "node_modules", ".wolf-evidence-test-"));
+   const originalFetch = globalThis.fetch;
+   try {
+-    const source = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
++    const source = await readFile(path.join(appRoot, "src", "LegacySliceView.tsx"), "utf8");
+     const compiled = ts.transpileModule(source, { compilerOptions: {
+       target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX,
+     } }).outputText;
+--- /dev/null
++++ r4/apps/desktop/scripts/index_view.test.cjs
+@@ -0,0 +1,196 @@
++/** 实际图表/解析/总览消费者的确定性检查，隔离替代React调度和传输。 */
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const vm = require('node:vm');
++const { test } = require('node:test');
++const ts = require('typescript');
++const desktop = path.resolve(__dirname, '..');
++function load(name, overrides = {}, cache = {}) {
++  if (overrides[name]) return overrides[name];
++  if (cache[name]) return cache[name];
++  const filename = path.join(desktop, 'src', name + (name === 'MarketOverview' || name === 'DailyCandlestick' ? '.tsx' : '.ts'));
++  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
++    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
++  }}).outputText;
++  const module = { exports: {} };
++  vm.runInNewContext(code, { module, exports: module.exports, Date: overrides.Date ?? Date,
++    window: overrides.window, AbortSignal, URL,
++    require: request => overrides[request] ?? (request.startsWith('./') ? load(request.slice(2), overrides, cache) : require(request)),
++  });
++  cache[name] = module.exports; return module.exports;
++}
++const bar = (trade_date, close = '105.00') => ({ trade_date, open: '100.00', high: '110.00', low: '90.00', close,
++  evidence_refs: [{ object_id: 'a'.repeat(64), locator: 'row' }, { object_id: 'b'.repeat(64), locator: 'row' }] });
++function view(id = 'c') {
++  const bars = Array.from({ length: 260 }, (_, i) => bar(new Date(Date.UTC(2025, 0, i + 1)).toISOString().slice(0,10)));
++  return { schema_version: 'csi300-price-snapshot-v1', snapshot_id: id.repeat(64), observation_id: 'd'.repeat(64),
++    instrument: { id: 'csi:000300:price', code: '000300', name: '沪深300' }, unit: '点', timezone: 'Asia/Shanghai', pit_grade: 'latest_only',
++    source_contract: {version: 'csi300-exact-ohlc-v1'}, bars, calendar_dates: bars.map(item => item.trade_date),
++    window: { start: bars[0].trade_date, end: bars.at(-1).trade_date, expected_count: 260, actual_count: 260 },
++    summary: { trade_date: bars.at(-1).trade_date, close: '105.00', daily_change_pct: '0.00', reason: null },
++    evidence: [{ object_id: 'a'.repeat(64), source: 'eastmoney', url: 'https://east.invalid' }, { object_id: 'b'.repeat(64), source: 'csindex', url: 'https://csi.invalid' }] };
++}
++function nodes(value) {
++  if (Array.isArray(value)) return value.flatMap(nodes);
++  if (!value || typeof value !== 'object') return [];
++  return [value, ...nodes(value.props?.children)];
++}
++function text(value) {
++  if (Array.isArray(value)) return value.map(text).join('');
++  if (!value || typeof value !== 'object') return value == null ? '' : String(value);
++  return text(value.props?.children);
++}
++/** 与生产组件使用同一回调，卸载时检查计时器清理。 */
++async function harness(component, props, request) {
++  const hooks = [], effects = [], timers = new Map();
++  let cursor = 0, timerId = 0, clock = 1000, tree;
++  const react = {
++    useState(initial) { const i = cursor++; if (!hooks[i]) hooks[i] = { value: initial }; return [hooks[i].value, value => { hooks[i].value = typeof value === 'function' ? value(hooks[i].value) : value; }]; },
++    useRef(initial) { const i = cursor++; if (!hooks[i]) hooks[i] = { current: initial }; return hooks[i]; },
++    useMemo(callback) { cursor++; return callback(); },
++    useEffect(callback, dependencies) { const i = cursor++, old = hooks[i]; if (!old || dependencies.some((value,j) => value !== old.dependencies[j])) { hooks[i] = { dependencies }; effects.push(() => { old?.cleanup?.(); hooks[i].cleanup = callback(); }); } },
++  };
++  class ClockDate extends Date { static now() { return clock; } }
++  const modules = load(component, { react, Date: ClockDate,
++    './LegacySliceView': { request }, window: { setTimeout: callback => { timers.set(++timerId,callback);return timerId; }, clearTimeout: id => timers.delete(id) } });
++  async function settle() { for (let n=0;n<8;n++) { cursor=0;tree=modules[component](props);while(effects.length) effects.shift()();await new Promise(resolve=>setImmediate(resolve)); } }
++  function find(label) { return nodes(tree).find(node=>node.type==='button' && node.props.children===label); }
++  await settle();
++  return { settle, nodes:()=>nodes(tree), tree:()=>tree, text:()=>text(tree), button:find,
++    click: async label=>{const node=find(label);assert.ok(node);assert.equal(!!node.props.disabled,false);await node.props.onClick();await settle();},
++    advance:async ms=>{clock+=ms;const callbacks=[...timers.values()];timers.clear();for(const callback of callbacks)callback();await settle();},
++    close:()=>{for(const hook of hooks)hook?.cleanup?.();assert.equal(timers.size,0);},
++  };
++}
++
++test('真实四值实体/影线、方向与缩放边界',()=>{
++  const { candleGeometry, zoomRange, panRange }=load('candlestickGeometry');
++  const geometry=candleGeometry(bar('2026-09-30'),0,10,90,110);
++  assert.equal(geometry.high,24);assert.equal(geometry.low,232);assert.equal(geometry.top,76);assert.equal(geometry.height,52);assert.equal(geometry.color,'#ff8a80');
++  assert.equal(candleGeometry(bar('2026-09-30','95.00'),0,10,90,110).color,'#69d6b0');
++  assert.equal(candleGeometry(bar('2026-09-30','100.00'),0,10,90,110).height,0);
++  const small=zoomRange({start:0,count:8},8,7,.1);assert.equal(small.count,8);assert.equal(small.start,0);
++  const zoom=zoomRange({start:200,count:60},260,250,.01);assert.equal(zoom.count,10);assert.ok(zoom.start<=250 && zoom.start+zoom.count>250);
++  assert.equal(panRange({start:0,count:60},260,-1).start,0);assert.equal(panRange({start:200,count:60},260,1).start,200);
++});
++
++test('运行时拒绝错单位/摘要/精度/固定依据和未知状态',()=>{
++  const {parseIndexView,parseIndexStatus,parseIndexEvidence}=load('indexTypes');
++  const item=view();assert.equal(parseIndexView(item).bars.length,260);
++  for(const mutate of [x=>x.unit='CNY',x=>x.bars[0].close='100.001',x=>x.summary.close='99.00',x=>x.bars[2].trade_date=x.bars[0].trade_date]) {
++    const invalid=structuredClone(item);mutate(invalid);assert.throws(()=>parseIndexView(invalid));
++  }
++  assert.throws(()=>parseIndexStatus({enabled:true,stage:'mystery'}));
++  assert.throws(()=>parseIndexEvidence({snapshot_id:'e'.repeat(64)},item,'a'.repeat(64)));
++});
++
++test('来源契约按版本校验，不将旧东财证据重标腾讯',()=>{
++  const {parseIndexView,parseIndexStatus}=load('indexTypes');
++  const old=view();const next=structuredClone(old);
++  next.source_contract.version='csi300-tencent-exact-ohlc-v2';next.evidence[0].source='tencent';
++  assert.equal(parseIndexView(next).evidence[0].source,'tencent');
++  assert.equal(parseIndexView(old).evidence[0].source,'eastmoney');
++  for(const mutate of [x=>x.source_contract.version='unknown',x=>delete x.source_contract,
++      x=>x.evidence[0].source='eastmoney',x=>x.evidence.reverse()]){
++    const invalid=structuredClone(next);mutate(invalid);assert.throws(()=>parseIndexView(invalid));
++  }
++  assert.equal(parseIndexStatus({enabled:true,stage:'fetching_tencent'}).stage,'fetching_tencent');
++});
++
++for(const source of ['eastmoney','tencent']){
++  test(`实际总览显示固定 ${source} 来源与原字段定位`,async()=>{
++    const item=view();if(source==='tencent'){item.source_contract.version='csi300-tencent-exact-ohlc-v2';item.evidence[0].source=source;}
++    const h=await harness('MarketOverview',{token:'synthetic',restart:async()=>{}},async url=>{
++      if(url.endsWith('/update'))return {json:async()=>({enabled:true,stage:'idle'})};
++      if(url.includes('/evidence/')){
++        const member=item.evidence.find(entry=>url.endsWith(entry.object_id));
++        return {json:async()=>({...member,snapshot_id:item.snapshot_id,observation_id:item.observation_id,
++          retrieval:{started_at:'2026-10-06T01:00:00Z',completed_at:'2026-10-06T01:00:01Z',published_at:null},
++          rows:item.bars.map(row=>({...row,locator:'$.data.sh000300.day[380]',raw_values:row})),
++          verification:'合成精确核对',unused_fields:['prec','version'],text_preview:'合成',preview_truncated:false})};
++      }
++      return {json:async()=>item};
++    });
++    try{
++      const chart=h.nodes().find(node=>typeof node.type==='function'&&node.type.name==='DailyCandlestick');
++      await chart.props.onEvidence(item.bars[0].trade_date);await h.settle();
++      assert.match(h.text(),source==='tencent'?/腾讯/:/东方财富/);
++      assert.match(h.text(),/中证官方/);assert.match(h.text(),/\$\.data\.sh000300\.day\[380\]/);
++      assert.match(h.text(),/prec（未解释元数据）/);
++    }finally{h.close();}
++  });
++}
++
++test('实际图表首尾键盘、范围无交集、缺口空位及输入错误保留范围',async()=>{
++  const bars=[bar('2026-09-28'),bar('2026-09-30','95.00')];const expected=['2026-09-28','2026-09-29','2026-09-30'];let chosen;
++  const h=await harness('DailyCandlestick',{bars,expectedDates:expected,onSelect:day=>chosen=day,onEvidence:day=>chosen=day});
++  try {
++    assert.match(h.text(),/缺失交易日：2026-09-29/);
++    assert.equal(h.nodes().filter(node=>node.type==='g').length,2);
++    const svg=h.nodes().find(node=>node.type==='svg');
++    svg.props.onKeyDown({key:'Home',preventDefault(){}});await h.settle();assert.equal(chosen,'2026-09-28');
++    svg.props.onKeyDown({key:'End',preventDefault(){}});await h.settle();assert.equal(chosen,'2026-09-30');
++    let inputs=h.nodes().filter(node=>node.type==='input');inputs[0].props.onChange({target:{value:'2026-10-01'}});inputs[1].props.onChange({target:{value:'2026-10-05'}});await h.settle();
++    h.nodes().find(node=>node.type==='form').props.onSubmit({preventDefault(){}});await h.settle();assert.match(h.text(),/空范围/);assert.equal(h.nodes().filter(node=>node.type==='g').length,0);
++    inputs=h.nodes().filter(node=>node.type==='input');inputs[0].props.onChange({target:{value:'2026-10-10'}});await h.settle();
++    h.nodes().find(node=>node.type==='form').props.onSubmit({preventDefault(){}});await h.settle();assert.match(h.text(),/范围无效/);assert.match(h.text(),/空范围/);
++  } finally {h.close();}
++});
++
++test('指数POST未送达，旧终态不得成功刷新；有界核对不自动重发',async()=>{
++  let posts=0,reads=0;const status={stage:'idle',job_id:null,enabled:true};
++  const h=await harness('MarketOverview',{token:'synthetic',restart:async()=>{}},async(url,token,method)=>{
++    if(method==='POST'){posts++;throw new Error('合成未送达');}
++    if(url.endsWith('/update'))return {json:async()=>({...status})};reads++;return {json:async()=>view()};
++  });
++  try {
++    await h.click('检查更新');assert.equal(h.button('检查更新').props.disabled,true);
++    await h.advance(120001);await h.click('核对结果');
++    assert.equal(h.button('检查更新').props.disabled,false);assert.equal(posts,1);assert.equal(reads,1);assert.match(h.text(),/未发现新的更新任务/);
++  }finally{h.close();}
++});
++
++test('迟到旧证据不能覆盖当前选择，切页卸载后响应不写入',async()=>{
++  const pending=[];const item=view();
++  const evidence=(member)=>({...member,snapshot_id:item.snapshot_id,observation_id:item.observation_id,
++    rows:item.bars.map(row=>({...row,locator:'row',raw_values:{open:row.open,high:row.high,low:row.low,close:row.close}})),
++    retrieval:{started_at:'2026-10-05T01:00:00Z',completed_at:'2026-10-05T01:00:01Z',published_at:null},
++    verification:'合成双源核对',unused_fields:[],text_preview:'合成',preview_truncated:false});
++  const h=await harness('MarketOverview',{token:'synthetic',restart:async()=>{}},async(url)=>{
++    if(url.endsWith('/update'))return {json:async()=>({enabled:true,stage:'idle'})};
++    if(url.includes('/evidence/')) return {json:()=>new Promise(resolve=>{pending.push(()=>resolve(evidence(item.evidence.find(member=>url.endsWith(member.object_id)))));})};
++    return {json:async()=>item};
++  });
++  try {
++    const chart=()=>h.nodes().find(node=>typeof node.type==='function' && node.type.name==='DailyCandlestick');
++    const old=chart().props.onEvidence(item.bars[0].trade_date);await h.settle();
++    chart().props.onSelect(item.bars[1].trade_date);await h.settle();
++    assert.ok(!h.text().includes('本地双源依据'));
++    assert.equal(pending.length,2);pending.splice(0).forEach(resolve=>resolve());await old;await h.settle();
++    assert.ok(!h.text().includes('本地双源依据'));
++    const fresh=chart().props.onEvidence(item.bars[1].trade_date);await h.settle();
++    pending.splice(0).forEach(resolve=>resolve());await fresh;await h.settle();
++    assert.match(h.text(),/本地双源依据/);
++    const unmounted=chart().props.onEvidence(item.bars[2].trade_date);await h.settle();h.close();
++    pending.splice(0).forEach(resolve=>resolve());await unmounted;
++  }finally{h.close();}
++});
++
++for (const result of ['business_changed','evidence_changed','unchanged','source_not_ready','failed','interrupted']) {
++  test(`实际总览更新结果 ${result}：成功整份刷新，失败/未就绪保留旧图`,async()=>{
++    let reads=0,posts=0;let state={enabled:true,stage:'idle'};
++    const h=await harness('MarketOverview',{token:'synthetic',restart:async()=>{}},async(url,token,method)=>{
++      if(method==='POST'){posts++;state={enabled:true,job_id:'new-job',stage:['failed','interrupted'].includes(result)?result:'completed',result,message:'合成'+result};return {json:async()=>state};}
++      if(url.endsWith('/update'))return {json:async()=>state};
++      reads++;return {json:async()=>view(reads>1?'e':'c')};
++    });
++    try{
++      await h.click('检查更新');assert.equal(posts,1);
++      assert.equal(reads,['business_changed','evidence_changed','unchanged'].includes(result)?2:1);
++      assert.match(h.text(),new RegExp('合成'+result));
++      assert.equal(h.button('检查更新').props.disabled,false);
++      assert.equal(h.nodes().find(node=>typeof node.type==='function'&&node.type.name==='DailyCandlestick').props.bars.length,260);
++    }finally{h.close();}
++  });
++}
+--- HEAD/apps/desktop/scripts/run_qa.py
++++ r4/apps/desktop/scripts/run_qa.py
+@@ -40,7 +40,14 @@
+     parser.add_argument("--frontend-port", required=True, type=_port)
+     parser.add_argument("--service-port", required=True, type=_port)
+     parser.add_argument("--data-root", required=True, type=Path)
++    parser.add_argument("--enable-index-update", action="store_true", help="仅本隔离会话启用沪深300手动写入")
++    parser.add_argument("--window-width", type=int, help="本会话窗口宽度，至少520")
++    parser.add_argument("--window-height", type=int, help="本会话窗口高度，至少560")
+     args = parser.parse_args()
++    if (args.window_width is None) != (args.window_height is None):
++        parser.error("窗口宽高须同时指定")
++    if args.window_width is not None and (args.window_width < 520 or args.window_height < 560):
++        parser.error("窗口不得小于520×560")
+     if args.frontend_port == args.service_port:
+         parser.error("前端与服务端口必须不同")
+     data_root = args.data_root.expanduser().resolve()
+@@ -68,6 +75,10 @@
+             ),
+         },
+     }
++    if args.window_width is not None:
++        override["app"] = {"windows": [{"label": "main", "title": "TheWolf · 本地研究工作台",
++                                        "width": args.window_width, "height": args.window_height,
++                                        "minWidth": 520, "minHeight": 560}]}
+     environment = os.environ.copy()
+     environment.update(
+         CARGO_TARGET_DIR=str(APP_ROOT / "src-tauri" / "target" /
+@@ -76,6 +87,7 @@
+         WOLF_SERVICE_PORT=str(args.service_port),
+         WOLF_SLICE_DATA_ROOT=str(data_root),
+         WOLF_ENABLE_DATA_UPDATE="1",
++        WOLF_ENABLE_INDEX_UPDATE="1" if args.enable_index_update else "0",
+     )
+     with tempfile.TemporaryDirectory(prefix="thewolf-qa-config-") as directory:
+         config = Path(directory) / "tauri-qa.json"
+--- HEAD/apps/desktop/scripts/start_daily.mjs
++++ r4/apps/desktop/scripts/start_daily.mjs
+@@ -8,6 +8,7 @@
+   ...process.env,
+   WOLF_SLICE_DATA_ROOT: dataRoot,
+   WOLF_ENABLE_DATA_UPDATE: "1",
++  WOLF_ENABLE_INDEX_UPDATE: "0",
+   WOLF_DEV_PORT: "5173",
+   WOLF_SERVICE_PORT: "8000",
+   CARGO_TARGET_DIR: fileURLToPath(new URL("../src-tauri/target", import.meta.url)),
+--- HEAD/apps/desktop/scripts/start_daily.test.mjs
++++ r4/apps/desktop/scripts/start_daily.test.mjs
+@@ -18,7 +18,7 @@
+     const npm = join(directory, "npm");
+     writeFileSync(npm, `#!/usr/bin/env node
+ console.log(JSON.stringify({args: process.argv.slice(2), cwd: process.cwd(),
+-  dataRoot: process.env.WOLF_SLICE_DATA_ROOT, enabled: process.env.WOLF_ENABLE_DATA_UPDATE,
++  dataRoot: process.env.WOLF_SLICE_DATA_ROOT, enabled: process.env.WOLF_ENABLE_DATA_UPDATE, indexEnabled: process.env.WOLF_ENABLE_INDEX_UPDATE,
+   frontend: process.env.WOLF_DEV_PORT, service: process.env.WOLF_SERVICE_PORT,
+   target: process.env.CARGO_TARGET_DIR}));
+ ${signal ? 'process.kill(process.pid, "SIGTERM");' : `process.exit(${exitCode});`}
+@@ -27,7 +27,7 @@
+     return spawnSync(process.execPath, [launcher], {
+       cwd: directory, encoding: "utf8", timeout: 10000,
+       env: { ...process.env, PATH: `${directory}:${process.env.PATH}`,
+-        WOLF_SLICE_DATA_ROOT: "/tmp/synthetic-qa", WOLF_ENABLE_DATA_UPDATE: "0",
++        WOLF_SLICE_DATA_ROOT: "/tmp/synthetic-qa", WOLF_ENABLE_DATA_UPDATE: "0", WOLF_ENABLE_INDEX_UPDATE: "1",
+         WOLF_DEV_PORT: "5186", WOLF_SERVICE_PORT: "8016", CARGO_TARGET_DIR: "/tmp/synthetic-build" },
+     });
+   } finally {
+@@ -40,7 +40,7 @@
+   assert.equal(result.status, 0, result.stderr);
+   assert.deepEqual(JSON.parse(result.stdout), {
+     args: ["run", "tauri", "--", "dev"], cwd: resolve(appRoot), dataRoot,
+-    enabled: "1", frontend: "5173", service: "8000", target: join(appRoot, "src-tauri/target"),
++    enabled: "1", indexEnabled: "0", frontend: "5173", service: "8000", target: join(appRoot, "src-tauri/target"),
+   });
+ });
+ 
+--- HEAD/apps/desktop/scripts/update_recovery.test.cjs
++++ r4/apps/desktop/scripts/update_recovery.test.cjs
+@@ -9,7 +9,7 @@
+ const desktop = path.resolve(__dirname, '..');
+ const dependency = createRequire(path.join(desktop, 'package.json'));
+ const ts = dependency('typescript');
+-const code = ts.transpileModule(fs.readFileSync(path.join(desktop, 'src/App.tsx'), 'utf8'), {
++const code = ts.transpileModule(fs.readFileSync(path.join(desktop, 'src/LegacySliceView.tsx'), 'utf8'), {
+   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+ }).outputText;
+ const oldSuccess = '2026-10-02T16:22:42.271564Z';
+@@ -71,7 +71,7 @@
+   }, { filename: 'actual-App.cjs' });
+   async function settle() {
+     for (let step = 0; step < 8; step++) {
+-      cursor = 0; tree = module.exports.App();
++      cursor = 0; tree = module.exports.LegacySliceView({ sessionToken: "synthetic-session" });
+       while (effects.length) effects.shift()();
+       await new Promise(resolve => setImmediate(resolve));
+     }
+--- HEAD/apps/desktop/src/App.tsx
++++ r4/apps/desktop/src/App.tsx
+@@ -1,331 +1,30 @@
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useState } from "react";
+ import { invoke, isTauri } from "@tauri-apps/api/core";
++import { LegacySliceView } from "./LegacySliceView";
++import { MarketOverview } from "./MarketOverview";
+ 
+-type Bar = { trade_date: string; open_cny: string; high_cny: string; low_cny: string;
+-  close_cny: string; volume_shares: string; amount_cny: string };
+-type DocumentRecord = { title: string; issuer_name: string; published_at: string | null;
+-  publication_precision: string; physical_page: number; evidence_text: string;
+-  source_url: string; pdf_object_id: string };
+-type Slice = {
+-  snapshot_id: string; instrument_code: string; instrument_name: string; exchange: string;
+-  source_id: string; market_contract: { raw_publisher: string };
+-  calendar_dates: string[]; bars: Bar[]; open_session_count: number; observed_count: number;
+-  unknown_missing_dates: string[]; complete_through_date: string; pdf_object_id: string;
+-  document: Omit<DocumentRecord, "pdf_object_id">;
+-  documents?: DocumentRecord[];
+-};
+-type UpdateStatus = { job_id?: string | null; stage: string; result?: string | null; message?: string | null;
+-  last_success_at?: string | null; enabled?: boolean; snapshot_id?: string };
+-const ACTIVE_STAGES = ["preparing", "fetching_sina", "fetching_szse", "validating", "publishing"];
+-const UPDATE_POLL_LIMIT_MS = 120000;
+-const STAGE_LABELS: Record<string, string> = { preparing: "准备更新", fetching_sina: "获取新浪日线",
+-  fetching_szse: "获取深交所对照", validating: "校验完整窗口", publishing: "保存新快照" };
++export { readEvidencePdf } from "./LegacySliceView";
+ 
+-/** 将来源连接失败转为操作提示；原始诊断仍保留在本地任务状态中。 */
+-function updateStatusText(status?: UpdateStatus): string | undefined {
+-  if (status?.stage === "failed" && status.message?.startsWith("source network unavailable")) {
+-    return "无法连接行情来源，此次检查未完成。已保存的日线和公告仍可读取，最近成功检查时间未更新。请检查网络或代理设置后重试。";
++/** 两个页面共享桌面会话；总览读取失败不阻止进入旧资料页。 */
++export function App() {
++  const [page, setPage] = useState("market");
++  const [token, setToken] = useState<string>();
++  const [error, setError] = useState<string>();
++  async function connect(restart = false) {
++    try {
++      if (!isTauri()) throw new Error("请通过TheWolf桌面窗口查看本地数据。");
++      setToken(await invoke<string>(restart ? "restart_local_service" : "session_token"));
++      setError(undefined);
++    } catch (reason) { setError(`本地服务未就绪：${String(reason)}`); }
+   }
+-  return status?.message ?? undefined;
++  useEffect(() => { void connect(); }, []);
++  return <>
++    <nav className="page-nav" aria-label="研究页面">
++      <button aria-current={page === "market" ? "page" : undefined} onClick={() => setPage("market")}>市场总览</button>
++      <button aria-current={page === "legacy" ? "page" : undefined} onClick={() => setPage("legacy")}>002245资料</button>
++    </nav>
++    {!token && <main><p role={error ? "alert" : "status"}>{error ?? "正在连接本地服务…"}</p>
++      <button onClick={() => connect(true)}>重试启动并读取</button></main>}
++    {token && (page === "market" ? <MarketOverview token={token} restart={() => connect(true)} /> : <LegacySliceView sessionToken={token} />)}
++  </>;
+ }
+-
+-/** 携带桌面会话凭据读取本地 API，并将服务端错误转为可见提示。 */
+-async function request(path: string, token: string, method = "GET"): Promise<Response> {
+-  const response = await fetch(path, {
+-    method, body: method === "POST" ? "{}" : undefined,
+-    headers: { "X-Wolf-Session": token, ...(method === "POST" ? { "Content-Type": "application/json" } : {}) },
+-    signal: AbortSignal.timeout(8000),
+-  });
+-  if (!response.ok) {
+-    const body = await response.json().catch(() => null) as { detail?: { message?: string } } | null;
+-    throw new Error(body?.detail?.message ?? `本地服务请求失败（${response.status}）`);
+-  }
+-  return response;
+-}
+-
+-function formatInteger(value: string): string {
+-  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+-}
+-
+-/** PDF 响应完整读取后再次核对选择代次，过期响应不创建或展示对象 URL。 */
+-export async function readEvidencePdf(path: string, token: string, isCurrent: () => boolean): Promise<string | undefined> {
+-  const response = await request(path, token);
+-  const blob = await response.blob();
+-  return isCurrent() ? URL.createObjectURL(blob) : undefined;
+-}
+-
+-/** 展示固定快照的日线与公告，并按公告对象读取同版本原件。 */
+-export function App() {
+-  const [token, setToken] = useState<string>();
+-  const [slice, setSlice] = useState<Slice>();
+-  const [error, setError] = useState<string>();
+-  const [loading, setLoading] = useState(true);
+-  const [attempt, setAttempt] = useState(0);
+-  const [pdfUrl, setPdfUrl] = useState<string>();
+-  const [selectedPdfId, setSelectedPdfId] = useState<string>();
+-  const [pdfLoading, setPdfLoading] = useState(false);
+-  const [update, setUpdate] = useState<UpdateStatus>();
+-  const [updating, setUpdating] = useState(false);
+-  const [startingUpdate, setStartingUpdate] = useState(false);
+-  const [updateError, setUpdateError] = useState<string>();
+-  const [updateNotice, setUpdateNotice] = useState<string>();
+-  const pdfGeneration = useRef(0);
+-  const pollStarted = useRef(0);
+-  const updateStarting = useRef(false);
+-  const uncertainPost = useRef(false);
+-  const submissionStarted = useRef(0);
+-  const previousJob = useRef<string | null | undefined>(undefined);
+-
+-  useEffect(() => {
+-    if (!isTauri()) {
+-      setLoading(false);
+-      setError("请通过 TheWolf 桌面开发窗口查看受保护的真实切片。");
+-      return;
+-    }
+-    invoke<string>("session_token").then(setToken).catch((reason: unknown) => {
+-      setLoading(false);
+-      setError(`本地服务未就绪：${String(reason)}`);
+-    });
+-  }, []);
+-
+-  useEffect(() => {
+-    if (!token) return;
+-    let cancelled = false;
+-    setLoading(true);
+-    request("/api/slice", token).then((response) => response.json() as Promise<Slice>)
+-      .then((nextSlice) => {
+-        if (cancelled) return;
+-        pdfGeneration.current += 1;
+-        setPdfUrl(undefined);
+-        setSelectedPdfId(undefined);
+-        setPdfLoading(false);
+-        setSlice(nextSlice);
+-        setError(undefined);
+-        setLoading(false);
+-      }).catch((reason: unknown) => {
+-        if (cancelled) return;
+-        if (!slice && attempt < 10) {
+-          window.setTimeout(() => setAttempt((value) => value + 1), 500);
+-        } else {
+-          setLoading(false);
+-          setError(reason instanceof Error ? reason.message : "本地快照不可用");
+-        }
+-      });
+-    return () => { cancelled = true; };
+-  }, [token, attempt]);
+-
+-  useEffect(() => {
+-    if (!token) return;
+-    let cancelled = false;
+-    request("/api/slice/update", token).then((response) => response.json() as Promise<UpdateStatus>)
+-      .then((status) => {
+-        if (cancelled) return;
+-        setUpdate(status);
+-        if (ACTIVE_STAGES.includes(status.stage)) {
+-          pollStarted.current = Date.now();
+-          setUpdating(true);
+-        }
+-      }).catch(() => { if (!cancelled) setUpdateError("更新状态读取失败，可点击核对结果"); });
+-    return () => { cancelled = true; };
+-  }, [token]);
+-
+-  useEffect(() => {
+-    if (!token || !updating) return;
+-    let cancelled = false;
+-    let timer: number;
+-    async function poll() {
+-      try {
+-        const status = await (await request("/api/slice/update", token!)).json() as UpdateStatus;
+-        if (cancelled) return;
+-        setUpdate(status);
+-        // 新任务证据取代旧请求的恢复提示；相同旧任务仍保留“未发现新任务”。
+-        if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
+-        const awaitingSubmission = uncertainPost.current && status.job_id === previousJob.current;
+-        if (!awaitingSubmission) {
+-          uncertainPost.current = false;
+-          setUpdateError(undefined);
+-        }
+-        if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
+-          setUpdating(false);
+-          if (status.stage === "completed") setAttempt((value) => value + 1);
+-          return;
+-        }
+-      } catch {
+-        if (cancelled) return;
+-        setUpdateError("服务暂时无法连接，正在核对本地结果；请勿重复发起采集");
+-      }
+-      if (Date.now() - pollStarted.current > UPDATE_POLL_LIMIT_MS) {
+-        setUpdating(false);
+-        setUpdateError("更新结果待核对，请点击核对结果后再发起新任务");
+-        return;
+-      }
+-      timer = window.setTimeout(poll, 800);
+-    }
+-    void poll();
+-    return () => { cancelled = true; window.clearTimeout(timer); };
+-  }, [token, updating]);
+-
+-  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
+-
+-  /** 从当前固定快照读取公告原件，避免切换快照后误用其他版本的 PDF。 */
+-  async function openEvidence(document: DocumentRecord) {
+-    if (!slice || !token) return;
+-    const generation = ++pdfGeneration.current;
+-    setPdfLoading(true);
+-    try {
+-      const nextPdfUrl = await readEvidencePdf(`/api/snapshots/${slice.snapshot_id}/pdf/${document.pdf_object_id}`, token,
+-        () => generation === pdfGeneration.current);
+-      if (!nextPdfUrl) return;
+-      if (generation !== pdfGeneration.current) { URL.revokeObjectURL(nextPdfUrl); return; }
+-      setPdfUrl(nextPdfUrl);
+-      setSelectedPdfId(document.pdf_object_id);
+-      setError(undefined);
+-    } catch (reason) {
+-      if (generation !== pdfGeneration.current) return;
+-      setError(reason instanceof Error ? reason.message : "公告原件不可用");
+-    } finally {
+-      if (generation === pdfGeneration.current) setPdfLoading(false);
+-    }
+-  }
+-
+-  /** POST 超时先只读核对；等待截止后确认没有新任务且本地任务未运行，才恢复人工发起入口。 */
+-  async function updateDailyBars(checkOnly = false) {
+-    if (!token || updateStarting.current) return;
+-    updateStarting.current = true;
+-    setStartingUpdate(true);
+-    if (!checkOnly) {
+-      previousJob.current = update?.job_id;
+-      uncertainPost.current = true;
+-      submissionStarted.current = Date.now();
+-      setUpdateNotice(undefined);
+-    }
+-    pollStarted.current = Date.now();
+-    setUpdateError(undefined);
+-    try {
+-      const status = await (await request("/api/slice/update", token, checkOnly ? "GET" : "POST"))
+-        .json() as UpdateStatus;
+-      setUpdate((previous) => ({ ...previous, ...status }));
+-      if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
+-      const awaitingSubmission = checkOnly && uncertainPost.current && status.job_id === previousJob.current;
+-      // 相同旧终态不能证明本次成功。只在等待截止后的人工 GET 成功时解除等待，绝不自动补发 POST。
+-      // 提示仅说明此刻未发现新任务；之后的手动请求仍由服务端单写者锁协调。
+-      if (awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)
+-          && Date.now() - submissionStarted.current > UPDATE_POLL_LIMIT_MS) {
+-        uncertainPost.current = false;
+-        setUpdating(false);
+-        setUpdateNotice("未发现新的更新任务。已结束本次等待，可手动再次点击“更新日线”。已保存的日线和公告仍可读取。");
+-        return;
+-      }
+-      if (!awaitingSubmission) uncertainPost.current = false;
+-      if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
+-        setUpdating(false);
+-        if (status.stage === "completed") setAttempt((value) => value + 1);
+-      } else setUpdating(true);
+-    } catch {
+-      setUpdateError("请求结果待核对，正在查询本地任务状态");
+-      setUpdating(true);
+-    } finally {
+-      updateStarting.current = false;
+-      setStartingUpdate(false);
+-    }
+-  }
+-
+-  /** 仅通过桌面端允许的深交所地址打开外部原件。 */
+-  async function openSource(sourceUrl: string) {
+-    try {
+-      await invoke("open_official_source", { sourceUrl });
+-      setError(undefined);
+-    } catch (reason) {
+-      setError(`无法在浏览器打开深交所原件：${String(reason)}`);
+-    }
+-  }
+-
+-  /** 读取失败时先确认或重启当前子服务，再重新请求快照。 */
+-  async function retryLocalService() {
+-    setLoading(true);
+-    try {
+-      const currentToken = await invoke<string>("restart_local_service");
+-      setToken(currentToken);
+-      setError(undefined);
+-      setAttempt((value) => value + 1);
+-    } catch (reason) {
+-      setLoading(false);
+-      setError(`本地服务仍不可用：${String(reason)}`);
+-    }
+-  }
+-
+-  const missing = slice?.unknown_missing_dates.length ?? 0;
+-  const documents = slice?.documents ?? (slice
+-    ? [{ ...slice.document, pdf_object_id: slice.pdf_object_id }] : []);
+-  return (
+-    <main>
+-      <header><p className="eyebrow">THEWOLF · 本地研究</p>
+-        <h1>{slice ? `${slice.instrument_name}（${slice.instrument_code}）日线与公告` : "002245 日线与公告"}</h1>
+-        <p>固定版本的真实数据切片 · 仅供资料查阅</p></header>
+-      {loading && <p className="status" role="status">正在读取本地快照…</p>}
+-      {error && <div className="status error" role="alert"><span>{error}</span>
+-        <button type="button" onClick={retryLocalService}>重试启动并读取</button></div>}
+-      {!loading && !slice && !error && <p className="status">尚无已发布的真实数据快照。</p>}
+-      {slice && <>
+-        <section className="card" aria-labelledby="slice-title">
+-          <p className="eyebrow">{slice.exchange} · {slice.instrument_code}</p>
+-          <h2 id="slice-title">{slice.instrument_name}</h2>
+-          <dl className="summary">
+-            <div><dt>冻结区间</dt><dd>{slice.calendar_dates[0]} 至 {slice.calendar_dates.at(-1)}</dd></div>
+-            <div><dt>来源</dt><dd>{slice.market_contract.raw_publisher} · 未复权</dd></div>
+-            <div><dt>覆盖</dt><dd>{slice.observed_count}/{slice.open_session_count} 开市日</dd></div>
+-          </dl>
+-          <p className={missing ? "coverage warning" : "coverage"}>
+-            {missing ? `未知缺口：${slice.unknown_missing_dates.join("、")}` : "目标窗口无未知缺口"}
+-            {" · "}完整至 {slice.complete_through_date} · 本地保存，可离线读取
+-          </p>
+-          <small>来源标识：{slice.source_id} · 固定快照：{slice.snapshot_id}</small>
+-          <p className="note">仅有当前取得的历史版本，不支持严格历史时点研究。</p>
+-        </section>
+-        <section className="card" aria-labelledby="bars-title">
+-          <div className="section-heading"><h2 id="bars-title">未复权日线</h2>
+-            <button type="button" disabled={startingUpdate || updating || !update?.enabled || !!updateError}
+-              onClick={() => updateDailyBars()}>更新日线</button>
+-            <span>{slice.bars.length} 行 · 价格 元/股 · 成交量 股 · 成交额 元</span></div>
+-          <p className="note">完整日线不含上海时区当日 · 最近成功检查：{update?.last_success_at
+-            ? new Date(update.last_success_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "未知"}</p>
+-          {!update?.enabled && <p className="note">此数据根尚未启用更新。</p>}
+-          <p role="status" className={update?.stage === "failed" || update?.stage === "interrupted" ? "warning" : "coverage"}>
+-            {startingUpdate ? "正在发起更新…" : updating ? `${STAGE_LABELS[update?.stage ?? ""] ?? "核对更新结果"}…`
+-              : updateNotice ?? (uncertainPost.current ? "尚未确认新的更新任务，已保存的数据仍可读取。" : updateStatusText(update))}</p>
+-          {updateError && <p role="alert" className="warning">{updateError}</p>}
+-          {(updateError || update?.stage === "interrupted") && <button type="button" disabled={updating}
+-            onClick={() => updateDailyBars(true)}>核对结果</button>}
+-          <div className="table-scroll" role="region" aria-label="日线数据表" tabIndex={0}>
+-            <table><thead><tr><th scope="col">交易日</th><th scope="col">开盘</th>
+-              <th scope="col">最高</th><th scope="col">最低</th><th scope="col">收盘</th>
+-              <th scope="col">成交量</th><th scope="col">成交额</th></tr></thead>
+-              <tbody>{[...slice.bars].reverse().map((bar) => <tr key={bar.trade_date}>
+-                <th scope="row">{bar.trade_date}</th><td>{bar.open_cny}</td><td>{bar.high_cny}</td>
+-                <td>{bar.low_cny}</td><td>{bar.close_cny}</td>
+-                <td>{formatInteger(bar.volume_shares)}</td>
+-                <td>{formatInteger(bar.amount_cny)}</td></tr>)}</tbody></table>
+-          </div>
+-        </section>
+-        {[...documents].sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+-          .map((document) => <section className="card evidence" key={document.pdf_object_id}
+-            aria-label={`${document.title}公告证据`}>
+-            <p className="eyebrow">深交所公告 · 原件证据</p>
+-            <h2>{document.title}</h2>
+-            <p className="document-meta">{document.issuer_name} · 发布日期 {document.published_at ?? "未知"}（{document.publication_precision === "date" ? "仅日期" : document.publication_precision}） · 物理第 {document.physical_page} 页</p>
+-            <blockquote>{document.evidence_text}</blockquote>
+-            <button type="button" onClick={() => openEvidence(document)} disabled={pdfLoading}>
+-              {pdfLoading ? "正在读取原件…" : "打开同版本原件"}
+-            </button>
+-            <p className="source-link">原始出处：<button className="external-link" type="button"
+-              onClick={() => openSource(document.source_url)}>深交所原件（在浏览器打开）</button></p>
+-            {pdfUrl && selectedPdfId === document.pdf_object_id &&
+-              <div className="pdf-viewer"><div className="section-heading"><h3>本地归档原件</h3>
+-                <button type="button" onClick={() => { setPdfUrl(undefined); setSelectedPdfId(undefined); }}>关闭</button></div>
+-                <iframe title={`${document.title}，第 ${document.physical_page} 页`}
+-                  src={`${pdfUrl}#page=${document.physical_page}`} /></div>}
+-          </section>)}
+-      </>}
+-    </main>
+-  );
+-}
+--- /dev/null
++++ r4/apps/desktop/src/DailyCandlestick.tsx
+@@ -0,0 +1,85 @@
++import { useMemo, useState } from "react";
++import type { IndexBar } from "./indexTypes";
++import { candleGeometry, panRange, zoomRange } from "./candlestickGeometry";
++
++/** 固定快照日K线；预期日期保留缺口，选择和范围控制具有键盘等效入口。 */
++export function DailyCandlestick({ bars, expectedDates, onSelect, onEvidence }: {
++  bars: IndexBar[]; expectedDates: string[]; onSelect: (day: string) => void; onEvidence: (day: string) => void;
++}) {
++  const [startDate, setStartDate] = useState(expectedDates[0]);
++  const [endDate, setEndDate] = useState(expectedDates.at(-1)!);
++  const [filter, setFilter] = useState({ start: expectedDates[0], end: expectedDates.at(-1)! });
++  const filtered = useMemo(() => expectedDates.filter(day => day >= filter.start && day <= filter.end), [expectedDates, filter]);
++  const [range, setRange] = useState({ start: Math.max(0, expectedDates.length - 60), count: Math.min(60, expectedDates.length) });
++  const [selected, setSelected] = useState(expectedDates.at(-1)!);
++  const [error, setError] = useState<string>();
++  const byDay = new Map(bars.map(bar => [bar.trade_date, bar]));
++  const visible = filtered.slice(range.start, range.start + range.count);
++  const values = visible.flatMap(day => { const bar = byDay.get(day); return bar ? [Number(bar.high), Number(bar.low)] : []; });
++  const max = Math.max(...values), min = Math.min(...values);
++  const chosen = byDay.get(selected);
++  function select(day: string) { setSelected(day); onSelect(day); }
++  function apply(start: string, end: string, recent = false) {
++    const validDate = (day: string) => /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day))
++      && new Date(day).toISOString().slice(0, 10) === day;
++    if (!validDate(start) || !validDate(end) || start > end) { setError("日期范围无效，请输入有序的起止日期。"); return; }
++    const next = expectedDates.filter(day => day >= start && day <= end);
++    setFilter({ start, end }); setError(undefined);
++    setRange({ start: recent ? Math.max(0, next.length - 60) : 0, count: recent ? Math.min(60, next.length) : next.length });
++    if (next.length) select(next.at(-1)!);
++    else onSelect("");
++  }
++  function zoom(factor: number) { setRange(zoomRange(range, filtered.length, Math.max(0, filtered.indexOf(selected)), factor)); }
++  function pan(direction: number) {
++    const next = panRange(range, filtered.length, direction); setRange(next);
++    if (next.count) select(filtered[direction < 0 ? next.start : next.start + next.count - 1]);
++  }
++  function keyboard(key: string): boolean {
++    const current = visible.indexOf(selected);
++    const next = key === "Home" ? 0 : key === "End" ? visible.length - 1
++      : key === "ArrowLeft" ? Math.max(0, current - 1) : key === "ArrowRight" ? Math.min(visible.length - 1, current + 1) : -1;
++    if (next < 0 || !visible.length) return false;
++    select(visible[next]); return true;
++  }
++  const gap = visible.filter(day => !byDay.has(day));
++  return <section className="card chart-card" aria-label="沪深300日K线">
++    <h2>日K线</h2>
++    <form className="chart-actions" onSubmit={event => { event.preventDefault(); apply(startDate, endDate); }}>
++      <label>起始日期<input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} /></label>
++      <label>结束日期<input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} /></label>
++      <button type="submit">应用</button>
++    </form>
++    <div className="chart-actions">
++      <button onClick={() => { setStartDate(expectedDates[0]); setEndDate(expectedDates.at(-1)!); apply(expectedDates[0], expectedDates.at(-1)!, true); }}>最近60日</button>
++      <button onClick={() => { setStartDate(expectedDates[0]); setEndDate(expectedDates.at(-1)!); apply(expectedDates[0], expectedDates.at(-1)!); }}>全部260日</button>
++      <button disabled={!visible.length} onClick={() => zoom(1.5)}>缩小</button>
++      <button disabled={!visible.length} onClick={() => zoom(1 / 1.5)}>放大</button>
++      <button disabled={!visible.length || range.start === 0} onClick={() => pan(-1)}>向左平移</button>
++      <button disabled={!visible.length || range.start + range.count >= filtered.length} onClick={() => pan(1)}>向右平移</button>
++    </div>
++    {error && <p role="alert" className="warning">{error} 保留上次有效视图。</p>}
++    <p className="note">当前可见：{visible.length ? `${visible[0]} 至 ${visible.at(-1)} · ${visible.length}日` : "空范围，无交集"} · 单位：点</p>
++    {gap.length > 0 && <p className="warning">缺失交易日：{gap.join("、")}，保留空位。</p>}
++    {values.length > 0 && <p className="note">图内最高 {max.toFixed(2)} · 最低 {min.toFixed(2)} 点</p>}
++    {visible.length > 0 && values.length > 0 && <svg viewBox="0 0 800 280" tabIndex={0} role="group" aria-label="日K线，左右键选日，Home和End到可见首尾，Tab离开"
++      onKeyDown={event => { if (keyboard(event.key)) event.preventDefault(); }}>
++      <line x1="48" x2="776" y1="238" y2="238" stroke="#263a5d" />
++      {visible.map((day, index) => {
++        const bar = byDay.get(day); if (!bar) return null;
++        const geometry = candleGeometry(bar, index, visible.length, min, max);
++        return <g key={day} onMouseEnter={() => select(day)} onClick={() => select(day)}>
++          <title>{`${day} 开${bar.open} 高${bar.high} 低${bar.low} 收${bar.close} 点`}</title>
++          <rect x={geometry.x - 360 / visible.length} y="18" width={720 / visible.length} height="222" fill={selected === day ? "#263a5d" : "transparent"} />
++          <line x1={geometry.x} x2={geometry.x} y1={geometry.high} y2={geometry.low} stroke={geometry.color} />
++          {geometry.height === 0 ? <line x1={geometry.x - geometry.width / 2} x2={geometry.x + geometry.width / 2} y1={geometry.top} y2={geometry.top} stroke={geometry.color} strokeWidth="2" />
++            : <rect x={geometry.x - geometry.width / 2} y={geometry.top} width={geometry.width} height={Math.max(.5, geometry.height)} fill={geometry.color} />}
++        </g>;
++      })}
++    </svg>}
++    {chosen && visible.includes(selected) && <div className="selected-day">
++      <p aria-live="polite">选中 {selected} · 开 {chosen.open} · 高 {chosen.high} · 低 {chosen.low} · 收 {chosen.close} 点</p>
++      <button onClick={() => onEvidence(selected)}>查看该日依据</button>
++    </div>}
++    <p className="note">红：收高于开；绿：收低于开；平盘：横线。摘要涨跌幅按前交易日收盘计算。</p>
++  </section>;
++}
+--- /dev/null
++++ r4/apps/desktop/src/LegacySliceView.tsx
+@@ -0,0 +1,323 @@
++import { useEffect, useRef, useState } from "react";
++import { invoke } from "@tauri-apps/api/core";
++
++type Bar = { trade_date: string; open_cny: string; high_cny: string; low_cny: string;
++  close_cny: string; volume_shares: string; amount_cny: string };
++type DocumentRecord = { title: string; issuer_name: string; published_at: string | null;
++  publication_precision: string; physical_page: number; evidence_text: string;
++  source_url: string; pdf_object_id: string };
++type Slice = {
++  snapshot_id: string; instrument_code: string; instrument_name: string; exchange: string;
++  source_id: string; market_contract: { raw_publisher: string };
++  calendar_dates: string[]; bars: Bar[]; open_session_count: number; observed_count: number;
++  unknown_missing_dates: string[]; complete_through_date: string; pdf_object_id: string;
++  document: Omit<DocumentRecord, "pdf_object_id">;
++  documents?: DocumentRecord[];
++};
++type UpdateStatus = { job_id?: string | null; stage: string; result?: string | null; message?: string | null;
++  last_success_at?: string | null; enabled?: boolean; snapshot_id?: string };
++const ACTIVE_STAGES = ["preparing", "fetching_sina", "fetching_szse", "validating", "publishing"];
++const UPDATE_POLL_LIMIT_MS = 120000;
++const STAGE_LABELS: Record<string, string> = { preparing: "准备更新", fetching_sina: "获取新浪日线",
++  fetching_szse: "获取深交所对照", validating: "校验完整窗口", publishing: "保存新快照" };
++
++/** 将来源连接失败转为操作提示；原始诊断仍保留在本地任务状态中。 */
++function updateStatusText(status?: UpdateStatus): string | undefined {
++  if (status?.stage === "failed" && status.message?.startsWith("source network unavailable")) {
++    return "无法连接行情来源，此次检查未完成。已保存的日线和公告仍可读取，最近成功检查时间未更新。请检查网络或代理设置后重试。";
++  }
++  return status?.message ?? undefined;
++}
++
++/** 携带桌面会话凭据读取本地 API，并将服务端错误转为可见提示。 */
++export async function request(path: string, token: string, method = "GET"): Promise<Response> {
++  const response = await fetch(path, {
++    method, body: method === "POST" ? "{}" : undefined,
++    headers: { "X-Wolf-Session": token, ...(method === "POST" ? { "Content-Type": "application/json" } : {}) },
++    signal: AbortSignal.timeout(8000),
++  });
++  if (!response.ok) {
++    const body = await response.json().catch(() => null) as { detail?: { message?: string } } | null;
++    throw new Error(body?.detail?.message ?? `本地服务请求失败（${response.status}）`);
++  }
++  return response;
++}
++
++function formatInteger(value: string): string {
++  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
++}
++
++/** PDF 响应完整读取后再次核对选择代次，过期响应不创建或展示对象 URL。 */
++export async function readEvidencePdf(path: string, token: string, isCurrent: () => boolean): Promise<string | undefined> {
++  const response = await request(path, token);
++  const blob = await response.blob();
++  return isCurrent() ? URL.createObjectURL(blob) : undefined;
++}
++
++/** 展示固定快照的日线与公告，并按公告对象读取同版本原件。 */
++export function LegacySliceView({ sessionToken }: { sessionToken: string }) {
++  const [token, setToken] = useState<string>(sessionToken);
++  const [slice, setSlice] = useState<Slice>();
++  const [error, setError] = useState<string>();
++  const [loading, setLoading] = useState(true);
++  const [attempt, setAttempt] = useState(0);
++  const [pdfUrl, setPdfUrl] = useState<string>();
++  const [selectedPdfId, setSelectedPdfId] = useState<string>();
++  const [pdfLoading, setPdfLoading] = useState(false);
++  const [update, setUpdate] = useState<UpdateStatus>();
++  const [updating, setUpdating] = useState(false);
++  const [startingUpdate, setStartingUpdate] = useState(false);
++  const [updateError, setUpdateError] = useState<string>();
++  const [updateNotice, setUpdateNotice] = useState<string>();
++  const pdfGeneration = useRef(0);
++  const pollStarted = useRef(0);
++  const updateStarting = useRef(false);
++  const uncertainPost = useRef(false);
++  const submissionStarted = useRef(0);
++  const previousJob = useRef<string | null | undefined>(undefined);
++
++  useEffect(() => { setToken(sessionToken); }, [sessionToken]);
++
++  useEffect(() => {
++    if (!token) return;
++    let cancelled = false;
++    setLoading(true);
++    request("/api/slice", token).then((response) => response.json() as Promise<Slice>)
++      .then((nextSlice) => {
++        if (cancelled) return;
++        pdfGeneration.current += 1;
++        setPdfUrl(undefined);
++        setSelectedPdfId(undefined);
++        setPdfLoading(false);
++        setSlice(nextSlice);
++        setError(undefined);
++        setLoading(false);
++      }).catch((reason: unknown) => {
++        if (cancelled) return;
++        if (!slice && attempt < 10) {
++          window.setTimeout(() => setAttempt((value) => value + 1), 500);
++        } else {
++          setLoading(false);
++          setError(reason instanceof Error ? reason.message : "本地快照不可用");
++        }
++      });
++    return () => { cancelled = true; };
++  }, [token, attempt]);
++
++  useEffect(() => {
++    if (!token) return;
++    let cancelled = false;
++    request("/api/slice/update", token).then((response) => response.json() as Promise<UpdateStatus>)
++      .then((status) => {
++        if (cancelled) return;
++        setUpdate(status);
++        if (ACTIVE_STAGES.includes(status.stage)) {
++          pollStarted.current = Date.now();
++          setUpdating(true);
++        }
++      }).catch(() => { if (!cancelled) setUpdateError("更新状态读取失败，可点击核对结果"); });
++    return () => { cancelled = true; };
++  }, [token]);
++
++  useEffect(() => {
++    if (!token || !updating) return;
++    let cancelled = false;
++    let timer: number;
++    async function poll() {
++      try {
++        const status = await (await request("/api/slice/update", token!)).json() as UpdateStatus;
++        if (cancelled) return;
++        setUpdate(status);
++        // 新任务证据取代旧请求的恢复提示；相同旧任务仍保留“未发现新任务”。
++        if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
++        const awaitingSubmission = uncertainPost.current && status.job_id === previousJob.current;
++        if (!awaitingSubmission) {
++          uncertainPost.current = false;
++          setUpdateError(undefined);
++        }
++        if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
++          setUpdating(false);
++          if (status.stage === "completed") setAttempt((value) => value + 1);
++          return;
++        }
++      } catch {
++        if (cancelled) return;
++        setUpdateError("服务暂时无法连接，正在核对本地结果；请勿重复发起采集");
++      }
++      if (Date.now() - pollStarted.current > UPDATE_POLL_LIMIT_MS) {
++        setUpdating(false);
++        setUpdateError("更新结果待核对，请点击核对结果后再发起新任务");
++        return;
++      }
++      timer = window.setTimeout(poll, 800);
++    }
++    void poll();
++    return () => { cancelled = true; window.clearTimeout(timer); };
++  }, [token, updating]);
++
++  // 切页卸载也使正在读取body的请求失效，避免迟到结果创建无人回收的URL。
++  useEffect(() => () => { pdfGeneration.current += 1; }, []);
++  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
++
++  /** 从当前固定快照读取公告原件，避免切换快照后误用其他版本的 PDF。 */
++  async function openEvidence(document: DocumentRecord) {
++    if (!slice || !token) return;
++    const generation = ++pdfGeneration.current;
++    setPdfLoading(true);
++    try {
++      const nextPdfUrl = await readEvidencePdf(`/api/snapshots/${slice.snapshot_id}/pdf/${document.pdf_object_id}`, token,
++        () => generation === pdfGeneration.current);
++      if (!nextPdfUrl) return;
++      if (generation !== pdfGeneration.current) { URL.revokeObjectURL(nextPdfUrl); return; }
++      setPdfUrl(nextPdfUrl);
++      setSelectedPdfId(document.pdf_object_id);
++      setError(undefined);
++    } catch (reason) {
++      if (generation !== pdfGeneration.current) return;
++      setError(reason instanceof Error ? reason.message : "公告原件不可用");
++    } finally {
++      if (generation === pdfGeneration.current) setPdfLoading(false);
++    }
++  }
++
++  /** POST 超时先只读核对；等待截止后确认没有新任务且本地任务未运行，才恢复人工发起入口。 */
++  async function updateDailyBars(checkOnly = false) {
++    if (!token || updateStarting.current) return;
++    updateStarting.current = true;
++    setStartingUpdate(true);
++    if (!checkOnly) {
++      previousJob.current = update?.job_id;
++      uncertainPost.current = true;
++      submissionStarted.current = Date.now();
++      setUpdateNotice(undefined);
++    }
++    pollStarted.current = Date.now();
++    setUpdateError(undefined);
++    try {
++      const status = await (await request("/api/slice/update", token, checkOnly ? "GET" : "POST"))
++        .json() as UpdateStatus;
++      setUpdate((previous) => ({ ...previous, ...status }));
++      if (status.job_id !== previousJob.current) setUpdateNotice(undefined);
++      const awaitingSubmission = checkOnly && uncertainPost.current && status.job_id === previousJob.current;
++      // 相同旧终态不能证明本次成功。只在等待截止后的人工 GET 成功时解除等待，绝不自动补发 POST。
++      // 提示仅说明此刻未发现新任务；之后的手动请求仍由服务端单写者锁协调。
++      if (awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)
++          && Date.now() - submissionStarted.current > UPDATE_POLL_LIMIT_MS) {
++        uncertainPost.current = false;
++        setUpdating(false);
++        setUpdateNotice("未发现新的更新任务。已结束本次等待，可手动再次点击“更新日线”。已保存的日线和公告仍可读取。");
++        return;
++      }
++      if (!awaitingSubmission) uncertainPost.current = false;
++      if (!awaitingSubmission && !ACTIVE_STAGES.includes(status.stage)) {
++        setUpdating(false);
++        if (status.stage === "completed") setAttempt((value) => value + 1);
++      } else setUpdating(true);
++    } catch {
++      setUpdateError("请求结果待核对，正在查询本地任务状态");
++      setUpdating(true);
++    } finally {
++      updateStarting.current = false;
++      setStartingUpdate(false);
++    }
++  }
++
++  /** 仅通过桌面端允许的深交所地址打开外部原件。 */
++  async function openSource(sourceUrl: string) {
++    try {
++      await invoke("open_official_source", { sourceUrl });
++      setError(undefined);
++    } catch (reason) {
++      setError(`无法在浏览器打开深交所原件：${String(reason)}`);
++    }
++  }
++
++  /** 读取失败时先确认或重启当前子服务，再重新请求快照。 */
++  async function retryLocalService() {
++    setLoading(true);
++    try {
++      const currentToken = await invoke<string>("restart_local_service");
++      setToken(currentToken);
++      setError(undefined);
++      setAttempt((value) => value + 1);
++    } catch (reason) {
++      setLoading(false);
++      setError(`本地服务仍不可用：${String(reason)}`);
++    }
++  }
++
++  const missing = slice?.unknown_missing_dates.length ?? 0;
++  const documents = slice?.documents ?? (slice
++    ? [{ ...slice.document, pdf_object_id: slice.pdf_object_id }] : []);
++  return (
++    <main>
++      <header><p className="eyebrow">THEWOLF · 本地研究</p>
++        <h1>{slice ? `${slice.instrument_name}（${slice.instrument_code}）日线与公告` : "002245 日线与公告"}</h1>
++        <p>固定版本的真实数据切片 · 仅供资料查阅</p></header>
++      {loading && <p className="status" role="status">正在读取本地快照…</p>}
++      {error && <div className="status error" role="alert"><span>{error}</span>
++        <button type="button" onClick={retryLocalService}>重试启动并读取</button></div>}
++      {!loading && !slice && !error && <p className="status">尚无已发布的真实数据快照。</p>}
++      {slice && <>
++        <section className="card" aria-labelledby="slice-title">
++          <p className="eyebrow">{slice.exchange} · {slice.instrument_code}</p>
++          <h2 id="slice-title">{slice.instrument_name}</h2>
++          <dl className="summary">
++            <div><dt>冻结区间</dt><dd>{slice.calendar_dates[0]} 至 {slice.calendar_dates.at(-1)}</dd></div>
++            <div><dt>来源</dt><dd>{slice.market_contract.raw_publisher} · 未复权</dd></div>
++            <div><dt>覆盖</dt><dd>{slice.observed_count}/{slice.open_session_count} 开市日</dd></div>
++          </dl>
++          <p className={missing ? "coverage warning" : "coverage"}>
++            {missing ? `未知缺口：${slice.unknown_missing_dates.join("、")}` : "目标窗口无未知缺口"}
++            {" · "}完整至 {slice.complete_through_date} · 本地保存，可离线读取
++          </p>
++          <small>来源标识：{slice.source_id} · 固定快照：{slice.snapshot_id}</small>
++          <p className="note">仅有当前取得的历史版本，不支持严格历史时点研究。</p>
++        </section>
++        <section className="card" aria-labelledby="bars-title">
++          <div className="section-heading"><h2 id="bars-title">未复权日线</h2>
++            <button type="button" disabled={startingUpdate || updating || !update?.enabled || !!updateError}
++              onClick={() => updateDailyBars()}>更新日线</button>
++            <span>{slice.bars.length} 行 · 价格 元/股 · 成交量 股 · 成交额 元</span></div>
++          <p className="note">完整日线不含上海时区当日 · 最近成功检查：{update?.last_success_at
++            ? new Date(update.last_success_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "未知"}</p>
++          {!update?.enabled && <p className="note">此数据根尚未启用更新。</p>}
++          <p role="status" className={update?.stage === "failed" || update?.stage === "interrupted" ? "warning" : "coverage"}>
++            {startingUpdate ? "正在发起更新…" : updating ? `${STAGE_LABELS[update?.stage ?? ""] ?? "核对更新结果"}…`
++              : updateNotice ?? (uncertainPost.current ? "尚未确认新的更新任务，已保存的数据仍可读取。" : updateStatusText(update))}</p>
++          {updateError && <p role="alert" className="warning">{updateError}</p>}
++          {(updateError || update?.stage === "interrupted") && <button type="button" disabled={updating}
++            onClick={() => updateDailyBars(true)}>核对结果</button>}
++          <div className="table-scroll" role="region" aria-label="日线数据表" tabIndex={0}>
++            <table><thead><tr><th scope="col">交易日</th><th scope="col">开盘</th>
++              <th scope="col">最高</th><th scope="col">最低</th><th scope="col">收盘</th>
++              <th scope="col">成交量</th><th scope="col">成交额</th></tr></thead>
++              <tbody>{[...slice.bars].reverse().map((bar) => <tr key={bar.trade_date}>
++                <th scope="row">{bar.trade_date}</th><td>{bar.open_cny}</td><td>{bar.high_cny}</td>
++                <td>{bar.low_cny}</td><td>{bar.close_cny}</td>
++                <td>{formatInteger(bar.volume_shares)}</td>
++                <td>{formatInteger(bar.amount_cny)}</td></tr>)}</tbody></table>
++          </div>
++        </section>
++        {[...documents].sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
++          .map((document) => <section className="card evidence" key={document.pdf_object_id}
++            aria-label={`${document.title}公告证据`}>
++            <p className="eyebrow">深交所公告 · 原件证据</p>
++            <h2>{document.title}</h2>
++            <p className="document-meta">{document.issuer_name} · 发布日期 {document.published_at ?? "未知"}（{document.publication_precision === "date" ? "仅日期" : document.publication_precision}） · 物理第 {document.physical_page} 页</p>
++            <blockquote>{document.evidence_text}</blockquote>
++            <button type="button" onClick={() => openEvidence(document)} disabled={pdfLoading}>
++              {pdfLoading ? "正在读取原件…" : "打开同版本原件"}
++            </button>
++            <p className="source-link">原始出处：<button className="external-link" type="button"
++              onClick={() => openSource(document.source_url)}>深交所原件（在浏览器打开）</button></p>
++            {pdfUrl && selectedPdfId === document.pdf_object_id &&
++              <div className="pdf-viewer"><div className="section-heading"><h3>本地归档原件</h3>
++                <button type="button" onClick={() => { setPdfUrl(undefined); setSelectedPdfId(undefined); }}>关闭</button></div>
++                <iframe title={`${document.title}，第 ${document.physical_page} 页`}
++                  src={`${pdfUrl}#page=${document.physical_page}`} /></div>}
++          </section>)}
++      </>}
++    </main>
++  );
++}
+--- /dev/null
++++ r4/apps/desktop/src/MarketOverview.tsx
+@@ -0,0 +1,165 @@
++import { useEffect, useRef, useState } from "react";
++import { request } from "./LegacySliceView";
++import { DailyCandlestick } from "./DailyCandlestick";
++import { parseIndexEvidence, parseIndexStatus, parseIndexView } from "./indexTypes";
++import type { IndexEvidence, IndexStatus, IndexView } from "./indexTypes";
++
++const PATH = "/api/indices/000300";
++const active = (status?: IndexStatus) => ["preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing"].includes(status?.stage ?? "");
++const labels: Record<string, string> = { preparing: "准备目标窗口", fetching_eastmoney: "旧任务：获取东财日线", fetching_tencent: "获取腾讯日线", fetching_csindex: "获取中证对照", validating: "双源精确校验", publishing: "发布固定快照" };
++const sourceNames: Record<string, string> = { eastmoney: "东方财富", tencent: "腾讯", csindex: "中证官方" };
++const unusedNames: Record<string, string> = { volume: "成交量", amount: "成交额", prec: "prec（未解释元数据）", version: "version（未解释元数据）" };
++const sourceName = (source: string) => sourceNames[source] ?? source;
++const unusedName = (field: string) => unusedNames[field] ?? field;
++const timeText = (stamp?: string | null) => stamp ? new Date(stamp).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "尚未检查成功";
++
++/** 真实本地指数视图；每次替换整份固定快照，失败保留可读旧版。 */
++export function MarketOverview({ token, restart }: { token: string; restart: () => Promise<void> }) {
++  const [view, setView] = useState<IndexView>();
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string>();
++  const [status, setStatus] = useState<IndexStatus>();
++  const [pending, setPending] = useState(false);
++  const [posting, setPosting] = useState(false);
++  const [notice, setNotice] = useState<string>();
++  const [updateError, setUpdateError] = useState<string>();
++  const [evidence, setEvidence] = useState<IndexEvidence[]>();
++  const [evidenceDay, setEvidenceDay] = useState<string>();
++  const [evidenceError, setEvidenceError] = useState<string>();
++  const [evidenceLoading, setEvidenceLoading] = useState(false);
++  const mounted = useRef(true);
++  const reading = useRef(0);
++  const evidenceGeneration = useRef(0);
++  const postGuard = useRef(false);
++  const uncertain = useRef(false);
++  const previousJob = useRef<string | null | undefined>(undefined);
++  const deadline = useRef(0);
++
++  /** 完整响应核对后一次替换；旧图和旧依据从不混用新ID。 */
++  async function load() {
++    const generation = ++reading.current; setLoading(true);
++    try {
++      const next = parseIndexView(await (await request(PATH, token)).json());
++      if (!mounted.current || generation !== reading.current) return;
++      evidenceGeneration.current++;
++      setEvidence(undefined); setEvidenceDay(undefined); setEvidenceError(undefined); setEvidenceLoading(false);
++      setView(next); setError(undefined);
++    } catch (reason) {
++      if (mounted.current && generation === reading.current) setError(reason instanceof Error ? reason.message : "本地指数不可用");
++    } finally { if (mounted.current && generation === reading.current) setLoading(false); }
++  }
++  async function readStatus(): Promise<IndexStatus> {
++    return parseIndexStatus(await (await request(`${PATH}/update`, token)).json());
++  }
++  useEffect(() => {
++    mounted.current = true; void load();
++    readStatus().then(next => {
++      if (!mounted.current) return;
++      setStatus(next);
++      if (active(next)) { deadline.current = Date.now() + 120000; setPending(true); }
++    }).catch(() => { if (mounted.current) setUpdateError("无法读取本地更新状态，请核对结果。"); });
++    return () => { mounted.current = false; reading.current++; evidenceGeneration.current++; };
++  }, [token]);
++
++  /** 超时只核对；相同旧终态不能当作本次成功，更不自动补发POST。 */
++  function acceptStatus(next: IndexStatus, manual = false): boolean {
++    setStatus(next);
++    const waiting = uncertain.current && next.job_id === previousJob.current;
++    if (waiting && !(manual && Date.now() > deadline.current && !active(next))) return false;
++    if (waiting) setNotice("未发现新的更新任务，已结束等待，可手动再次检查。");
++    else setNotice(undefined);
++    uncertain.current = false; setUpdateError(undefined);
++    if (!active(next) && !waiting && next.stage === "completed" && next.result !== "source_not_ready") void load();
++    return !active(next);
++  }
++  useEffect(() => {
++    if (!pending) return;
++    let cancelled = false; let timer: number;
++    async function poll() {
++      try {
++        const next = await readStatus();
++        if (cancelled || !mounted.current) return;
++        if (acceptStatus(next)) { setPending(false); return; }
++      } catch { if (!cancelled) setUpdateError("本地结果待核对，保留已保存数据。"); }
++      if (cancelled) return;
++      if (Date.now() > deadline.current) { setPending(false); setUpdateError("更新结果待核对，请先核对本地结果。"); return; }
++      timer = window.setTimeout(poll, 800);
++    }
++    void poll();
++    return () => { cancelled = true; window.clearTimeout(timer); };
++  }, [pending, token]);
++
++  async function update(checkOnly = false) {
++    if (postGuard.current) return;
++    postGuard.current = true; setPosting(true);
++    if (!checkOnly) { uncertain.current = true; previousJob.current = status?.job_id; deadline.current = Date.now() + 120000; setNotice(undefined); }
++    try {
++      const next = checkOnly ? await readStatus() : parseIndexStatus(await (await request(`${PATH}/update`, token, "POST")).json());
++      if (!mounted.current) return;
++      if (!checkOnly) uncertain.current = false;
++      const finished = acceptStatus(next, checkOnly);
++      if (!finished && Date.now() > deadline.current) deadline.current = Date.now() + 120000;
++      setPending(!finished);
++    } catch (reason) {
++      if (!mounted.current) return;
++      setUpdateError(`请求结果待核对：${reason instanceof Error ? reason.message : "本地请求失败"}`);
++      if (Date.now() > deadline.current) deadline.current = Date.now() + 120000;
++      setPending(true);
++    } finally { postGuard.current = false; if (mounted.current) setPosting(false); }
++  }
++  function clearEvidence() {
++    evidenceGeneration.current++;
++    setEvidence(undefined); setEvidenceDay(undefined); setEvidenceError(undefined); setEvidenceLoading(false);
++  }
++  async function showEvidence(day: string) {
++    if (!view) return;
++    const fixed = view; const generation = ++evidenceGeneration.current;
++    setEvidence(undefined); setEvidenceDay(day); setEvidenceError(undefined); setEvidenceLoading(true);
++    try {
++      const originals = await Promise.all(fixed.evidence.map(async item => parseIndexEvidence(
++        await (await request(`${PATH}/snapshots/${fixed.snapshot_id}/evidence/${item.object_id}`, token)).json(), fixed, item.object_id)));
++      if (mounted.current && generation === evidenceGeneration.current) setEvidence(originals);
++    } catch (reason) {
++      if (mounted.current && generation === evidenceGeneration.current) setEvidenceError(reason instanceof Error ? reason.message : "固定依据不可用");
++    } finally { if (mounted.current && generation === evidenceGeneration.current) setEvidenceLoading(false); }
++  }
++  const pct = view?.summary.daily_change_pct;
++  return <main className="market-view">
++    <header><p className="eyebrow">THEWOLF · 本地市场</p><h1>沪深300</h1><p>000300 · 价格指数 · 中证</p></header>
++    <section className="card">
++      <div className="section-heading"><h2>最新已保存交易日</h2>
++        <button disabled={posting || pending || !status?.enabled || !!updateError || uncertain.current} onClick={() => update()}>检查更新</button></div>
++      {loading && <p role="status">正在读取本地指数…</p>}
++      {error && <div role="alert" className="warning"><p>{error}{view ? ` · 保留已保存版本 ${view.window.end}` : " · 首版保存最近260个完整交易日。"}</p>
++        <button onClick={() => { void restart().then(load); }}>重试启动并读取</button></div>}
++      {view && <><dl className="summary">
++        <div><dt>数据日期</dt><dd>{view.summary.trade_date}</dd></div><div><dt>收盘点位</dt><dd>{view.summary.close} 点</dd></div>
++        <div><dt>较前交易日涨跌幅</dt><dd>{pct == null ? "未知（缺前收）" : `${Number(pct) > 0 ? "+" : ""}${pct}%`}</dd></div>
++      </dl><p>已保存：{view.window.start} 至 {view.window.end} · 260日 · 点</p></>}
++      {!status?.enabled && <p className="note">此数据根未启用指数写入。启动不采集。</p>}
++      <p className="note">最近成功检查：{timeText(status?.last_success_at)}</p>
++      <p role="status">{posting ? "正在发起或核对…" : pending ? labels[status?.stage ?? ""] ?? "核对更新结果…" : notice ?? status?.message}</p>
++      {updateError && <p role="alert" className="warning">{updateError}</p>}
++      {(updateError || status?.stage === "interrupted") && <button disabled={posting || pending} onClick={() => update(true)}>核对结果</button>}
++    </section>
++    {view && <>
++      <DailyCandlestick key={view.snapshot_id} bars={view.bars} expectedDates={view.calendar_dates} onSelect={clearEvidence} onEvidence={showEvidence} />
++      {(evidenceDay || evidenceLoading || evidenceError) && <section className="card index-evidence" aria-label="固定日线依据">
++        <h2>{evidenceDay} · 本地双源依据</h2><p>固定快照：{view.snapshot_id}</p>
++        {evidenceLoading && <p role="status">读取固定原件…</p>}{evidenceError && <p role="alert" className="warning">{evidenceError}</p>}
++        {evidence?.map(original => { const row = original.rows.find(item => item.trade_date === evidenceDay);
++          return <article key={original.object_id}>
++            <h3>{sourceName(original.source)}</h3>
++            {row && <><p>定位：{row.locator}</p><p>原值：开 {row.raw_values.open} · 高 {row.raw_values.high} · 低 {row.raw_values.low} · 收 {row.raw_values.close}</p>
++              <p>标准值：开 {row.open} · 高 {row.high} · 低 {row.low} · 收 {row.close} 点</p></>}
++            <p>{original.verification}</p><p>SHA-256：{original.object_id}</p><p>获取完成：{timeText(original.retrieval.completed_at)} · 发布时间：未知</p>
++            <p>规范URL：{original.url}</p><p>未使用：{original.unused_fields.map(unusedName).join("、")}</p>
++            <details><summary>安全文本预览{original.preview_truncated ? "（前4096字节）" : ""}</summary><pre>{original.text_preview}</pre></details>
++          </article>; })}
++      </section>}
++      <section className="card"><h2>数据说明</h2><p>当前获取的历史版本，非当时可知回放。{view.evidence.map(item => sourceName(item.source)).join("与")}260日×4个OHLC精确校验。</p>
++        <p className="note">首版当前视图260日，旧快照和原件保留。双源完整窗口校验通过才发布；未就绪、失败或中断保留旧版。</p>
++        <p className="note">快照：{view.snapshot_id} · 观察：{view.observation_id}</p></section>
++    </>}
++  </main>;
++}
+--- /dev/null
++++ r4/apps/desktop/src/candlestickGeometry.ts
+@@ -0,0 +1,23 @@
++import type { IndexBar } from "./indexTypes";
++
++export type ChartRange = { start: number; count: number };
++
++/** 缩放围绕选中日，范围最少10日，筛选不足10日时全部显示。 */
++export function zoomRange(range: ChartRange, length: number, selected: number, factor: number): ChartRange {
++  const count = Math.min(length, Math.max(Math.min(10, length), Math.round(range.count * factor)));
++  return { count, start: Math.max(0, Math.min(length - count, selected - Math.floor(count / 2))) };
++}
++
++/** 按筛选边界平移，绝不生成窗口之外的柱。 */
++export function panRange(range: ChartRange, length: number, direction: number): ChartRange {
++  return { ...range, start: Math.max(0, Math.min(length - range.count, range.start + direction * Math.max(1, Math.floor(range.count / 2)))) };
++}
++
++/** Number仅用于坐标；实体方向按开收，原字符串留给选中日展示。 */
++export function candleGeometry(bar: IndexBar, index: number, count: number, min: number, max: number) {
++  const y = (value: string) => 24 + (max - Number(value)) / (max - min || 1) * 208;
++  const open = y(bar.open), close = y(bar.close);
++  return { x: 48 + (index + .5) * (720 / count), width: Math.max(1, Math.min(18, 720 / count * .65)),
++    high: y(bar.high), low: y(bar.low), top: Math.min(open, close), height: Math.abs(close - open),
++    color: Number(bar.close) > Number(bar.open) ? "#ff8a80" : Number(bar.close) < Number(bar.open) ? "#69d6b0" : "#c2cad8" };
++}
+--- /dev/null
++++ r4/apps/desktop/src/indexTypes.ts
+@@ -0,0 +1,89 @@
++export type IndexBar = { trade_date: string; open: string; high: string; low: string; close: string;
++  evidence_refs: { object_id: string; locator: string }[] };
++export type IndexView = { schema_version: string; snapshot_id: string; observation_id: string;
++  instrument: { id: string; name: string; code: string }; unit: string; timezone: string; pit_grade: string;
++  calendar_dates: string[]; bars: IndexBar[];
++  window: { start: string; end: string; expected_count: number; actual_count: number };
++  summary: { trade_date: string; close: string; daily_change_pct: string | null; reason: string | null };
++  source_contract: { version: string };
++  evidence: { source: string; object_id: string; url: string }[] };
++export type IndexStatus = { enabled: boolean; stage: string; job_id?: string | null; result?: string | null;
++  message?: string | null; last_success_at?: string | null; started_at?: string | null; snapshot_id?: string | null };
++export type IndexEvidence = { snapshot_id: string; observation_id: string; source: string; object_id: string; url: string;
++  rows: { trade_date: string; open: string; high: string; low: string; close: string; locator: string;
++    raw_values: Record<string, string> }[];
++  retrieval: { started_at: string; completed_at: string; published_at: null };
++  verification: string; unused_fields: string[]; text_preview: string; preview_truncated: boolean };
++
++const object = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
++const id = (value: unknown) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
++const day = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
++const point = (value: unknown) => typeof value === "string" && /^\d+\.\d{2}$/.test(value) && Number(value) > 0;
++
++/** 本地接口也做运行时契约核对，禁止将错误结构当作真实金融视图。 */
++export function parseIndexView(value: unknown): IndexView {
++  if (!object(value) || value.schema_version !== "csi300-price-snapshot-v1" || !id(value.snapshot_id)
++      || !id(value.observation_id) || !object(value.instrument) || value.instrument.id !== "csi:000300:price"
++      || value.instrument.code !== "000300" || value.instrument.name !== "沪深300" || value.unit !== "点"
++      || value.timezone !== "Asia/Shanghai" || value.pit_grade !== "latest_only" || !object(value.window)
++      || value.window.actual_count !== 260 || value.window.expected_count !== 260 || !Array.isArray(value.bars)
++      || value.bars.length !== 260 || !Array.isArray(value.calendar_dates) || value.calendar_dates.length !== 260
++      || !object(value.summary) || !day(value.summary.trade_date) || !point(value.summary.close)
++      || !(value.summary.daily_change_pct === null || (typeof value.summary.daily_change_pct === "string"
++          && /^-?\d+\.\d{2}$/.test(value.summary.daily_change_pct)))
++      || !Array.isArray(value.evidence) || value.evidence.length !== 2
++      || !object(value.source_contract) || !["csi300-exact-ohlc-v1", "csi300-tencent-exact-ohlc-v2"].includes(String(value.source_contract.version))
++      || !value.evidence.every(item => object(item) && id(item.object_id) && typeof item.url === "string"
++        && ["eastmoney", "tencent", "csindex"].includes(String(item.source)))) throw new Error("指数视图契约不符");
++  const evidenceItems = value.evidence as Record<string, unknown>[];
++  const primary = value.source_contract.version === "csi300-exact-ohlc-v1" ? "eastmoney" : "tencent";
++  if (evidenceItems[0].source !== primary || evidenceItems[1].source !== "csindex"
++      || evidenceItems[0].object_id === evidenceItems[1].object_id) throw new Error("指数双源身份不符");
++  let previous = "";
++  for (const [index, bar] of value.bars.entries()) {
++    if (!object(bar) || !day(bar.trade_date) || String(bar.trade_date) <= previous || bar.trade_date !== value.calendar_dates[index]
++        || ![bar.open, bar.high, bar.low, bar.close].every(point)
++        || Number(bar.low) > Math.min(Number(bar.open), Number(bar.close))
++        || Number(bar.high) < Math.max(Number(bar.open), Number(bar.close))
++        || !Array.isArray(bar.evidence_refs) || bar.evidence_refs.length !== 2
++        || new Set(bar.evidence_refs.map(ref => object(ref) ? ref.object_id : null)).size !== 2
++        || !bar.evidence_refs.every(ref => object(ref) && evidenceItems.some(item => item.object_id === ref.object_id)
++          && typeof ref.locator === "string")) throw new Error("指数日线契约不符");
++    previous = String(bar.trade_date);
++  }
++  const bars = value.bars as IndexBar[];
++  if (value.window.start !== bars[0].trade_date || value.window.end !== previous || value.summary.trade_date !== previous
++      || value.summary.close !== bars.at(-1)!.close) throw new Error("指数摘要与范围不符");
++  return value as unknown as IndexView;
++}
++
++/** 核对固定证据身份和逐日原值，迟到或跨快照响应不能进入面板。 */
++export function parseIndexEvidence(value: unknown, view: IndexView, objectId: string): IndexEvidence {
++  const member = view.evidence.find(item => item.object_id === objectId);
++  if (!object(value) || value.snapshot_id !== view.snapshot_id || value.observation_id !== view.observation_id
++      || !member || value.source !== member.source || value.url !== member.url
++      || value.object_id !== objectId || !object(value.retrieval) || typeof value.retrieval.completed_at !== "string"
++      || typeof value.retrieval.started_at !== "string" || value.retrieval.published_at !== null
++      || !Array.isArray(value.rows) || value.rows.length !== view.bars.length || !value.rows.every((row, index) => object(row) && day(row.trade_date)
++        && row.trade_date === view.bars[index].trade_date
++        && ["open", "high", "low", "close"].every(field => row[field] === view.bars[index][field as keyof IndexBar])
++        && [row.open, row.high, row.low, row.close].every(point) && typeof row.locator === "string" && object(row.raw_values)
++        && ["open", "high", "low", "close"].every(field => typeof (row.raw_values as Record<string, unknown>)[field] === "string"))
++      || typeof value.url !== "string" || typeof value.source !== "string" || typeof value.verification !== "string"
++      || !Array.isArray(value.unused_fields) || !value.unused_fields.every(item => typeof item === "string")
++      || typeof value.preview_truncated !== "boolean" || typeof value.text_preview !== "string") throw new Error("固定证据契约不符");
++  return value as unknown as IndexEvidence;
++}
++
++/** 核对任务状态，未知阶段不能被推定为成功终态。 */
++export function parseIndexStatus(value: unknown): IndexStatus {
++  if (!object(value) || typeof value.enabled !== "boolean" || typeof value.stage !== "string"
++      || !["idle", "preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"].includes(value.stage)
++      || (value.job_id != null && typeof value.job_id !== "string")
++      || (value.message != null && typeof value.message !== "string")
++      || (value.result != null && !["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"].includes(String(value.result)))
++      || (value.stage === "completed" && !["business_changed", "evidence_changed", "unchanged", "source_not_ready"].includes(String(value.result)))
++      || (value.snapshot_id != null && !id(value.snapshot_id))
++      || (value.last_success_at != null && typeof value.last_success_at !== "string")) throw new Error("指数任务状态契约不符");
++  return value as unknown as IndexStatus;
++}
+--- HEAD/apps/desktop/src/styles.css
++++ r4/apps/desktop/src/styles.css
+@@ -38,3 +38,20 @@
+ .pdf-viewer { margin-top: 20px; border-top: 1px solid #4e8e7c; padding-top: 20px; }
+ .pdf-viewer iframe { display: block; width: 100%; height: 600px; margin-top: 12px; border: 1px solid #4e8e7c; border-radius: 8px; background: white; }
+ @media (max-width: 620px) { main { padding: 28px 16px 48px; } .card, .status { padding: 18px; } .summary { grid-template-columns: 1fr; } .pdf-viewer iframe { height: 430px; } }
++
++.page-nav { display: flex; gap: 8px; padding: 16px 24px 0; max-width: 1080px; margin: auto; flex-wrap: wrap; }
++.page-nav button[aria-current="page"] { outline: 2px solid #f5d27a; outline-offset: 2px; }
++.market-view { font-size: 14px; padding-top: 24px; }
++.market-view h1 { font-size: 32px; }
++.market-view p { line-height: 1.6; overflow-wrap: anywhere; }
++.market-view .summary dd, .market-view .selected-day { font-variant-numeric: tabular-nums; }
++.market-view .note { font-size: 12px; }
++.market-view .chart-actions { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin: 16px 0; }
++.market-view label { display: flex; flex-direction: column; gap: 8px; }
++.market-view input { background: #0b1220; border: 1px solid #263a5d; border-radius: 8px; color: #e9eef8; padding: 8px; font: inherit; min-width: 0; color-scheme: dark; }
++.market-view input:focus-visible, .market-view svg:focus-visible, .market-view summary:focus-visible { outline: 3px solid #f5d27a; outline-offset: 3px; }
++.market-view svg { display: block; width: 100%; min-height: 180px; margin: 16px 0; border-radius: 8px; }
++.market-view svg text { fill: #9aabca; font-size: 12px; }
++.market-view .index-evidence article { border-top: 1px solid #263a5d; margin-top: 24px; padding-top: 16px; }
++.market-view .index-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; font-size: 12px; }
++@media (max-width: 620px) { .market-view .chart-actions { align-items: stretch; } .market-view .card { padding: 16px; } .market-view .summary { grid-template-columns: 1fr; } .page-nav { padding-inline: 16px; } }
+--- HEAD/python/src/pmi/api.py
++++ r4/python/src/pmi/api.py
+@@ -219,3 +219,78 @@
+         return {**start_update(_slice_root()), "enabled": True}
+     except (SnapshotError, OSError, ValueError, sqlite3.Error) as error:
+         raise HTTPException(status_code=409, detail={"code": "update_unavailable", "message": str(error) if isinstance(error, SnapshotError) else "本地更新任务不可用"}) from error
++
++
++class IndexUpdateStatus(BaseModel):
++    """指数任务独立阶段；不存在的值保留null，不伪造成功时刻。"""
++
++    stage: Literal["idle", "preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"]
++    enabled: bool = False
++    job_id: Optional[str] = None
++    result: Optional[Literal["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"]] = None
++    message: Optional[str] = None
++    started_at: Optional[str] = None
++    finished_at: Optional[str] = None
++    last_success_at: Optional[str] = None
++    target_start: Optional[str] = None
++    target_end: Optional[str] = None
++    previous_snapshot_id: Optional[str] = None
++    snapshot_id: Optional[str] = None
++    observation_id: Optional[str] = None
++    added_dates: list[str] = Field(default_factory=list)
++    revised_dates: list[str] = Field(default_factory=list)
++
++
++def _index_error(error: Exception) -> HTTPException:
++    """将指数边界错误映射为稳定状态码；不暴露数据库细节或机器路径。"""
++    message = str(error) if isinstance(error, SnapshotError) else "指数本地快照不可用，请检查数据目录"
++    code = 422 if message.startswith("index_id_invalid:") else 404 if message.startswith("index_evidence_not_found:") else 409
++    return HTTPException(status_code=code, detail={"code": "index_id_invalid" if code == 422 else "index_snapshot_invalid", "message": message})
++
++
++@app.get("/api/indices/000300", dependencies=[Depends(_authorized)])
++@app.get("/api/indices/000300/snapshots/{snapshot_id}", dependencies=[Depends(_authorized)])
++def index_snapshot(snapshot_id: Optional[str] = None) -> dict:
++    """只读当前或固定完整指数视图，鉴权先于任何本地读取。"""
++    from pmi.index_snapshot import read_snapshot as read_index_snapshot
++    try:
++        item = read_index_snapshot(_slice_root(), snapshot_id)
++    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
++        raise _index_error(error) from error
++    if item is None:
++        raise HTTPException(status_code=404, detail={"code": "index_empty" if snapshot_id is None else "index_snapshot_not_found", "message": "尚无本地指数快照"})
++    return item
++
++
++@app.get("/api/indices/000300/snapshots/{snapshot_id}/evidence/{object_id}", dependencies=[Depends(_authorized)])
++def index_evidence(snapshot_id: str, object_id: str) -> dict:
++    """返回固定成员原件的安全文本、原值及行定位；不打开外部网页。"""
++    from pmi.index_snapshot import read_evidence
++    try:
++        return read_evidence(_slice_root(), snapshot_id, object_id)
++    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
++        raise _index_error(error) from error
++
++
++@app.get("/api/indices/000300/update", dependencies=[Depends(_authorized)], response_model=IndexUpdateStatus)
++def index_update_status() -> dict:
++    """指数GET状态只读取提交恢复结果，不创建目录或锁。"""
++    from pmi.index_update import update_status as read_index_status
++    try:
++        return {**read_index_status(_slice_root()), "enabled": os.environ.get("WOLF_ENABLE_INDEX_UPDATE") == "1"}
++    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
++        raise _index_error(error) from error
++
++
++@app.post("/api/indices/000300/update", dependencies=[Depends(_authorized)], status_code=202, response_model=IndexUpdateStatus)
++def index_update(body: UpdateRequest, request: Request) -> dict:
++    """独立写开关启用后仅启动冻结服务端目标；不接受证券、来源或日期参数。"""
++    from pmi.index_update import start_update as start_index_update
++    if request.query_params:
++        raise HTTPException(status_code=422, detail={"code": "unexpected_parameters", "message": "指数更新不接受自选参数"})
++    if os.environ.get("WOLF_ENABLE_INDEX_UPDATE") != "1":
++        raise HTTPException(status_code=403, detail={"code": "index_update_disabled", "message": "此数据根尚未启用指数写入"})
++    try:
++        return {**start_index_update(_slice_root()), "enabled": True}
++    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
++        raise _index_error(error) from error
+--- /dev/null
++++ r4/python/src/pmi/index_calendar.py
+@@ -0,0 +1,59 @@
++"""沪深300首版日历；只使用P01已核验的2025/2026休市安排。"""
++
++from datetime import date, datetime, timedelta
++from zoneinfo import ZoneInfo
++
++from pmi.snapshot import SnapshotError
++
++CALENDAR_VERSION = "csi300-sse2025-szse-sse2026-v1"
++CALENDAR_SOURCES = (
++    ("https://www.sse.com.cn/disclosure/announcement/general/c/c_20241223_10767108.shtml", "b88e5777d868192c156b85f7514fafcba8638a8bcec0cd80190b2e67769f5fff"),
++    ("https://investor.szse.cn/disclosure/notice/general/t20251222_618087.html", "1656d8708d5faed33c7588538639d96128f39fdface02cfa6eb66d796c40f14e"),
++    ("https://investor.szse.cn/disclosure/notice/general/t20260917_622911.html", "7b0c4264d27f4ba14a1904ab31cb3b2b870e4e68d6b8d8c0f6cf4254c1a045a4"),
++    ("https://www.sse.com.cn/disclosure/dealinstruc/closed/", "7ea10c16202c4748f0ad5bcdfe6ee07b85b5462589504604b17c9d63865e7d8c"),
++)
++_CLOSURES = (("2025-01-01", "2025-01-01"), ("2025-01-28", "2025-02-04"),
++             ("2025-04-04", "2025-04-06"), ("2025-05-01", "2025-05-05"),
++             ("2025-05-31", "2025-06-02"), ("2025-10-01", "2025-10-08"),
++             ("2026-01-01", "2026-01-03"), ("2026-02-15", "2026-02-23"),
++             ("2026-04-04", "2026-04-06"), ("2026-05-01", "2026-05-05"),
++             ("2026-06-19", "2026-06-21"), ("2026-09-25", "2026-09-27"),
++             ("2026-10-01", "2026-10-07"))
++
++
++def trading_days(start: date, end: date) -> tuple[str, ...]:
++    """返回已验证范围内开市日，周末调休仍按休市处理。
++
++    Raises:
++        SnapshotError: 范围越过2025/2026或顺序无效，不猜测未知年份。
++    """
++    if start < date(2025, 1, 1) or end > date(2026, 12, 31) or end < start:
++        raise SnapshotError("calendar_uncovered: 已核验日历仅覆盖2025/2026")
++    days = []
++    while start <= end:
++        value = start.isoformat()
++        if start.weekday() < 5 and not any(a <= value <= b for a, b in _CLOSURES):
++            days.append(value)
++        start += timedelta(days=1)
++    return tuple(days)
++
++
++def complete_window(now: datetime) -> tuple[str, ...]:
++    """冻结上海日期之前最近260个开市日；当日完成判据本版未准入。"""
++    if now.tzinfo is None or now.utcoffset() is None:
++        raise SnapshotError("calendar clock must include timezone")
++    today = now.astimezone(ZoneInfo("Asia/Shanghai")).date()
++    if today.year not in (2025, 2026):
++        raise SnapshotError("calendar_uncovered: 当前年份未验证")
++    days = trading_days(date(2025, 1, 1), today - timedelta(days=1))
++    if len(days) < 260:
++        raise SnapshotError("calendar_uncovered: 已验证日历不足260日")
++    return days[-260:]
++
++
++def completion_basis() -> dict:
++    """说明日历出处与P01已声明的2025深交所材料限制。"""
++    return {"version": CALENDAR_VERSION, "coverage": ["2025-01-01", "2026-12-31"],
++            "rule": "Asia/Shanghai before today; both sources exact OHLC",
++            "sources": [{"url": url, "sha256": digest} for url, digest in CALENDAR_SOURCES],
++            "limits": "2025依据为上交所年度通知，未另取得深交所2025原通知"}
+--- /dev/null
++++ r4/python/src/pmi/index_contract.py
+@@ -0,0 +1,281 @@
++"""沪深300价格指数双源契约，Decimal点位及固定原件行定位。"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import re
++from dataclasses import asdict, dataclass
++from datetime import date, datetime, timezone
++from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
++from typing import Literal
++from urllib.parse import urlencode
++
++from pmi.index_calendar import completion_basis, trading_days
++from pmi.snapshot import SnapshotError
++
++Source = Literal["eastmoney", "tencent", "csindex"]
++SOURCES: tuple[Source, ...] = ("tencent", "csindex")
++LEGACY_SOURCES: tuple[Source, ...] = ("eastmoney", "csindex")
++URLS = {"eastmoney": "https://push2his.eastmoney.com/api/qt/stock/kline/get",
++        "tencent": "https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get",
++        "csindex": "https://www.csindex.com.cn/csindex-home/perf/index-perf"}
++INSTRUMENT = {"id": "csi:000300:price", "code": "000300", "name": "沪深300",
++              "provider": "中证", "return_type": "price", "frequency": "daily"}
++FIELDS = ("open", "high", "low", "close")
++LEGACY_CONTRACT = {"version": "csi300-exact-ohlc-v1", "normalization": "decimal-two-places-v1",
++            "sources": {source: URLS[source] for source in LEGACY_SOURCES}, "unused_fields": ["volume", "amount", "changePct", "peg"],
++            "publication_time": "unknown", "identity_basis": "PLAN-P01 official factsheet; H00300/N00300 excluded"}
++CONTRACT = {**LEGACY_CONTRACT, "version": "csi300-tencent-exact-ohlc-v2",
++            "sources": {source: URLS[source] for source in SOURCES},
++            "unused_fields": ["volume", "amount", "changePct", "peg", "prec", "version"],
++            "tencent_branch": "day", "request_qfq_semantics": "SDK compatibility parameter; price index day only",
++            "date_selection": "exclude earlier rows; reject later, duplicate or unordered dates; retain original array index"}
++
++
++def contract_sources(version: str) -> tuple[Source, ...]:
++    """按已登记策略选择来源；旧版本仅供固定原件重放和只读核验。
++
++    Args:
++        version: 固定快照的来源契约版本，未知版本不能推定为当前来源。
++    Returns:
++        对应双源的固定顺序。
++    Raises:
++        SnapshotError: 版本未登记。
++    """
++    if version == CONTRACT["version"]:
++        return SOURCES
++    if version == LEGACY_CONTRACT["version"]:
++        return LEGACY_SOURCES
++    raise SnapshotError("未知指数来源契约版本")
++
++
++class SourceNotReady(SnapshotError):
++    """合法结构仅缺窗口末尾连续日期，不降低目标窗口。"""
++
++
++@dataclass(frozen=True)
++class SourceRow:
++    """标准点位与未经舍入的原值/JSON定位。"""
++
++    trade_date: str
++    open: str
++    high: str
++    low: str
++    close: str
++    locator: str
++    raw_values: dict[str, str]
++
++
++@dataclass(frozen=True)
++class Original:
++    """原件内容及一次获取观察；时间不参与内容快照身份。"""
++
++    source: Source
++    content: bytes
++    started_at: str
++    completed_at: str
++
++
++def digest(content: bytes) -> str:
++    """计算固定对象的SHA-256，不作为Git版本使用。"""
++    return hashlib.sha256(content).hexdigest()
++
++
++def canonical(value: object) -> bytes:
++    """固定UTF-8清单序列化，禁止非有限JSON数值。"""
++    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
++
++
++def utc(value: str) -> str:
++    """统一观察时区身份，拒绝无时区时间。"""
++    stamp = datetime.fromisoformat(value)
++    if stamp.tzinfo is None or stamp.utcoffset() is None:
++        raise SnapshotError("观察时间必须含时区")
++    return stamp.astimezone(timezone.utc).isoformat()
++
++
++def source_url(source: Source, days: tuple[str, ...]) -> str:
++    """构造固定来源/窗口URL；东财URL只用于验证旧归档，不授予出站权限。"""
++    if source not in URLS:
++        raise SnapshotError("未知指数来源")
++    if source == "tencent":
++        return URLS[source] + "?" + urlencode({"_var": "kline_dayqfq",
++            "param": f"sh000300,day,{days[0]},{days[-1]},640,qfq", "r": "0.8205512681390605"})
++    params = ({"secid": "1.000300", "fields1": "f1,f2,f3,f4,f5", "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
++               "klt": "101", "fqt": "0", "beg": days[0].replace("-", ""), "end": days[-1].replace("-", "")}
++              if source == "eastmoney" else {"indexCode": "000300", "startDate": days[0].replace("-", ""), "endDate": days[-1].replace("-", "")})
++    return URLS[source] + "?" + urlencode(params)
++
++
++def point(value: object) -> str:
++    """保真解析正点位；仅允许尾零超过两位，绝不舍入后掩盖差异。"""
++    if isinstance(value, (float, bool)) or not isinstance(value, (str, int, Decimal)):
++        raise SnapshotError("点位必须使用原始十进制值")
++    try:
++        number = Decimal(value)
++        if not number.is_finite() or number <= 0 or number > Decimal("1000000000000"):
++            raise SnapshotError("点位必须有限且为正，超出支持范围")
++        normalized = number.quantize(Decimal("0.01"))
++    except (InvalidOperation, ValueError) as error:
++        raise SnapshotError("非法十进制点位") from error
++    if number != normalized:
++        raise SnapshotError("点位超过两位非零精度")
++    return format(normalized, ".2f")
++
++
++def _row(day: str, values: dict, locator: str) -> SourceRow:
++    if not isinstance(day, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
++        raise SnapshotError("非法交易日")
++    date.fromisoformat(day)
++    normalized = {name: point(values[name]) for name in FIELDS}
++    if not (Decimal(normalized["low"]) <= min(Decimal(normalized["open"]), Decimal(normalized["close"]))
++            <= max(Decimal(normalized["open"]), Decimal(normalized["close"])) <= Decimal(normalized["high"])):
++        raise SnapshotError(f"{day}: 高低不包开收")
++    return SourceRow(day, **normalized, locator=locator,
++                     raw_values={name: str(values[name]) for name in FIELDS})
++
++
++def _unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
++    """腾讯JSON拒绝重复键，避免身份或day分支被后一个同名键覆盖。"""
++    result = {}
++    for key, value in pairs:
++        if key in result:
++            raise SnapshotError("tencent: 重复JSON字段")
++        result[key] = value
++    return result
++
++
++def parse_source(source: Source, content: bytes) -> tuple[SourceRow, ...]:
++    """核验来源身份并显式映射OHLC，JSON小数从原始文本进入Decimal。
++
++    Raises:
++        SnapshotError: 身份、成功状态、结构、日期或点位不符合契约。
++    """
++    try:
++        if source not in URLS:
++            raise SnapshotError("未知指数来源")
++        text = content.decode("utf-8")
++        if source == "tencent" and not text.lstrip().startswith("{"):
++            match = re.fullmatch(r"\s*kline_dayqfq=(\{.*\});?\s*", text, re.S)
++            if match is None:
++                raise SnapshotError("tencent: 仅允许指定变量的JSON，不执行脚本")
++            text = match[1]
++        raw = json.loads(text, parse_float=Decimal, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
++                         **({"object_pairs_hook": _unique_fields} if source == "tencent" else {}))
++        rows = []
++        if source == "tencent":
++            data = raw["data"]["sh000300"]
++            identity = data["qt"]["sh000300"]
++            if type(raw["code"]) is not int or raw["code"] != 0 or not isinstance(identity, list) or identity[1:3] != ["沪深300", "000300"]:
++                raise SnapshotError("tencent: 指数身份或成功状态不符")
++            if not isinstance(data.get("day"), list) or "qfqday" in data or "hfqday" in data:
++                raise SnapshotError("tencent: 只准入day分支，不降级至复权分支")
++            for index, fields in enumerate(data["day"]):
++                if not isinstance(fields, list) or len(fields) < 5 or not all(isinstance(value, str) for value in fields[:5]):
++                    raise SnapshotError("tencent: day字段结构不符")
++                # 腾讯同样按日期、开、收、高、低返回；原数组下标不因裁剪改变。
++                rows.append(_row(fields[0], dict(zip(("open", "close", "high", "low"), fields[1:5])), f"$.data.sh000300.day[{index}]"))
++        elif source == "eastmoney":
++            data = raw["data"]
++            if raw["rc"] != 0 or any(data.get(k) != v for k, v in {"code": "000300", "market": 1, "name": "沪深300", "decimal": 2}.items()):
++                raise SnapshotError("eastmoney: 指数身份或成功状态不符")
++            for index, line in enumerate(data["klines"]):
++                fields = line.split(",")
++                if len(fields) != 8:
++                    raise SnapshotError("eastmoney: kline字段结构不符")
++                # 东财原顺序为开、收、高、低，与标准OHLC顺序不同。
++                rows.append(_row(fields[0], dict(zip(("open", "close", "high", "low"), fields[1:5])), f"$.data.klines[{index}]"))
++        else:
++            if raw["code"] != "200" or raw["msg"] != "Success" or not isinstance(raw["data"], list):
++                raise SnapshotError("csindex: 成功状态不符")
++            for index, item in enumerate(raw["data"]):
++                if item["indexCode"] != "000300" or item["indexNameCn"] != "沪深300" or item["indexNameCnAll"] != "沪深300指数":
++                    raise SnapshotError("csindex: 指数身份不符")
++                compact = item["tradeDate"]
++                if not isinstance(compact, str) or not re.fullmatch(r"\d{8}", compact):
++                    raise SnapshotError("csindex: 非法交易日")
++                rows.append(_row(f"{compact[:4]}-{compact[4:6]}-{compact[6:]}", item, f"$.data[{index}]"))
++        days = [row.trade_date for row in rows]
++        if len(set(days)) != len(days):
++            raise SnapshotError(f"{source}: 重复交易日")
++        if source == "tencent" and days != sorted(days):
++            raise SnapshotError("tencent: 日期未按原数组递增")
++        return tuple(sorted(rows, key=lambda row: row.trade_date))
++    except SnapshotError:
++        raise
++    except (KeyError, TypeError, ValueError, AttributeError, InvalidOperation) as error:
++        raise SnapshotError(f"{source}: 非法来源结构（{type(error).__name__}）") from error
++
++
++def validate_window(days: tuple[str, ...]) -> None:
++    """只准入完整260日已核验交易日窗口，不接受任意工作日集合。"""
++    if len(days) != 260 or days != trading_days(date.fromisoformat(days[0]), date.fromisoformat(days[-1])):
++        raise SnapshotError("指数窗口必须为260个完整、唯一、递增的已核验交易日")
++
++
++def build_manifest(days: tuple[str, ...], originals: tuple[Original, ...], *,
++                   contract_version: str = CONTRACT["version"]) -> dict:
++    """精确对账两个独立来源并生成不含观察时刻的不可变内容清单。
++
++    缺中间日期/额外日期为失败，仅末尾连续缺失为未就绪；两源不互补。
++    腾讯只排除窗口前的日期，完整原件和原数组定位保持；旧策略仅由只读核验显式指定。
++    """
++    validate_window(days)
++    sources = contract_sources(contract_version)
++    contract = CONTRACT if sources == SOURCES else LEGACY_CONTRACT
++    if tuple(item.source for item in originals) != sources:
++        raise SnapshotError("需要两份固定来源原件且顺序一致")
++    parsed = [parse_source(item.source, item.content) for item in originals]
++    if sources == SOURCES:
++        if any(row.trade_date > days[-1] for row in parsed[0]):
++            raise SnapshotError("tencent: 存在晚于冻结截止日的日期")
++        parsed[0] = tuple(row for row in parsed[0] if row.trade_date >= days[0])
++    incomplete = []
++    for source, rows in zip(sources, parsed):
++        actual = tuple(row.trade_date for row in rows)
++        if actual != days:
++            if len(actual) < len(days) and actual == days[:len(actual)]:
++                incomplete.append(f"{source}: 缺末尾日期 {days[len(actual)]}—{days[-1]}")
++            else:
++                missing = sorted(set(days) - set(actual))
++                extra = sorted(set(actual) - set(days))
++                raise SnapshotError(f"{source}: 内部缺日或额外日期 missing={missing} extra={extra}")
++    overlap_left = {row.trade_date: row for row in parsed[0]}
++    overlap_right = {row.trade_date: row for row in parsed[1]}
++    for day in overlap_left.keys() & overlap_right.keys():
++        for field in FIELDS:
++            if getattr(overlap_left[day], field) != getattr(overlap_right[day], field):
++                raise SnapshotError(f"双源不一致: {day} {field}")
++    # 两源都完成结构及重叠值校验后才能将合法尾部缺失分类为未就绪。
++    if incomplete:
++        raise SourceNotReady("source_not_ready: " + "; ".join(incomplete))
++    evidence = [{"source": item.source, "object_id": digest(item.content), "url": source_url(item.source, days),
++                 "rows": [asdict(row) for row in rows]} for item, rows in zip(originals, parsed)]
++    bars = []
++    for left, right in zip(*parsed):
++        for field in FIELDS:
++            if getattr(left, field) != getattr(right, field):
++                raise SnapshotError(f"双源不一致: {left.trade_date} {field} {sources[0]}={getattr(left, field)} csindex={getattr(right, field)}")
++        bars.append({"trade_date": left.trade_date, **{field: getattr(left, field) for field in FIELDS},
++                     "evidence_refs": [{"object_id": item["object_id"], "locator": rows[len(bars)].locator} for item, rows in zip(evidence, parsed)]})
++    return {"schema_version": "csi300-price-snapshot-v1", "instrument": INSTRUMENT, "unit": "点", "timezone": "Asia/Shanghai",
++            "pit_grade": "latest_only", "calendar_dates": list(days), "window": {"start": days[0], "end": days[-1], "expected_count": 260, "actual_count": 260},
++            "bars": bars, "summary": summarize(bars), "completion_basis": completion_basis(), "source_contract": contract, "evidence": evidence}
++
++
++def summarize(bars: list[dict]) -> dict:
++    """按相邻预期交易日收盘计算百分比，最后才ROUND_HALF_UP两位。
++
++    首行缺前收为null；来源changePct不参与计算。零统一0.00。
++    """
++    last = bars[-1]
++    change = None
++    if len(bars) > 1:
++        change = (Decimal(last["close"]) / Decimal(bars[-2]["close"]) - 1) * 100
++        change = change.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
++    return {"trade_date": last["trade_date"], "close": last["close"],
++            "daily_change_pct": ("0.00" if change == 0 else format(change, ".2f")) if change is not None else None,
++            "reason": "first_row_without_previous_close" if change is None else None,
++            "formula_version": "adjacent-expected-close-pct-half-up-v1",
++            "input_refs": [{"trade_date": bar["trade_date"], "close": bar["close"], "evidence_refs": bar["evidence_refs"]} for bar in bars[-2:]]}
+--- /dev/null
++++ r4/python/src/pmi/index_fetch.py
+@@ -0,0 +1,75 @@
++"""单次固定指数来源获取子进程；父管道/硬截止由调用方管理。"""
++
++import argparse
++import json
++import os
++import signal
++import sys
++import threading
++from datetime import datetime, timezone
++from pathlib import Path
++
++import requests
++
++from pmi.index_contract import SOURCES, source_url
++from pmi.snapshot import SnapshotError
++
++MAX_BODY = 8 * 1024 * 1024
++
++
++def _watch_parent() -> None:
++    """父进程消失时退出当前获取子进程，不留下外部连接。"""
++    while os.read(sys.stdin.fileno(), 1):
++        pass
++    os.kill(os.getpid(), signal.SIGTERM)
++
++
++def fetch_once(url: str, output: Path) -> None:
++    """单请求，无重定向/重试，保留代理和TLS，流式与解压后均限8MiB。
++
++    为避免压缩流绕过线速限额，请求identity并明确拒绝压缩响应。
++    """
++    size = 0
++    output.joinpath("receipt.json").write_text(json.dumps({"bytes": 0}))
++    with requests.get(url, stream=True, timeout=(5, 15), allow_redirects=False,
++                      headers={"User-Agent": "TheWolf-csi300/0.1", "Accept-Encoding": "identity"}) as response:
++        if response.status_code != 200:
++            raise SnapshotError(f"来源HTTP {response.status_code}，不跟随重定向、不自动重试")
++        if response.headers.get("Content-Encoding", "identity").lower() not in ("identity", ""):
++            raise SnapshotError("来源压缩响应未准入")
++        if int(response.headers.get("Content-Length", "0")) > MAX_BODY:
++            raise SnapshotError("来源正文超过8MiB")
++        with output.joinpath("original").open("wb") as stream:
++            while size < MAX_BODY:
++                chunk = response.raw.read(min(8192, MAX_BODY - size), decode_content=False)
++                if not chunk:
++                    break
++                size += len(chunk)
++                output.joinpath("receipt.json").write_text(json.dumps({"bytes": size}))
++                stream.write(chunk)
++            if size == MAX_BODY and response.headers.get("Content-Length") != str(MAX_BODY):
++                raise SnapshotError("来源达到8MiB读取上限，无法确认完整正文")
++            stream.flush()
++            os.fsync(stream.fileno())
++    output.joinpath("receipt.json").write_text(json.dumps({"bytes": size, "completed_at": datetime.now(timezone.utc).isoformat()}))
++
++
++def main() -> None:
++    """只接受固定来源和窗口边界，不接受任意URL。"""
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--source", choices=SOURCES, required=True)
++    parser.add_argument("--start", required=True)
++    parser.add_argument("--end", required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    threading.Thread(target=_watch_parent, daemon=True).start()
++    try:
++        fetch_once(source_url(args.source, (args.start, args.end)), args.output)
++    except (SnapshotError, requests.RequestException, OSError, ValueError) as error:
++        message = str(error) if isinstance(error, SnapshotError) else f"source network unavailable ({type(error).__name__})"
++        args.output.joinpath("failure.json").write_text(json.dumps({"message": message}))
++        raise SystemExit(1) from error
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ r4/python/src/pmi/index_snapshot.py
+@@ -0,0 +1,260 @@
++"""指数独立子根的内容寻址、观察排序、事务发布与只读证据。"""
++
++from __future__ import annotations
++
++import json
++import os
++import re
++import sqlite3
++import tempfile
++from contextlib import contextmanager
++from pathlib import Path
++from typing import Callable, Iterator
++
++from pmi.index_contract import Original, build_manifest, canonical, contract_sources, digest, source_url, utc
++from pmi.snapshot import SnapshotError
++
++ID_PATTERN = r"[0-9a-f]{64}"
++
++
++def safe_path(path: Path) -> Path:
++    """检查绝对路径各层，拒绝符号链接，包括父数据根的祖先目录。"""
++    path = Path(os.path.abspath(path.expanduser()))
++    for layer in (path, *path.parents):
++        if layer.is_symlink():
++            raise SnapshotError("index_path_invalid: 数据路径含符号链接")
++    return path
++
++
++def index_root(parent: Path) -> Path:
++    """解析固定子根，读取时不创建任何目录或锁文件。"""
++    return safe_path(parent / "indices" / "csi000300")
++
++
++def validate_id(value: str) -> None:
++    """仅准入SHA-256对象ID，禁止路径输入。"""
++    if not re.fullmatch(ID_PATTERN, value):
++        raise SnapshotError("index_id_invalid: ID必须是64位小写十六进制")
++
++
++def atomic_json(path: Path, value: dict) -> None:
++    """锁内原子写状态；落盘和目录同步使中断后结果可判定。"""
++    safe_path(path)
++    descriptor, temporary = tempfile.mkstemp(prefix=".pending-", dir=path.parent)
++    try:
++        with os.fdopen(descriptor, "wb") as stream:
++            stream.write(canonical(value))
++            stream.flush()
++            os.fsync(stream.fileno())
++        os.replace(temporary, path)
++        _sync_directory(path.parent)
++    finally:
++        if os.path.exists(temporary):
++            os.unlink(temporary)
++
++
++def _sync_directory(path: Path) -> None:
++    descriptor = os.open(path, os.O_RDONLY)
++    try:
++        os.fsync(descriptor)
++    finally:
++        os.close(descriptor)
++
++
++def write_object(root: Path, content: bytes) -> str:
++    """不可变写入哈希对象；已存在对象损坏时拒绝覆盖。"""
++    objects = safe_path(root / "objects")
++    objects.mkdir(exist_ok=True)
++    object_id = digest(content)
++    path = safe_path(objects / object_id)
++    if path.exists():
++        if path.read_bytes() != content:
++            raise SnapshotError("指数对象哈希损坏")
++        return object_id
++    descriptor, temporary = tempfile.mkstemp(prefix=".pending-", dir=objects)
++    try:
++        with os.fdopen(descriptor, "wb") as stream:
++            stream.write(content)
++            stream.flush()
++            os.fsync(stream.fileno())
++        # 所有调用者持父根锁；link只创建新名称，绝不覆盖已发布对象。
++        os.link(temporary, path)
++        _sync_directory(objects)
++    finally:
++        os.unlink(temporary)
++    return object_id
++
++
++def read_object(root: Path, object_id: str) -> bytes:
++    """读取固定哈希对象并检验路径与内容，不回退到当前版本。"""
++    validate_id(object_id)
++    content = safe_path(root / "objects" / object_id).read_bytes()
++    if digest(content) != object_id:
++        raise SnapshotError("指数对象哈希损坏")
++    return content
++
++
++@contextmanager
++def _connection(root: Path, write: bool = False) -> Iterator[sqlite3.Connection]:
++    path = safe_path(root / "index.sqlite")
++    for suffix in ("-wal", "-shm", "-journal"):
++        safe_path(Path(str(path) + suffix))
++    connection = sqlite3.connect(path if write else path.as_uri() + "?mode=ro", uri=not write)
++    connection.row_factory = sqlite3.Row
++    try:
++        if write:
++            connection.execute("PRAGMA synchronous=FULL")
++            connection.execute("PRAGMA foreign_keys=ON")
++        yield connection
++    finally:
++        connection.close()
++
++
++def _schema(connection: sqlite3.Connection) -> None:
++    for statement in (
++        "CREATE TABLE IF NOT EXISTS snapshots (id TEXT PRIMARY KEY, end_date TEXT NOT NULL, first_observation TEXT NOT NULL)",
++        "CREATE TABLE IF NOT EXISTS observations (id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES snapshots(id), observed_at TEXT NOT NULL, receipt TEXT NOT NULL)",
++        "CREATE TABLE IF NOT EXISTS current_snapshot (singleton INTEGER PRIMARY KEY CHECK(singleton=1), snapshot_id TEXT NOT NULL REFERENCES snapshots(id), observation_id TEXT NOT NULL REFERENCES observations(id))",
++        "CREATE TABLE IF NOT EXISTS committed_jobs (job_id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES snapshots(id), state TEXT NOT NULL)",
++    ):
++        connection.execute(statement)
++
++
++def _observation(manifest_id: str, originals: tuple[Original, ...], days: tuple[str, ...]) -> dict:
++    receipts = []
++    for item in originals:
++        start, end = utc(item.started_at), utc(item.completed_at)
++        if end < start:
++            raise SnapshotError("来源观察完成时刻早于开始")
++        receipts.append({"source": item.source, "url": source_url(item.source, days), "started_at": start,
++                         "completed_at": end, "object_id": digest(item.content), "published_at": None})
++    return {"snapshot_id": manifest_id, "sources": receipts, "observed_at": max(item["completed_at"] for item in receipts)}
++
++
++def publish(parent: Path, manifest: dict, originals: tuple[Original, ...], state: dict,
++            checkpoint: Callable[[str], None] | None = None) -> str:
++    """在父根锁内先写全对象，再事务提交内容/观察/当前指针/job结果。
++
++    旧截止日或迟到旧观察不推进指针；同一观察重放幂等。提交后状态丢失可由job表恢复。
++    """
++    days = tuple(manifest["calendar_dates"])
++    if build_manifest(days, originals) != manifest:
++        raise SnapshotError("清单与双源固定输入不一致")
++    root = index_root(parent)
++    root.mkdir(parents=True, exist_ok=True)
++    for original in originals:
++        write_object(root, original.content)
++    snapshot_id = write_object(root, canonical(manifest))
++    receipt = _observation(snapshot_id, originals, days)
++    observation_id = digest(canonical(receipt))
++    if checkpoint:
++        checkpoint("objects_written")
++    with _connection(root, True) as connection:
++        connection.execute("BEGIN IMMEDIATE")
++        try:
++            _schema(connection)
++            existing = connection.execute("SELECT state FROM committed_jobs WHERE job_id=?", (state["job_id"],)).fetchone()
++            if existing:
++                stored = json.loads(existing["state"])
++                if stored["snapshot_id"] != snapshot_id:
++                    raise SnapshotError("job_id与已提交内容不一致")
++                return snapshot_id
++            current = connection.execute("SELECT s.end_date,o.observed_at FROM current_snapshot c JOIN snapshots s ON s.id=c.snapshot_id JOIN observations o ON o.id=c.observation_id").fetchone()
++            connection.execute("INSERT OR IGNORE INTO snapshots VALUES (?,?,?)", (snapshot_id, days[-1], observation_id))
++            inserted = connection.execute("INSERT OR IGNORE INTO observations VALUES (?,?,?,?)", (observation_id, snapshot_id, receipt["observed_at"], canonical(receipt).decode())).rowcount
++            if inserted and (current is None or (days[-1] >= current["end_date"] and receipt["observed_at"] >= current["observed_at"])):
++                connection.execute("INSERT OR REPLACE INTO current_snapshot VALUES (1,?,?)", (snapshot_id, observation_id))
++            completed = {**state, "stage": "completed", "snapshot_id": snapshot_id, "observation_id": observation_id,
++                         "finished_at": receipt["observed_at"], "last_success_at": receipt["observed_at"]}
++            connection.execute("INSERT INTO committed_jobs VALUES (?,?,?)", (state["job_id"], snapshot_id, canonical(completed).decode()))
++            if checkpoint:
++                checkpoint("before_commit")
++            connection.commit()
++        except BaseException:
++            connection.rollback()
++            raise
++    _sync_directory(root)
++    if checkpoint:
++        checkpoint("after_commit")
++    return snapshot_id
++
++
++def committed_job(parent: Path, job_id: str | None) -> dict | None:
++    """只读查询提交结果；未提交job不因状态文件而推定成功。"""
++    root = index_root(parent)
++    if not job_id or not safe_path(root / "index.sqlite").exists():
++        return None
++    with _connection(root) as connection:
++        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++        if "committed_jobs" not in tables:
++            return None
++        row = connection.execute("SELECT snapshot_id,state FROM committed_jobs WHERE job_id=?", (job_id,)).fetchone()
++    if row is None:
++        return None
++    state = json.loads(row["state"])
++    if state.get("job_id") != job_id or state.get("snapshot_id") != row["snapshot_id"] or state.get("stage") != "completed":
++        raise SnapshotError("指数job提交标识不一致")
++    return state
++
++
++def read_snapshot(parent: Path, snapshot_id: str | None = None) -> dict | None:
++    """只读完整固定视图，证据观察始终绑定快照首次成功发布。
++
++    每次重建双源契约校验清单与原件；损坏时明确报错，绝不静默换版本。
++    """
++    if snapshot_id is not None:
++        validate_id(snapshot_id)
++    root = index_root(parent)
++    if not safe_path(root / "index.sqlite").exists():
++        return None
++    with _connection(root) as connection:
++        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++        if "snapshots" not in tables:
++            return None
++        if snapshot_id is None:
++            row = connection.execute("SELECT snapshot_id,observation_id FROM current_snapshot WHERE singleton=1").fetchone()
++            if row is None:
++                return None
++            snapshot_id = row[0]
++            current_observation = connection.execute("SELECT snapshot_id,receipt,observed_at FROM observations WHERE id=?", (row["observation_id"],)).fetchone()
++            if current_observation is None or current_observation["snapshot_id"] != snapshot_id:
++                raise SnapshotError("指数当前观察关联损坏")
++            current_receipt = json.loads(current_observation["receipt"])
++            if digest(canonical(current_receipt)) != row["observation_id"] or current_receipt.get("snapshot_id") != snapshot_id or current_receipt.get("observed_at") != current_observation["observed_at"]:
++                raise SnapshotError("指数当前观察身份损坏")
++        row = connection.execute("SELECT * FROM snapshots WHERE id=?", (snapshot_id,)).fetchone()
++        if row is None:
++            if connection.execute("SELECT 1 FROM current_snapshot WHERE snapshot_id=?", (snapshot_id,)).fetchone():
++                raise SnapshotError("指数当前指针未引用完整快照")
++            return None
++        observation = connection.execute("SELECT snapshot_id,receipt FROM observations WHERE id=?", (row["first_observation"],)).fetchone()
++        if observation is None or observation["snapshot_id"] != snapshot_id:
++            raise SnapshotError("指数首次观察关联损坏")
++    manifest = json.loads(read_object(root, snapshot_id))
++    receipt = json.loads(observation["receipt"])
++    if digest(canonical(receipt)) != row["first_observation"] or receipt["snapshot_id"] != snapshot_id:
++        raise SnapshotError("指数观察身份损坏")
++    originals = tuple(Original(item["source"], read_object(root, item["object_id"]), item["started_at"], item["completed_at"]) for item in receipt["sources"])
++    version = manifest.get("source_contract", {}).get("version")
++    if tuple(item.source for item in originals) != contract_sources(version) or build_manifest(tuple(manifest["calendar_dates"]), originals, contract_version=version) != manifest:
++        raise SnapshotError("指数快照清单契约不一致")
++    if _observation(snapshot_id, originals, tuple(manifest["calendar_dates"])) != receipt or row["end_date"] != manifest["window"]["end"]:
++        raise SnapshotError("指数观察/截止日不一致")
++    return {**manifest, "snapshot_id": snapshot_id, "observation_id": row["first_observation"], "retrieval": receipt}
++
++
++def read_evidence(parent: Path, snapshot_id: str, object_id: str) -> dict:
++    """仅提供指定快照成员原件的安全文本和逐日定位，不执行HTML或出站。"""
++    validate_id(snapshot_id)
++    validate_id(object_id)
++    snapshot = read_snapshot(parent, snapshot_id)
++    if snapshot is None:
++        raise SnapshotError("index_evidence_not_found: 快照不存在")
++    evidence = next((item for item in snapshot["evidence"] if item["object_id"] == object_id), None)
++    if evidence is None:
++        raise SnapshotError("index_evidence_not_found: 对象不属于此快照")
++    original = read_object(index_root(parent), object_id)
++    receipt = next(item for item in snapshot["retrieval"]["sources"] if item["object_id"] == object_id)
++    return {"snapshot_id": snapshot_id, "observation_id": snapshot["observation_id"], **evidence,
++            "retrieval": receipt, "verification": "260日×4个OHLC精确一致", "unused_fields": snapshot["source_contract"]["unused_fields"],
++            "text_preview": original[:4096].decode("utf-8", errors="replace"), "preview_truncated": len(original) > 4096}
+--- /dev/null
++++ r4/python/src/pmi/index_update.py
+@@ -0,0 +1,257 @@
++"""沪深300手动更新编排、有限网络、账本和提交恢复；GET不写磁盘。"""
++
++from __future__ import annotations
++
++import fcntl
++import json
++import logging
++import os
++import sqlite3
++import subprocess
++import sys
++import tempfile
++import threading
++import time
++import uuid
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Callable
++
++from pmi.index_calendar import complete_window
++from pmi.index_contract import Original, SOURCES, Source, SourceNotReady, build_manifest, canonical, source_url
++from pmi.index_snapshot import (atomic_json, committed_job, index_root, publish, read_snapshot,
++                                safe_path, write_object)
++from pmi.snapshot import SnapshotError
++from pmi.writer_lock import writer_lock
++
++# 旧东财阶段仅用于重启/状态恢复，新编排只遍历当前SOURCES。
++ACTIVE = {"preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing"}
++_LOGGER = logging.getLogger(__name__)
++_MUTEX = threading.Lock()
++_FETCH_DEADLINE_SECONDS = 45
++
++
++def _read_state(parent: Path) -> dict:
++    path = safe_path(index_root(parent) / "update-status.json")
++    if not path.exists():
++        return {"stage": "idle", "last_success_at": None}
++    value = json.loads(path.read_bytes())
++    if not isinstance(value, dict) or value.get("stage") not in ACTIVE | {"idle", "completed", "failed", "interrupted"}:
++        raise SnapshotError("index_update_status_invalid: 非法本地任务状态")
++    return value
++
++
++def _save_state(parent: Path, state: dict) -> None:
++    atomic_json(index_root(parent) / "update-status.json", state)
++
++
++def _writer_active(parent: Path) -> bool:
++    path = safe_path(parent / ".writer.lock")
++    if not path.exists():
++        return False
++    with path.open("rb") as stream:
++        try:
++            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++        except BlockingIOError:
++            return True
++        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
++    return False
++
++
++def update_status(parent: Path) -> dict:
++    """只读状态/提交标识推导恢复，启动和GET不持久化、不联网。"""
++    state = _read_state(parent)
++    if state["stage"] not in ACTIVE or _writer_active(safe_path(parent)):
++        return state
++    committed = committed_job(parent, state.get("job_id"))
++    if committed:
++        read_snapshot(parent, committed["snapshot_id"])
++        return {**committed, "message": "已从本地job提交标识核实成功"}
++    return {**state, "stage": "interrupted", "result": "interrupted", "message": "上次更新中断，旧数据仍可读取，可手动重试"}
++
++
++def classify_change(previous: dict | None, manifest: dict) -> tuple[str, list[str], list[str]]:
++    """比较业务四值及原件，窗口前滚只记录新增/修订，不删除历史。"""
++    old = {bar["trade_date"]: {field: bar[field] for field in ("open", "high", "low", "close")} for bar in previous["bars"]} if previous else {}
++    new = {bar["trade_date"]: {field: bar[field] for field in ("open", "high", "low", "close")} for bar in manifest["bars"]}
++    added = sorted(new.keys() - old.keys())
++    revised = sorted(day for day in new.keys() & old.keys() if new[day] != old[day])
++    if old != new:
++        return "business_changed", added, revised
++    if previous and previous["evidence"] == manifest["evidence"] and previous["completion_basis"] == manifest["completion_basis"]:
++        return "unchanged", [], []
++    return "evidence_changed", [], []
++
++
++def _ledger_path(parent: Path) -> Path:
++    # 隔离实测可共用预算账本；正式产品仍只记录本子根账本，不受验证8job上限影响。
++    configured = os.environ.get("WOLF_INDEX_BUDGET_LEDGER")
++    return safe_path(Path(configured)) if configured else index_root(parent) / "network-ledger.jsonl"
++
++
++def _record_attempt(parent: Path, entry: dict) -> None:
++    """出站前持久化尝试，失败/中断同样计数；隔离验证共用8job/12次/64MiB预算。
++
++    八job为2026-10-06腾讯换源追加后的授权；沿用旧账本，不重置历史尝试。
++    """
++    path = _ledger_path(parent)
++    with path.open("a+", encoding="utf-8") as stream:
++        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
++        stream.seek(0)
++        lines = [json.loads(line) for line in stream if line.strip()]
++        if entry["event"] == "attempt" and os.environ.get("WOLF_INDEX_BUDGET_LEDGER"):
++            attempts = [line for line in lines if line["event"] == "attempt"]
++            jobs = {line["job_id"] for line in attempts}
++            # 未完成尝试按整个8MiB预留，防止中断后低估正文预算。
++            completed = {line["attempt_id"]: line["bytes"] for line in lines if line["event"] == "finished"}
++            used = sum(completed.get(line["attempt_id"], 8 * 1024 * 1024) for line in attempts)
++            if len(attempts) >= 12 or len(jobs | {entry["job_id"]}) > 8 or used + 8 * 1024 * 1024 > 64 * 1024 * 1024:
++                raise SnapshotError("受控真实出站预算不足，停止请求")
++        stream.seek(0, 2)
++        stream.write(canonical(entry).decode() + "\n")
++        stream.flush()
++        os.fsync(stream.fileno())
++
++
++def fetch_bounded(parent: Path, source: Source, days: tuple[str, ...], job_id: str) -> Original:
++    """每源单次子进程45秒硬截止，父消失关闭管道即退出；失败保留计数。
++
++    主机冷却至少5秒，冷却在父根锁内；不绕过代理/TLS或重试。
++    """
++    if source not in SOURCES:
++        raise SnapshotError("来源只读或未准入，禁止新增出站")
++    ledger = _ledger_path(parent)
++    if ledger.exists():
++        entries = [json.loads(line) for line in ledger.read_text().splitlines()]
++        previous = [line for line in entries if line["event"] == "attempt" and line["source"] == source]
++        if previous:
++            elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(previous[-1]["started_at"])).total_seconds()
++            if elapsed < 5:
++                time.sleep(5 - elapsed)
++    started_at = datetime.now(timezone.utc).isoformat()
++    attempt_id = uuid.uuid4().hex
++    _record_attempt(parent, {"event": "attempt", "job_id": job_id, "attempt_id": attempt_id, "source": source,
++                             "url": source_url(source, days), "started_at": started_at})
++    success = False
++    bytes_read = 0
++    with tempfile.TemporaryDirectory(prefix="thewolf-index-fetch-") as directory:
++        process = None
++        try:
++            process = subprocess.Popen([sys.executable, "-m", "pmi.index_fetch", "--source", source,
++                                        "--start", days[0], "--end", days[-1], "--output", directory],
++                                       stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++            try:
++                process.wait(timeout=_FETCH_DEADLINE_SECONDS)
++            except subprocess.TimeoutExpired as error:
++                raise SnapshotError("来源45秒硬截止，旧快照保留") from error
++            if process.returncode != 0:
++                failure = Path(directory) / "failure.json"
++                raise SnapshotError(json.loads(failure.read_text())["message"] if failure.exists() else "来源获取子进程中断")
++            receipt = json.loads(Path(directory, "receipt.json").read_text())
++            content = Path(directory, "original").read_bytes()
++            if len(content) > 8 * 1024 * 1024:
++                raise SnapshotError("来源正文超过8MiB")
++            success = True
++            return Original(source, content, started_at, receipt["completed_at"])
++        finally:
++            if process is not None:
++                if process.poll() is None:
++                    process.terminate()
++                    try:
++                        process.wait(timeout=1)
++                    except subprocess.TimeoutExpired:
++                        process.kill()
++                        process.wait(timeout=1)
++                if process.stdin:
++                    process.stdin.close()
++            receipt_path = Path(directory, "receipt.json")
++            try:
++                bytes_read = json.loads(receipt_path.read_text())["bytes"] if receipt_path.exists() else 0
++            except (ValueError, KeyError):
++                bytes_read = 8 * 1024 * 1024
++            _record_attempt(parent, {"event": "finished", "job_id": job_id, "attempt_id": attempt_id,
++                                     "source": source, "success": success, "bytes": bytes_read,
++                                     "finished_at": datetime.now(timezone.utc).isoformat()})
++
++
++def perform_update(parent: Path, state: dict, days: tuple[str, ...],
++                   fetch: Callable[[Path, Source, tuple[str, ...], str], Original] = fetch_bounded,
++                   checkpoint: Callable[[str], None] | None = None) -> dict:
++    """持父根锁完成双源获取和发布；失败保留旧指针，提交后由job记录恢复。"""
++    try:
++        previous = read_snapshot(parent)
++        if previous and days[-1] < previous["window"]["end"]:
++            raise SnapshotError("stale_window: 不能回退完整截止日")
++        state["previous_snapshot_id"] = previous["snapshot_id"] if previous else None
++        originals = []
++        for source in SOURCES:
++            state["stage"] = "fetching_" + source
++            _save_state(parent, state)
++            original = fetch(parent, source, days, state["job_id"])
++            originals.append(original)
++            object_id = write_object(index_root(parent), original.content)
++            receipt_path = safe_path(index_root(parent) / "original-observations.jsonl")
++            with receipt_path.open("ab") as stream:
++                stream.write(canonical({"job_id": state["job_id"], "source": source, "url": source_url(source, days),
++                                        "object_id": object_id, "started_at": original.started_at,
++                                        "completed_at": original.completed_at, "published_at": None}) + b"\n")
++                stream.flush()
++                os.fsync(stream.fileno())
++        state["stage"] = "validating"
++        _save_state(parent, state)
++        manifest = build_manifest(days, tuple(originals))
++        result, added, revised = classify_change(previous, manifest)
++        state.update(stage="publishing", result=result, added_dates=added, revised_dates=revised,
++                     message={"business_changed": "价格数据已更新", "evidence_changed": "四值无变化，仅依据更新", "unchanged": "检查成功，价格与依据无变化"}[result])
++        _save_state(parent, state)
++        publish(parent, manifest, tuple(originals), state, checkpoint)
++        state = committed_job(parent, state["job_id"])
++        if checkpoint:
++            checkpoint("before_status")
++        _save_state(parent, state)
++    except (SnapshotError, ValueError, OSError, sqlite3.Error) as error:
++        _LOGGER.error("index update failed; job=%s stage=%s error_type=%s", state["job_id"], state["stage"], type(error).__name__)
++        committed = committed_job(parent, state["job_id"])
++        if committed:
++            return {**committed, "message": "提交成功，状态可由本地job标识恢复"}
++        ready = isinstance(error, SourceNotReady)
++        state.update(stage="completed" if ready else "failed", result="source_not_ready" if ready else "failed",
++                     message=str(error) if isinstance(error, SnapshotError) else f"本地更新失败（{type(error).__name__}），旧数据保留",
++                     finished_at=datetime.now(timezone.utc).isoformat())
++        _save_state(parent, state)
++    return state
++
++
++def start_update(parent: Path, now: datetime | None = None,
++                 fetch: Callable = fetch_bounded) -> dict:
++    """联网前冻结完整目标并获取父根锁；争用409，空根也可首轮手动获取。"""
++    with _MUTEX:
++        parent = safe_path(parent)
++        root = index_root(parent)
++        days = complete_window(now or datetime.now(timezone.utc))
++        lock = writer_lock(parent)
++        lock.__enter__()
++        try:
++            previous_state = _read_state(parent)
++            if previous_state["stage"] in ACTIVE:
++                previous_state = committed_job(parent, previous_state.get("job_id")) or previous_state
++            previous = read_snapshot(parent)
++            if previous and days[-1] < previous["window"]["end"]:
++                raise SnapshotError("stale_window: 不能回退完整截止日")
++            root.mkdir(parents=True, exist_ok=True)
++            state = {"job_id": uuid.uuid4().hex, "stage": "preparing", "result": None,
++                     "started_at": (now or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat(),
++                     "target_start": days[0], "target_end": days[-1], "last_success_at": previous_state.get("last_success_at"),
++                     "message": "正在准备沪深300完整260日窗口", "added_dates": [], "revised_dates": []}
++            _save_state(parent, state)
++            initial = dict(state)
++            def worker() -> None:
++                try:
++                    perform_update(parent, state, days, fetch)
++                finally:
++                    lock.__exit__(None, None, None)
++            threading.Thread(target=worker, daemon=True).start()
++        except BaseException:
++            lock.__exit__(None, None, None)
++            raise
++        return initial
+--- /dev/null
++++ r4/python/tests/index_replay_smoke.py
+@@ -0,0 +1,60 @@
++"""核对腾讯候选及P01中证原件后离线重放，绝不代替新鲜真实更新验收。"""
++
++import argparse
++import json
++from datetime import datetime, timezone
++from pathlib import Path
++
++from pmi.index_calendar import CALENDAR_SOURCES, complete_window
++from pmi.index_contract import Original, build_manifest, digest
++from pmi.index_snapshot import index_root, publish, read_evidence, read_snapshot
++from pmi.writer_lock import writer_lock
++
++EXPECTED = {"Tencent": "396245b5940b3f6efe049c9582113d0398738805a12d5772f0f8fead6c9c531a",
++            "C01": "40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43"}
++
++
++def main() -> None:
++    """实际读取原件、开始/结束账本和日历哈希；缺材料就停止。"""
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--p01-root", type=Path, required=True)
++    parser.add_argument("--tencent-root", type=Path, required=True)
++    parser.add_argument("--data-root", type=Path, required=True)
++    args = parser.parse_args()
++    root = args.data_root.resolve()
++    repository = Path(__file__).resolve().parents[2]
++    if root.is_relative_to(repository / ".local-data") or index_root(root).exists():
++        parser.error("需要尚无指数子根的隔离目录，不覆盖旧测试结果或正式库")
++    receipts = json.loads((args.p01_root / "evidence/originals-manifest.json").read_bytes())
++    ledger = [json.loads(line) for line in (args.p01_root / "evidence/request-ledger.jsonl").read_text().splitlines()]
++    tencent_receipt = json.loads((args.tencent_root / "receipt.json").read_bytes())
++    content = (args.tencent_root / "raw-response.bin").read_bytes()
++    assert digest(content) == tencent_receipt["sha256"] == EXPECTED["Tencent"]
++    assert tencent_receipt["status_code"] == 200 and tencent_receipt["bytes"] == len(content)
++    originals = [Original("tencent", content, tencent_receipt["start_utc"], tencent_receipt["end_utc"])]
++    for source, request_id in (("csindex", "C01"),):
++        receipt = receipts[request_id]
++        assert receipt["sha256"] == EXPECTED[request_id]
++        content = args.p01_root.joinpath("raw", receipt["sha256"]).read_bytes()
++        assert digest(content) == receipt["sha256"]
++        wire = next(item for item in ledger if item["event"] == "wire_start" and item["id"] == request_id)
++        started = datetime.fromtimestamp(wire["time"], timezone.utc).isoformat()
++        originals.append(Original(source, content, started, receipt["retrieved_at"]))
++    for _, object_id in CALENDAR_SOURCES:
++        assert digest(args.p01_root.joinpath("raw", object_id).read_bytes()) == object_id
++    days = complete_window(datetime(2026, 10, 5, tzinfo=timezone.utc))
++    manifest = build_manifest(days, tuple(originals))
++    with writer_lock(root):
++        snapshot_id = publish(root, manifest, tuple(originals), {"job_id": "tencent-offline-replay", "result": "business_changed", "message": "腾讯候选及P01固定原件离线重放，非本轮联网成功"})
++    view = read_snapshot(root, snapshot_id)
++    for item in view["evidence"]:
++        evidence = read_evidence(root, snapshot_id, item["object_id"])
++        for day in ("2025-09-04", "2025-12-31", "2026-01-05", "2026-09-30"):
++            row = next(row for row in evidence["rows"] if row["trade_date"] == day)
++            print(item["source"], day, row["locator"], row["open"], row["high"], row["low"], row["close"])
++    print("OFFLINE ONLY: 260 days / 1040 exact matches; immutable snapshot", snapshot_id)
++    print(json.dumps(view["summary"], ensure_ascii=False))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ r4/python/tests/index_service_smoke.py
+@@ -0,0 +1,86 @@
++"""隔离合成指数真实回环消费者与父管道退出，不访问金融来源。"""
++
++import json
++import os
++import socket
++import subprocess
++import sys
++import tempfile
++import time
++import urllib.error
++import urllib.request
++from pathlib import Path
++
++from pmi.index_contract import build_manifest
++from pmi.index_snapshot import publish, read_snapshot
++from pmi.writer_lock import writer_lock
++from test_index import DAYS, originals, state
++from test_data_update import old_snapshot
++
++
++def main() -> None:
++    """检查固定视图、原件、权限/输入边界，随后关闭父管道并核对端口。"""
++    with tempfile.TemporaryDirectory() as directory:
++        root = Path(directory).resolve()
++        old_id = old_snapshot(root)
++        items = originals()
++        with writer_lock(root):
++            snapshot_id = publish(root, build_manifest(DAYS, items), items, state())
++        index = read_snapshot(root)
++        listener = socket.socket(); listener.bind(("127.0.0.1", 0)); port = listener.getsockname()[1]; listener.close()
++        environment = {**os.environ, "WOLF_SLICE_DATA_ROOT": str(root), "WOLF_SESSION_TOKEN": "synthetic-index-loopback",
++                       "WOLF_ALLOWED_HOST": f"127.0.0.1:{port}", "WOLF_PARENT_PIPE": "1", "WOLF_ENABLE_INDEX_UPDATE": "0"}
++        process = subprocess.Popen([sys.executable, "-m", "uvicorn", "pmi.api:app", "--host", "127.0.0.1", "--port", str(port)],
++                                   env=environment, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++        base = f"http://127.0.0.1:{port}"
++        headers = {"X-Wolf-Session": environment["WOLF_SESSION_TOKEN"]}
++        # 回环请求明确不使用外部代理，金融来源进程并未启动。
++        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
++        def request(path, expected=200, custom_headers=None, body=None):
++            req = urllib.request.Request(base + path, data=body, headers=custom_headers if custom_headers is not None else headers)
++            try:
++                with opener.open(req, timeout=2) as response:
++                    assert response.status == expected
++                    return json.loads(response.read())
++            except urllib.error.HTTPError as error:
++                assert error.code == expected, (path, error.code, expected)
++                return None
++        try:
++            for _ in range(80):
++                try:
++                    request("/api/health"); break
++                except (urllib.error.URLError, TimeoutError):
++                    time.sleep(.1)
++            else:
++                raise AssertionError("service not ready")
++            path = "/api/indices/000300"
++            assert request(path)["snapshot_id"] == snapshot_id
++            assert request(path + "/snapshots/" + snapshot_id) == request(path)
++            for item in index["evidence"]:
++                evidence = request(path + f"/snapshots/{snapshot_id}/evidence/{item['object_id']}")
++                assert evidence["rows"][0]["open"] == "100.00"
++                assert evidence["snapshot_id"] == snapshot_id
++            assert request("/api/slice")["snapshot_id"] == old_id
++            request(path, 401, {})
++            request(path, 403, {**headers, "Host": "evil.invalid"})
++            request(path, 403, {**headers, "Origin": "https://evil.invalid"})
++            request(path + "/snapshots/invalid", 422)
++            request(path + f"/snapshots/{snapshot_id}/evidence/" + "0" * 64, 404)
++            request(path + "/update", 403, {**headers, "Content-Type": "application/json"}, b"{}")
++            request(path + "/update?date=x", 422, {**headers, "Content-Type": "application/json"}, b"{}")
++            request(path + "/update", 422, {**headers, "Content-Type": "application/json"}, b'{"url":"https://evil.invalid"}')
++            assert not (root / "indices/csi000300/network-ledger.jsonl").exists()
++            print("index loopback: current/fixed/evidence/legacy 200; token401, host/origin403, IDs422/404, disabled403, input422; no source requests")
++            process.stdin.close(); process.wait(timeout=3)
++            with socket.socket() as connection:
++                assert connection.connect_ex(("127.0.0.1", port)) != 0
++            print("index service parent EOF: exit and port closed")
++        finally:
++            if process.poll() is None:
++                process.terminate()
++                try: process.wait(timeout=5)
++                except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=5)
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ r4/python/tests/test_index.py
+@@ -0,0 +1,487 @@
++"""指数首版合成反例；所有库和状态位于独立临时根，不访问真实来源。"""
++
++import asyncio
++import json
++import io
++import os
++import sqlite3
++import subprocess
++import sys
++import tempfile
++import time
++import unittest
++from datetime import datetime, timezone
++from pathlib import Path
++from unittest.mock import patch
++
++from test_api_slice import asgi_get
++from contextlib import nullcontext
++
++class LocalResponse:
++    def __init__(self, status, body):
++        self.status_code = status
++        self.body = body
++    def json(self):
++        return json.loads(self.body)
++
++
++class TestClient:
++    """复用项目ASGI消费者，不增加httpx依赖，不运行网络或lifespan。"""
++    def __init__(self, unused):
++        pass
++    def __enter__(self):
++        return self
++    def __exit__(self, *args):
++        pass
++    def get(self, path, headers=None):
++        return self.send(path, headers, "GET", b"")
++    def post(self, path, headers=None, json=None):
++        return self.send(path, headers, "POST", __import__("json").dumps(json).encode())
++    def send(self, path, headers, method, body):
++        route, _, query = path.partition("?")
++        return LocalResponse(*asyncio.run(asgi_get(route, {"host": "testserver", "content-type": "application/json", **{key.lower():value for key,value in (headers or {}).items()}}, method, body, query.encode())))
++
++app = None
++from pmi.index_calendar import complete_window
++from pmi.index_contract import (Original, SourceNotReady, build_manifest, canonical, point,
++                                summarize)
++from pmi.index_snapshot import (committed_job, index_root, publish, read_evidence,
++                                read_snapshot)
++from pmi.index_update import (_record_attempt, _save_state, classify_change, perform_update,
++                              fetch_bounded, start_update, update_status)
++from pmi.index_fetch import fetch_once
++from pmi.snapshot import SnapshotError
++from pmi.writer_lock import writer_lock
++
++CLOCK = datetime(2026, 10, 5, tzinfo=timezone.utc)
++DAYS = complete_window(CLOCK)
++
++
++def originals(days=DAYS, close="105.00", stamp="2026-10-05T01:00:00Z", extra=None):
++    """构造两源明确合成价格原件，保留开/收/高/低的不同值证明映射。"""
++    east = {"code": 0, "data": {"sh000300": {"qt": {"sh000300": ["1", "沪深300", "000300"]},
++                    "day": [[day, "100.00", close, "110.00", "90.00", "0"] for day in days]}}}
++    official = {"code": "200", "msg": "Success", "data": [
++        {"tradeDate": day.replace("-", ""), "indexCode": "000300", "indexNameCn": "沪深300", "indexNameCnAll": "沪深300指数",
++         "open": "100.00", "high": "110.00", "low": "90.00", "close": close} for day in days]}
++    if extra:
++        east.update(extra)
++    return (Original("tencent", canonical(east), stamp, stamp), Original("csindex", canonical(official), stamp, stamp))
++
++
++def mutated(items, source, mutation):
++    """只改变指定原件，反例不绕过真实来源解析。"""
++    result = list(items)
++    raw = json.loads(result[source].content)
++    mutation(raw)
++    result[source] = Original(result[source].source, canonical(raw), result[source].started_at, result[source].completed_at)
++    return tuple(result)
++
++
++def state(job="synthetic-job"):
++    return {"job_id": job, "stage": "preparing", "last_success_at": None, "target_start": DAYS[0], "target_end": DAYS[-1]}
++
++
++class IndexContractTests(unittest.TestCase):
++    def test_calendar_identity_and_mapping(self):
++        self.assertEqual((DAYS[0], DAYS[-1], len(DAYS)), ("2025-09-04", "2026-09-30", 260))
++        self.assertEqual(complete_window(datetime(2026, 10, 1, 0, tzinfo=timezone.utc)), DAYS)
++        for year in (2025, 2027):
++            with self.assertRaisesRegex(SnapshotError, "calendar_uncovered"):
++                complete_window(datetime(year, 1, 5, tzinfo=timezone.utc))
++        manifest = build_manifest(DAYS, originals())
++        self.assertEqual([manifest["bars"][0][key] for key in ("open", "high", "low", "close")], ["100.00", "110.00", "90.00", "105.00"])
++        self.assertEqual(manifest["instrument"]["id"], "csi:000300:price")
++        for mutate in (lambda raw: raw["data"]["sh000300"]["qt"]["sh000300"].__setitem__(2, "H00300"),
++                       lambda raw: raw["data"]["sh000300"]["qt"]["sh000300"].__setitem__(1, "其他指数"),
++                       lambda raw: raw["data"].update(sh000300={}), lambda raw: raw.update(code=1)):
++            with self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, mutate))
++        for invalid_day in ("2026-10-05", "2026-10-08", DAYS[0]):
++            with self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__setitem__(-1, [invalid_day,"100","105","110","90","0"])))
++
++    def test_decimal_and_calculation_boundaries(self):
++        self.assertEqual(point("100.000"), "100.00")
++        for value in ("100.001", "NaN", "Infinity", "0", "-1", 100.1, None):
++            with self.assertRaises(SnapshotError):
++                point(value)
++        bars = [{"trade_date": "2026-09-29", "close": "100.00", "evidence_refs": []},
++                {"trade_date": "2026-09-30", "close": "110.00", "evidence_refs": []}]
++        self.assertEqual(summarize(bars)["daily_change_pct"], "10.00")
++        self.assertEqual(summarize(bars[:1])["reason"], "first_row_without_previous_close")
++        for close, expected in (("100.01", "0.01"), ("99.99", "-0.01"), ("100.00", "0.00")):
++            bars[0]["close"] = "200.00"; bars[1]["close"] = {"100.01": "200.01", "99.99": "199.99", "100.00": "200.00"}[close]
++            self.assertEqual(summarize(bars)["daily_change_pct"], expected)
++        for value in ("100.001", "120", "85"):
++            with self.assertRaises(SnapshotError):
++                build_manifest(DAYS, originals(close=value))
++        equal = mutated(originals(), 1, lambda raw: raw["data"][0].update(open="100.000", high="110.000"))
++        self.assertEqual(build_manifest(DAYS, equal)["bars"][0]["open"], "100.00")
++        # 原始JSON小数而非字符串，尾零和非零第三位分别验证。
++        raw = equal[1].content.replace(b'"100.000"', b'100.000')
++        build_manifest(DAYS, (equal[0], Original("csindex", raw, equal[1].started_at, equal[1].completed_at)))
++        with self.assertRaises(SnapshotError):
++            build_manifest(DAYS, (equal[0], Original("csindex", raw.replace(b'100.000', b'100.001'), equal[1].started_at, equal[1].completed_at)))
++
++    def test_missing_and_mismatch(self):
++        items = originals()
++        with self.assertRaises(SourceNotReady):
++            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
++        with self.assertRaisesRegex(SnapshotError, "内部缺日"):
++            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop(100)))
++        mismatch = mutated(items, 1, lambda raw: raw["data"][0].update(close="104.99"))
++        with self.assertRaisesRegex(SnapshotError, "双源不一致"):
++            build_manifest(DAYS, mismatch)
++        with self.assertRaisesRegex(SnapshotError, "双源不一致"):
++            build_manifest(DAYS, mutated(mismatch, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
++
++
++class IndexStorageTests(unittest.TestCase):
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(prefix="thewolf-index-test-")
++        self.root = Path(self.directory.name).resolve()
++
++    def tearDown(self):
++        self.directory.cleanup()
++
++    def publish(self, items, job, days=DAYS, checkpoint=None):
++        with writer_lock(self.root):
++            return publish(self.root, build_manifest(days, items), items, {**state(job), "result": "business_changed"}, checkpoint)
++
++    def test_immutable_observations_and_no_cutoff_regression(self):
++        first = originals()
++        a = self.publish(first, "a")
++        fixed = read_snapshot(self.root, a)
++        b = self.publish(originals(close="106.00", stamp="2026-10-05T02:00:00Z"), "b")
++        self.publish(first, "old-a")
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], b)
++        self.publish(originals(stamp="2026-10-05T03:00:00Z"), "new-a")
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], a)
++        self.assertEqual(read_snapshot(self.root, a), fixed)
++        self.publish(originals(close="106.00", stamp="2026-10-05T02:00:00+00:00"), "old-b")
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], a)
++        newer_days = complete_window(datetime(2026, 10, 9, tzinfo=timezone.utc))
++        newest = self.publish(originals(newer_days, stamp="2026-10-09T01:00:00Z"), "next", newer_days)
++        self.publish(originals(stamp="2026-10-10T01:00:00Z"), "late-old-window")
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], newest)
++        self.assertEqual(read_snapshot(self.root, a), fixed)
++        with sqlite3.connect(index_root(self.root) / "index.sqlite") as db:
++            self.assertEqual(db.execute("SELECT count(*) FROM observations").fetchone()[0], 5)
++            self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
++            self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
++
++    def test_classification_and_fixed_evidence(self):
++        items = originals()
++        a = self.publish(items, "a")
++        previous = read_snapshot(self.root)
++        self.assertEqual(classify_change(previous, build_manifest(DAYS, items))[0], "unchanged")
++        extra = originals(extra={"unused": "changed"})
++        self.assertEqual(classify_change(previous, build_manifest(DAYS, extra))[0], "evidence_changed")
++        revised = originals(close="106.00")
++        self.assertEqual(classify_change(previous, build_manifest(DAYS, revised))[0], "business_changed")
++        oid = previous["evidence"][0]["object_id"]
++        evidence = read_evidence(self.root, a, oid)
++        self.assertEqual(evidence["rows"][0]["raw_values"]["close"], "105.00")
++        self.publish(extra, "evidence-change")
++        self.assertEqual(read_evidence(self.root, a, oid), evidence)
++        with self.assertRaises(SnapshotError):
++            read_evidence(self.root, a, read_snapshot(self.root)["evidence"][0]["object_id"])
++        index_root(self.root).joinpath("objects", oid).write_bytes(b"tampered")
++        with self.assertRaisesRegex(SnapshotError, "哈希损坏"):
++            read_snapshot(self.root, a)
++
++    def test_read_only_empty_and_symlink(self):
++        missing = self.root / "missing"
++        self.assertIsNone(read_snapshot(missing))
++        self.assertEqual(update_status(missing)["stage"], "idle")
++        self.assertFalse(missing.exists())
++        self.root.joinpath("indices").symlink_to(self.root.parent, target_is_directory=True)
++        for action in (lambda: read_snapshot(self.root), lambda: start_update(self.root, CLOCK), lambda: update_status(self.root)):
++            with self.assertRaisesRegex(SnapshotError, "符号链接"):
++                action()
++        self.assertFalse(self.root.joinpath(".writer.lock").exists())
++
++    def test_database_links_and_sidecars_fail_closed(self):
++        """损坏当前映射/首次观察/job以及SQLite旁文件时明确失败，不回退。"""
++        sid = self.publish(originals(), "a")
++        database = index_root(self.root) / "index.sqlite"
++        original = database.read_bytes()
++        cases = (
++            ("UPDATE snapshots SET first_observation='missing'", lambda: read_snapshot(self.root)),
++            ("UPDATE current_snapshot SET snapshot_id='missing'", lambda: read_snapshot(self.root)),
++            ("UPDATE current_snapshot SET observation_id='missing'", lambda: read_snapshot(self.root)),
++            ("UPDATE committed_jobs SET state='{}'", lambda: committed_job(self.root, "a")),
++        )
++        for statement, action in cases:
++            database.write_bytes(original)
++            with sqlite3.connect(database) as connection:
++                connection.execute(statement)
++            with self.assertRaises(SnapshotError):
++                action()
++        database.write_bytes(original)
++        for suffix in ("-wal", "-shm", "-journal"):
++            path = Path(str(database) + suffix)
++            path.symlink_to(database)
++            with self.assertRaisesRegex(SnapshotError, "符号链接"):
++                read_snapshot(self.root, sid)
++            path.unlink()
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], sid)
++
++    def test_real_process_crash_at_publish_boundaries(self):
++        a = self.publish(originals(), "a")
++        for checkpoint in ("objects_written", "before_commit", "after_commit", "before_status"):
++            job = "crash-" + checkpoint
++            script = '''
++import os,sys
++from pathlib import Path
++from test_index import originals,DAYS,state
++from pmi.index_snapshot import index_root
++from pmi.index_update import _save_state,perform_update
++from pmi.writer_lock import writer_lock
++root=Path(sys.argv[1]);job=sys.argv[2];stage=sys.argv[3]
++with writer_lock(root):
++    current=state(job);_save_state(root,current)
++    perform_update(root,current,DAYS,lambda parent,source,days,job: next(item for item in originals(close="106.00",stamp=f"2026-10-05T{3+2*list(('objects_written','before_commit','after_commit','before_status')).index(stage):02d}:00:00Z") if item.source==source),lambda point: os._exit(71) if point==stage else None)
++'''
++            process = subprocess.run([sys.executable, "-c", script, str(self.root), job, checkpoint], env={**os.environ, "PYTHONPATH": "python/src:python/tests"})
++            self.assertEqual(process.returncode, 71)
++            files = {str(path): path.read_bytes() for path in index_root(self.root).rglob("*") if path.is_file()}
++            recovered = update_status(self.root)
++            self.assertEqual({str(path): path.read_bytes() for path in index_root(self.root).rglob("*") if path.is_file()}, files, "GET恢复绝不写盘")
++            committed = checkpoint in ("after_commit", "before_status")
++            self.assertEqual(recovered["stage"], "completed" if committed else "interrupted")
++            self.assertEqual(committed_job(self.root, job) is not None, committed)
++            if not committed:
++                self.assertEqual(read_snapshot(self.root)["snapshot_id"], a)
++            else:
++                self.assertEqual(read_snapshot(self.root)["bars"][0]["close"], "106.00")
++            # 每次下一断点前恢复旧内容，使用真实新观察而非重放旧观察。
++            a = self.publish(originals(stamp=f"2026-10-05T{4 + 2 * list(('objects_written','before_commit','after_commit','before_status')).index(checkpoint):02d}:00:00Z"), "restore-" + checkpoint)
++
++    def test_update_failure_not_ready_and_lock(self):
++        a = self.publish(originals(), "a")
++        prior = read_snapshot(self.root)
++        for kind in ("tail", "middle", "network", "mismatch"):
++            def fetch(parent, source, days, job):
++                if kind == "network":
++                    raise SnapshotError("synthetic network unavailable")
++                items = originals(stamp="2026-10-05T02:00:00Z")
++                if kind in ("tail", "middle"):
++                    items = mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop(-1 if kind == "tail" else 100))
++                if kind == "mismatch":
++                    items = mutated(items, 1, lambda raw: raw["data"][0].update(close="104.99"))
++                return next(item for item in items if item.source == source)
++            with writer_lock(self.root):
++                result = perform_update(self.root, state(kind), DAYS, fetch)
++            self.assertEqual(result["result"], "source_not_ready" if kind == "tail" else "failed")
++            self.assertEqual(result["stage"], "completed" if kind == "tail" else "failed")
++            self.assertIsNone(result["last_success_at"])
++            self.assertEqual(read_snapshot(self.root), prior)
++        with writer_lock(self.root):
++            with self.assertRaisesRegex(SnapshotError, "writer_busy"):
++                start_update(self.root, CLOCK)
++        self.assertEqual(read_snapshot(self.root)["snapshot_id"], a)
++
++    def test_start_update_and_budget(self):
++        items = originals()
++        def fetch(parent, source, days, job):
++            self.assertEqual(days, DAYS)
++            return next(item for item in items if item.source == source)
++        result = start_update(self.root, CLOCK, fetch)
++        self.assertEqual(result["stage"], "preparing")
++        for _ in range(100):
++            result = update_status(self.root)
++            if result["stage"] not in ("preparing", "fetching_tencent", "fetching_csindex", "validating", "publishing"):
++                break
++            time.sleep(.01)
++        self.assertEqual(result["stage"], "completed")
++        ledger = self.root / "budget.jsonl"
++        with patch.dict(os.environ, {"WOLF_INDEX_BUDGET_LEDGER": str(ledger)}):
++            for index in range(12):
++                attempt = {"event": "attempt", "job_id": str(index // 2), "attempt_id": str(index), "source": "eastmoney"}
++                _record_attempt(self.root, attempt)
++                _record_attempt(self.root, {"event": "finished", "attempt_id": str(index), "bytes": 0})
++            with self.assertRaisesRegex(SnapshotError, "预算不足"):
++                _record_attempt(self.root, {"event": "attempt", "job_id": "extra", "attempt_id": "extra"})
++
++
++class IndexBudgetTests(unittest.TestCase):
++    """用独立合成账本验证新增授权及原请求/正文边界，不访问真实来源。"""
++
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(prefix="thewolf-index-budget-")
++        self.root = Path(self.directory.name).resolve()
++        self.ledger = self.root / "budget.jsonl"
++        self.environment = patch.dict(os.environ, {"WOLF_INDEX_BUDGET_LEDGER": str(self.ledger)})
++        self.environment.start()
++
++    def tearDown(self):
++        self.environment.stop()
++        self.directory.cleanup()
++
++    def attempt(self, job_id, attempt_id, completed_bytes=None):
++        _record_attempt(self.root, {"event": "attempt", "job_id": job_id,
++                                    "attempt_id": attempt_id, "source": "eastmoney"})
++        if completed_bytes is not None:
++            _record_attempt(self.root, {"event": "finished", "attempt_id": attempt_id,
++                                        "bytes": completed_bytes})
++
++    def test_eighth_job_allowed_ninth_rejected_without_rewriting_history(self):
++        """第八job可开始并继续第二源；第九job拒绝，原失败计数不清零。"""
++        for index in range(7):
++            self.attempt(f"job-{index}", f"attempt-{index}", 0)
++        history = self.ledger.read_bytes()
++        self.attempt("job-7", "eighth", 0)
++        self.attempt("job-7", "eighth-second-source", 0)
++        self.assertTrue(self.ledger.read_bytes().startswith(history))
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("job-8", "ninth", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
++
++    def test_twelve_attempt_limit_is_unchanged(self):
++        """七job内第十二次可记录，第十三次拒绝，终态失败仍占尝试额度。"""
++        for index in range(12):
++            self.attempt(f"job-{index % 7}", f"attempt-{index}", 0)
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("job-0", "thirteenth", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
++
++    def test_body_limit_and_unfinished_reservation_are_unchanged(self):
++        """已完成及中断尝试合计64MiB时拒绝新增，未知正文按8MiB预留。"""
++        for index in range(8):
++            self.attempt("same-job", f"attempt-{index}", 8 * 1024 * 1024 if index < 4 else None)
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("same-job", "over-body-limit", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
++
++
++class IndexTransportTests(unittest.TestCase):
++    def test_response_limits_and_no_redirect_or_retry(self):
++        """替代requests传输，检查真实流读取上限及拒绝压缩/重定向。"""
++        class Response:
++            def __init__(self, content, headers=None, status=200):
++                self.raw = io.BytesIO(content)
++                self.headers = headers or {}
++                self.status_code = status
++            def __enter__(self):
++                return self
++            def __exit__(self, *args):
++                pass
++        # BytesIO不接受urllib3的decode_content参数，保留真实读取长度。
++        class Raw:
++            def __init__(self, content):
++                self.stream = io.BytesIO(content)
++            def read(self, amount, decode_content=False):
++                self.assert_decode = decode_content
++                return self.stream.read(amount)
++        with tempfile.TemporaryDirectory() as directory, patch("pmi.index_fetch.MAX_BODY", 32):
++            root = Path(directory)
++            for response, accepted, size in (
++                (Response(b"ok", {"Content-Length": "2"}), True, 2),
++                (Response(b"x" * 33), False, 32),
++                (Response(b"x" * 32, {"Content-Length": "32"}), True, 32),
++                (Response(b"bad", {"Content-Encoding": "gzip"}), False, 0),
++                (Response(b"bad", status=302), False, 0),
++                (Response(b"bad", {"Content-Length": "33"}), False, 0),
++            ):
++                response.raw = Raw(response.raw.getvalue())
++                with patch("pmi.index_fetch.requests.get", return_value=response) as get:
++                    if accepted:
++                        fetch_once("https://synthetic.invalid", root)
++                    else:
++                        with self.assertRaises(SnapshotError):
++                            fetch_once("https://synthetic.invalid", root)
++                    self.assertEqual(get.call_count, 1)
++                    self.assertEqual(get.call_args.kwargs["timeout"], (5, 15))
++                    self.assertFalse(get.call_args.kwargs["allow_redirects"])
++                    self.assertEqual(get.call_args.kwargs["headers"]["Accept-Encoding"], "identity")
++                    self.assertEqual(json.loads(root.joinpath("receipt.json").read_text())["bytes"], size)
++
++    def test_deadline_reaps_real_child_and_accounts_failure(self):
++        """将截止缩短至50ms；真实休眠子进程被回收，账本保留失败尝试。"""
++        actual_popen = subprocess.Popen
++        children = []
++        def synthetic_child(command, **kwargs):
++            child = actual_popen([sys.executable, "-c", "import time; time.sleep(60)"], **kwargs)
++            children.append(child)
++            return child
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory).resolve()
++            index_root(root).mkdir(parents=True)
++            with patch.dict(os.environ, {"WOLF_INDEX_BUDGET_LEDGER": ""}), patch("pmi.index_update.subprocess.Popen", side_effect=synthetic_child), patch("pmi.index_update._FETCH_DEADLINE_SECONDS", .05):
++                with self.assertRaisesRegex(SnapshotError, "硬截止"):
++                    fetch_bounded(root, "tencent", DAYS, "deadline")
++            self.assertIsNotNone(children[0].poll())
++            self.assertTrue(children[0].stdin.closed)
++            entries = [json.loads(line) for line in index_root(root).joinpath("network-ledger.jsonl").read_text().splitlines()]
++            self.assertEqual([row["event"] for row in entries], ["attempt", "finished"])
++            self.assertFalse(entries[-1]["success"])
++
++    def test_fetch_parent_eof_exits_without_network(self):
++        """真实获取模块使用明确合成requests替身挂起；父管道EOF触发退出。"""
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory).resolve()
++            root.joinpath("requests.py").write_text("import time\nclass RequestException(Exception): pass\ndef get(*args, **kwargs):\n    time.sleep(60)\n")
++            child = subprocess.Popen([sys.executable, "-m", "pmi.index_fetch", "--source", "tencent", "--start", DAYS[0], "--end", DAYS[-1], "--output", str(root)],
++                                     stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
++                                     env={**os.environ, "PYTHONPATH": str(root) + os.pathsep + str(Path("python/src").resolve())})
++            try:
++                for _ in range(100):
++                    if root.joinpath("receipt.json").exists():
++                        break
++                    time.sleep(.01)
++                self.assertTrue(root.joinpath("receipt.json").exists())
++                child.stdin.close()
++                child.wait(timeout=3)
++                self.assertNotEqual(child.returncode, 0)
++                self.assertFalse(root.joinpath("original").exists())
++            finally:
++                if child.poll() is None:
++                    child.kill()
++                    child.wait(timeout=3)
++                if not child.stdin.closed:
++                    child.stdin.close()
++
++
++class IndexApiTests(unittest.TestCase):
++    def test_authenticated_boundaries_and_read_only(self):
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory).resolve() / "empty"
++            environment = {"WOLF_SLICE_DATA_ROOT": str(root), "WOLF_SESSION_TOKEN": "index-test", "WOLF_ALLOWED_HOST": "testserver", "WOLF_ENABLE_INDEX_UPDATE": "0"}
++            with patch.dict(os.environ, environment), TestClient(app) as client:
++                headers = {"X-Wolf-Session": "index-test"}
++                path = "/api/indices/000300"
++                for url in (path, path + "/update", path + "/snapshots/" + "a" * 64):
++                    self.assertEqual(client.get(url).status_code, 401)
++                    self.assertEqual(client.get(url, headers={**headers, "Host": "evil"}).status_code, 403)
++                    self.assertEqual(client.get(url, headers={**headers, "Origin": "https://evil"}).status_code, 403)
++                self.assertEqual(client.get(path, headers=headers).status_code, 404)
++                self.assertEqual(client.get(path + "/snapshots/invalid", headers=headers).status_code, 422)
++                self.assertEqual(client.get(path + "/update", headers=headers).json()["stage"], "idle")
++                self.assertFalse(root.exists())
++                self.assertEqual(client.post(path + "/update", headers=headers, json={}).status_code, 403)
++                for extra in ({"url": "http://evil"}, {"date": "2026-10-05"}, {"instrument": "ETF"}):
++                    self.assertEqual(client.post(path + "/update", headers=headers, json=extra).status_code, 422)
++                self.assertEqual(client.post(path + "/update?date=x", headers=headers, json={}).status_code, 422)
++                self.assertFalse(root.exists())
++                with writer_lock(root):
++                    items = originals();sid = publish(root, build_manifest(DAYS, items), items, state())
++                view = client.get(path, headers=headers).json()
++                self.assertEqual(view["snapshot_id"], sid)
++                self.assertEqual(view["summary"]["daily_change_pct"], "0.00")
++                oid = view["evidence"][0]["object_id"]
++                self.assertEqual(client.get(path + f"/snapshots/{sid}/evidence/{oid}", headers=headers).status_code, 200)
++                self.assertEqual(client.get(path + f"/snapshots/{sid}/evidence/" + "0" * 64, headers=headers).status_code, 404)
++                with patch.dict(os.environ, {"WOLF_ENABLE_INDEX_UPDATE": "1", "WOLF_ENABLE_DATA_UPDATE": "1"}), writer_lock(root):
++                    self.assertEqual(client.post(path + "/update", headers=headers, json={}).status_code, 409)
++                    self.assertEqual(client.post("/api/slice/update", headers=headers, json={}).status_code, 409)
++                index_root(root).joinpath("objects", oid).write_bytes(b"tamper")
++                self.assertEqual(client.get(path, headers=headers).status_code, 409)
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ r4/python/tests/test_index_tencent.py
+@@ -0,0 +1,106 @@
++"""腾讯换源反例与旧契约只读兼容，所有输入均为明确合成原件。"""
++
++import json
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++from pmi.index_contract import (CONTRACT, LEGACY_CONTRACT, Original, SourceNotReady,
++                                build_manifest, canonical, digest, parse_source)
++from pmi.index_snapshot import index_root, publish, read_evidence, read_snapshot
++from pmi.index_update import fetch_bounded
++from pmi.snapshot import SnapshotError
++from pmi.writer_lock import writer_lock
++from test_index import DAYS, mutated, originals, state
++
++
++def legacy_originals():
++    """仅为兼容测试生成旧东财格式，生产采集不使用此路径。"""
++    items = originals()
++    raw = {"rc": 0, "data": {"code": "000300", "market": 1, "name": "沪深300", "decimal": 2,
++        "klines": [f"{day},100.00,105.00,110.00,90.00,0,0,0" for day in DAYS]}}
++    return (Original("eastmoney", canonical(raw), items[0].started_at, items[0].completed_at), items[1])
++
++
++class TencentContractTests(unittest.TestCase):
++    def test_json_envelope_and_original_locator(self):
++        items = originals()
++        earlier = ["2025-09-03", "100.00", "105.00", "110.00", "90.00"]
++        items = mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].insert(0, earlier))
++        for prefix, suffix in ((b"", b""), (b"kline_dayqfq=", b";\n")):
++            with self.subTest(prefix=prefix):
++                content = prefix + items[0].content + suffix
++                manifest = build_manifest(DAYS, (Original("tencent", content, items[0].started_at, items[0].completed_at), items[1]))
++                evidence = manifest["evidence"][0]
++                self.assertEqual(len(manifest["bars"]), 260)
++                self.assertEqual(evidence["object_id"], digest(content))
++                self.assertEqual(evidence["rows"][0]["locator"], "$.data.sh000300.day[1]")
++                self.assertEqual(manifest["bars"][0]["evidence_refs"][0]["locator"], "$.data.sh000300.day[1]")
++                self.assertEqual(manifest["source_contract"], CONTRACT)
++
++    def test_no_script_execution_duplicate_fields_or_branch_fallback(self):
++        raw = originals()[0].content
++        for content in (b"other=" + raw, b"kline_dayqfq=" + raw + b";alert(1)",
++                        b"kline_dayqfq=(" + raw + b")", raw.replace(b'"code":0', b'"code":0,"code":0')):
++            with self.subTest(content=content[:40]), self.assertRaises(SnapshotError):
++                parse_source("tencent", content)
++        mutations = [lambda raw: raw.update(code=True), lambda raw: raw.update(code="0"),
++            lambda raw: raw["data"]["sh000300"].update(qfqday=[]),
++            lambda raw: raw["data"]["sh000300"].update(hfqday=[]),
++            lambda raw: raw["data"]["sh000300"].pop("day"),
++            lambda raw: raw["data"]["sh000300"]["qt"].update(sh000300=["1", "沪深300", "H00300"]),
++            lambda raw: raw["data"]["sh000300"]["day"][0].__setitem__(1, 100),
++            lambda raw: raw["data"]["sh000300"]["day"][0].__setitem__(1, "100.001")]
++        for mutation in mutations:
++            with self.subTest(mutation=mutation), self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, mutation))
++
++    def test_date_validation_precedes_trimming(self):
++        early = ["2025-09-03", "100.00", "105.00", "110.00", "90.00"]
++        for rows in ([early, early], [early, ["2025-09-02", *early[1:]]], [["2025-02-30", *early[1:]]]):
++            with self.subTest(rows=rows), self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__setitem__(slice(0, 0), rows)))
++        with self.assertRaisesRegex(SnapshotError, "晚于冻结"):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].append(["2026-10-01", *early[1:]])))
++        with self.assertRaisesRegex(SnapshotError, "内部缺日"):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].insert(2, ["2025-09-06", *early[1:]])))
++        with self.assertRaises(SourceNotReady):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__delitem__(slice(-2, None))))
++        conflict = mutated(originals(), 1, lambda raw: raw["data"][0].update(close="104.99"))
++        with self.assertRaisesRegex(SnapshotError, "双源不一致"):
++            build_manifest(DAYS, mutated(conflict, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
++
++    def test_legacy_read_preserved_after_new_publication(self):
++        with tempfile.TemporaryDirectory(prefix="thewolf-tencent-compat-") as directory:
++            root = Path(directory).resolve()
++            items = legacy_originals()
++            old_manifest = build_manifest(DAYS, items, contract_version=LEGACY_CONTRACT["version"])
++            # 仅模拟旧版本曾经发布的磁盘夹具；解除替身后所有读取和新发布走生产路径。
++            with writer_lock(root), patch("pmi.index_snapshot.build_manifest", return_value=old_manifest):
++                old_id = publish(root, old_manifest, items, state("old-fixture"))
++            old_view = read_snapshot(root, old_id)
++            old_evidence = [read_evidence(root, old_id, item["object_id"]) for item in old_view["evidence"]]
++            old_objects = {path.name: path.read_bytes() for path in (index_root(root) / "objects").iterdir()}
++            with writer_lock(root), self.assertRaises(SnapshotError):
++                publish(root, old_manifest, items, state("forbidden-legacy-publication"))
++            new = originals(stamp="2026-10-06T01:00:00Z")
++            with writer_lock(root):
++                new_id = publish(root, build_manifest(DAYS, new), new, state("new-tencent"))
++            self.assertNotEqual(new_id, old_id)
++            self.assertEqual(read_snapshot(root)["snapshot_id"], new_id)
++            self.assertEqual(read_snapshot(root, old_id), old_view)
++            self.assertEqual([read_evidence(root, old_id, item["object_id"]) for item in old_view["evidence"]], old_evidence)
++            for object_id, content in old_objects.items():
++                self.assertEqual((index_root(root) / "objects" / object_id).read_bytes(), content)
++            with self.assertRaisesRegex(SnapshotError, "未知指数来源契约"):
++                build_manifest(DAYS, new, contract_version="unknown-v3")
++
++    def test_legacy_fetch_rejected_before_budget_or_process(self):
++        with tempfile.TemporaryDirectory(prefix="thewolf-source-whitelist-") as directory:
++            root = Path(directory).resolve()
++            with patch("pmi.index_update._record_attempt") as record, patch("pmi.index_update.subprocess.Popen") as spawn:
++                with self.assertRaises(SnapshotError):
++                    fetch_bounded(root, "eastmoney", DAYS, "forbidden")
++                record.assert_not_called()
++                spawn.assert_not_called()

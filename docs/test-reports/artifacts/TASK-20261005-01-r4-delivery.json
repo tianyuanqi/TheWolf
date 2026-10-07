@@ -1,0 +1,61 @@
+{
+  "task_id": "TASK-20261005-01",
+  "round": "r4",
+  "stage": "R01 repair ready for independent re-review; not independently passed",
+  "baseline_git_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "snapshot": "TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d",
+  "previous_snapshot": "TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279",
+  "review_report_sha256": "b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5",
+  "review_round_on_handoff": 1,
+  "review_round_limit": 3,
+  "same_root_failed_repairs": 0,
+  "same_root_failed_repair_limit": 2,
+  "stop_triggered": false,
+  "git": "not staged or committed; automatic fixed snapshot mode",
+  "model_requested": "gpt-6.1-sol/high",
+  "runtime_model": "not independently verified",
+  "coding_thread": "01a10a98-c976-75d1-9315-ec9a7af16235",
+  "reviewer_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "verification": {
+    "v_fe": "43 passed",
+    "build": "passed",
+    "old_r3_reproduction": "reproduced; same new regression 3 pass and 2 expected fail",
+    "native_ui": "passed including both real PDFs and affected paths",
+    "restoration": "passed; no unrestored items",
+    "financial_source_requests": 0,
+    "ledger": "7 jobs / 8 attempts / 158887 bytes; final review job untouched"
+  },
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r4-pdf-unmount.md",
+      "bytes": 14069,
+      "sha256": "f7ca75375948900c7daeccd7a156ac1cabdb8bef456f2e941b8c6d9a3cd6da35"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r4-manifest.json",
+      "bytes": 76698,
+      "sha256": "51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r4-source.zip",
+      "bytes": 663455,
+      "sha256": "7128174f7c40c3663b9cbe51cee1635268f261a031897d4713fcec15ea0c244d"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r4-evidence.zip",
+      "bytes": 544681,
+      "sha256": "3d834e50520d7d03368238921d7ee522dc15db8422bcf7300b745e92dffbb0c4"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r3-to-r4.patch",
+      "bytes": 58189,
+      "sha256": "fea1ef35b33d1ffaba93538d57a24f1a7c106aff0128f99c78f376e5d3e4ebeb"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-head-to-r4-business.patch",
+      "bytes": 201167,
+      "sha256": "4ea8c5d7d70ffef0298047de0d0029a1e81c7a3bc5c82d81555b1d3c0d54dcb5"
+    }
+  ],
+  "sending": "returned in coding window only; coordinator dispatches re-review"
+}

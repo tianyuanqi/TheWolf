@@ -1,0 +1,103 @@
+{
+  "task": "TASK-20261005-01",
+  "increment": "r6-daily",
+  "review_kind": "authorized daily-use incremental code review",
+  "review_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "previous_passed_snapshot": "TASK-20261005-01+r5+1592a1fceb7aac187d8602e31f70f27ddcccc4ab1f67c41cc83142c42511eda8",
+  "fixed_snapshot": "TASK-20261005-01+r6+c374f9f225dfd8e18bdba929e37c7c33bdc489ea71d779b093dfaf478a6cdf59",
+  "conclusion": "passed for incremental code scope",
+  "new_findings": [],
+  "reopened_findings": [],
+  "R01": "closed in r5; unchanged",
+  "historical_counts": {
+    "repair_reviews": 2,
+    "review_limit": 3,
+    "same_root_failures": 1,
+    "failure_limit": 2,
+    "reset": false,
+    "additional_R01_repair_rounds": 0
+  },
+  "previous_report_sha256": "e2693d847eb06567ef495d0f1da2ca3206aa7fac6f611ac35858e89cac008de2",
+  "preserved_prefix_bytes": 37267,
+  "previous_report_fixed_member": "evidence/review-before.md",
+  "fixed_developer_delivery": {
+    "path": "docs/test-reports/artifacts/TASK-20261005-01-r6-delivery.json",
+    "sha256": "307c7b2744c1e27497d7260324eed50ff3bb17c52ec42f2412e7ecb1dd314df7",
+    "source_file_count": 96,
+    "source_zip_sha256": "e88e52bfb992ffff4e8d9da12743dd9dba1dc32c2f2352580281e130cb002aca",
+    "development_evidence_sha256": "2ce01519419c6924811ad80538d8e30cdf4ba17f77726e9c3cd5d310f41c5e26"
+  },
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-review.md",
+      "sha256": "8a22de9f43553d34a86dbf7a633b9845d720beebe394ecf6929ff8301db99ac1",
+      "bytes": 45609
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-review-r6-daily-evidence.zip",
+      "sha256": "ab2721f392deb6c92640b28f16739026a9d651cf91fb7386f08ad810392b820a",
+      "bytes": 39029
+    }
+  ],
+  "evidence_manifest_sha256": "d8c2561cb8ebb3a4df892df6f1b597c70a81ebcb7fa9fb7e80b829637a0c3a74",
+  "evidence_files": 13,
+  "verification": {
+    "daily_entry_tests": 3,
+    "daily_entry_pass": 3,
+    "js_syntax_files": 2,
+    "js_syntax": "PASS",
+    "build": "not rerun, no TS/component/dependency change",
+    "fixed_materials_and_both_patches": "PASS",
+    "restoration": "PASS",
+    "protected_original_listeners": {
+      "5173": [
+        {
+          "pid": 14561,
+          "identity_sha256": "cb5ff62dd0b9a9e9652c269b2f0df33fa6fd44eef4c81ac103d956432187c3bb"
+        }
+      ],
+      "8000": [
+        {
+          "pid": 14640,
+          "identity_sha256": "523618f84376dd1e0f09a63560ede0f43c057dd225b7d8d7d1f865285f98a262"
+        }
+      ],
+      "5174": [],
+      "8001": [],
+      "5184": [],
+      "8014": []
+    },
+    "official_processes_restarted": false,
+    "official_runtime_flags": "not inspected; pending coordinator restart checks",
+    "native_visual_or_interaction_check": "not performed",
+    "formal_financial_data_access": false,
+    "financial_requests": 0,
+    "reserved_review_job_consumed": false,
+    "ledger_sha256": "8010f55c7f05d850c6ab25331a45238ff1de863eab245ff52873e1a112adcc4a",
+    "code_mutation": false,
+    "status_mutation": false,
+    "git_mutation": false,
+    "cross_thread_message": false,
+    "new_agents_or_threads": false,
+    "runtime_model": "not independently verified",
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 1,
+      "local_links": 17,
+      "preserved_round0_1_2_bytes": 37267,
+      "errors": []
+    }
+  },
+  "pending_after_code_review": [
+    "coordinator restart/read-only runtime and pre-click data preservation checks",
+    "user first actual update click and native experience acceptance"
+  ],
+  "final_original_workspace_changes": [
+    "docs/test-reports/TASK-20261005-01-review.md"
+  ],
+  "new_review_artifacts": [
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r6-daily-delivery.json",
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r6-daily-evidence.zip"
+  ]
+}

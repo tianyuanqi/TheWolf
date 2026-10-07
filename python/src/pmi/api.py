@@ -219,3 +219,78 @@ def slice_update(body: UpdateRequest, request: Request) -> dict:
         return {**start_update(_slice_root()), "enabled": True}
     except (SnapshotError, OSError, ValueError, sqlite3.Error) as error:
         raise HTTPException(status_code=409, detail={"code": "update_unavailable", "message": str(error) if isinstance(error, SnapshotError) else "本地更新任务不可用"}) from error
+
+
+class IndexUpdateStatus(BaseModel):
+    """指数任务独立阶段；不存在的值保留null，不伪造成功时刻。"""
+
+    stage: Literal["idle", "preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"]
+    enabled: bool = False
+    job_id: Optional[str] = None
+    result: Optional[Literal["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"]] = None
+    message: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    last_success_at: Optional[str] = None
+    target_start: Optional[str] = None
+    target_end: Optional[str] = None
+    previous_snapshot_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    observation_id: Optional[str] = None
+    added_dates: list[str] = Field(default_factory=list)
+    revised_dates: list[str] = Field(default_factory=list)
+
+
+def _index_error(error: Exception) -> HTTPException:
+    """将指数边界错误映射为稳定状态码；不暴露数据库细节或机器路径。"""
+    message = str(error) if isinstance(error, SnapshotError) else "指数本地快照不可用，请检查数据目录"
+    code = 422 if message.startswith("index_id_invalid:") else 404 if message.startswith("index_evidence_not_found:") else 409
+    return HTTPException(status_code=code, detail={"code": "index_id_invalid" if code == 422 else "index_snapshot_invalid", "message": message})
+
+
+@app.get("/api/indices/000300", dependencies=[Depends(_authorized)])
+@app.get("/api/indices/000300/snapshots/{snapshot_id}", dependencies=[Depends(_authorized)])
+def index_snapshot(snapshot_id: Optional[str] = None) -> dict:
+    """只读当前或固定完整指数视图，鉴权先于任何本地读取。"""
+    from pmi.index_snapshot import read_snapshot as read_index_snapshot
+    try:
+        item = read_index_snapshot(_slice_root(), snapshot_id)
+    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
+        raise _index_error(error) from error
+    if item is None:
+        raise HTTPException(status_code=404, detail={"code": "index_empty" if snapshot_id is None else "index_snapshot_not_found", "message": "尚无本地指数快照"})
+    return item
+
+
+@app.get("/api/indices/000300/snapshots/{snapshot_id}/evidence/{object_id}", dependencies=[Depends(_authorized)])
+def index_evidence(snapshot_id: str, object_id: str) -> dict:
+    """返回固定成员原件的安全文本、原值及行定位；不打开外部网页。"""
+    from pmi.index_snapshot import read_evidence
+    try:
+        return read_evidence(_slice_root(), snapshot_id, object_id)
+    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
+        raise _index_error(error) from error
+
+
+@app.get("/api/indices/000300/update", dependencies=[Depends(_authorized)], response_model=IndexUpdateStatus)
+def index_update_status() -> dict:
+    """指数GET状态只读取提交恢复结果，不创建目录或锁。"""
+    from pmi.index_update import update_status as read_index_status
+    try:
+        return {**read_index_status(_slice_root()), "enabled": os.environ.get("WOLF_ENABLE_INDEX_UPDATE") == "1"}
+    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
+        raise _index_error(error) from error
+
+
+@app.post("/api/indices/000300/update", dependencies=[Depends(_authorized)], status_code=202, response_model=IndexUpdateStatus)
+def index_update(body: UpdateRequest, request: Request) -> dict:
+    """独立写开关启用后仅启动冻结服务端目标；不接受证券、来源或日期参数。"""
+    from pmi.index_update import start_update as start_index_update
+    if request.query_params:
+        raise HTTPException(status_code=422, detail={"code": "unexpected_parameters", "message": "指数更新不接受自选参数"})
+    if os.environ.get("WOLF_ENABLE_INDEX_UPDATE") != "1":
+        raise HTTPException(status_code=403, detail={"code": "index_update_disabled", "message": "此数据根尚未启用指数写入"})
+    try:
+        return {**start_index_update(_slice_root()), "enabled": True}
+    except (SnapshotError, OSError, ValueError, sqlite3.Error, KeyError, TypeError) as error:
+        raise _index_error(error) from error

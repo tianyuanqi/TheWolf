@@ -1,0 +1,57 @@
+{
+  "task": "TASK-20261005-01",
+  "round": "r1",
+  "state": "blocked-not-ready-for-independent-review",
+  "remaining_blocker": "M01-V01/A04",
+  "ui_supplements_satisfied": [
+    "M01-V02",
+    "M01-V03"
+  ],
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "fixed_snapshot": "TASK-20261005-01+r1+111422d71d067d764c6b3bf52a48baa5005b2f5c81e2198ea63481564ecb2173",
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r1-supplement.md",
+      "sha256": "401782a9b95ae90a24b889b4aac9e1c2a29d6a93e9a15f1e20e62cf5f3c5ec8a",
+      "bytes": 13487
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r1-manifest.json",
+      "sha256": "111422d71d067d764c6b3bf52a48baa5005b2f5c81e2198ea63481564ecb2173",
+      "bytes": 41306
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r1-source.zip",
+      "sha256": "0479908b967369652b5b944b0d79ff965601e382f54e08b259c5a24c8cc3b88c",
+      "bytes": 591326
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r1-evidence.zip",
+      "sha256": "b54aa44612bd9c6266e80426df6764b6488190b3cda3d313d28d75d9de96a16b",
+      "bytes": 2118078
+    }
+  ],
+  "verification": {
+    "source_files": 84,
+    "hashes_and_modes_match": true,
+    "evidence_zip_integrity": true,
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 5,
+      "local_links": 62,
+      "errors": []
+    },
+    "no_commit": true,
+    "no_cross_thread_message": true
+  },
+  "real_budget": {
+    "jobs": 5,
+    "attempts": 5,
+    "bytes": 0,
+    "remaining_jobs": 1,
+    "remaining_attempts": 7,
+    "remaining_bytes": 67108864,
+    "reserved_for_review": true,
+    "job5": "40a64843d509430a8574622bbf6b80e0"
+  }
+}

@@ -1,0 +1,485 @@
+--- r4/README.md
++++ r5/README.md
+@@ -125,6 +125,8 @@
+ 
+ V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、body读取中卸载后不遗留对象URL、已有PDF卸载/关闭/选择切换回收，以及新响应仍可读；使用真实Blob URL，网络全部隔离替代，临时模块与对象URL在测试结束时清理。
+ 
++V-FE 的真实React PDF资源专项：使用已有浏览器测试运行时，设置 `WOLF_PLAYWRIGHT_MODULE` 为其Playwright包的绝对目录，在 `apps/desktop` 运行 `node --test scripts/pdf_ownership.test.mjs`。退出0验证URL已接受但状态尚未提交时的普通导航/关闭、替换原件及StrictMode；标准浏览器Blob URL实际读回确认撤销，所有外部路由阻断，浏览器/上下文和夹具URL在结束或失败时清理。入口使用既有Vite/React，不安装依赖；可通过桌面 `load_workspace_dependencies` 获取已配置运行时路径。此项合成时序测试不代替真实PDF原生阅读验证。
++
+ V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 LegacySliceView 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
+ 
+ V-FE的日常启动入口专项：在`apps/desktop`运行`node --test scripts/start_daily.test.mjs`，以临时npm替身核对固定正式根/端口/构建目录、覆盖QA环境及非零退出/终止信号。替身不启动真实Tauri、不读取或写入正式数据、不请求来源；实际桌面启动和正式库保持按任务另外核验。
+--- /dev/null
++++ r5/apps/desktop/scripts/pdf_ownership.fixture.tsx
+@@ -0,0 +1,56 @@
++/** 真实React资源回归宿主：合成传输只控制正文完成，导航保持普通按钮事件。 */
++import React, { useEffect, useState } from "react";
++import { createRoot } from "react-dom/client";
++import { LegacySliceView } from "../src/LegacySliceView";
++
++type PdfProbe = {
++  originalFetch: typeof fetch; created: string[]; revoked: string[]; events: string[];
++  nextAction?: "leave" | "close"; strictMode?: boolean;
++  finishBody?: () => void; leave: () => void; releaseProbeURLs: () => void;
++};
++const probe = window as typeof window & PdfProbe;
++probe.originalFetch = window.fetch.bind(window);
++probe.created = []; probe.revoked = []; probe.events = [];
++const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
++URL.createObjectURL = (blob) => {
++  const url = create(blob);
++  probe.created.push(url); probe.events.push("URL created");
++  const action = probe.nextAction;
++  probe.nextAction = undefined;
++  if (action) {
++    // 让生产回调接受URL并排入更新，再以普通点击抢先卸载/关闭；不强制React提交。
++    queueMicrotask(() => queueMicrotask(() => {
++      probe.events.push(`${action} before pending child commit`);
++      if (action === "leave") probe.leave();
++      else Array.from(document.querySelectorAll("button")).find(button => button.textContent === "关闭")!.click();
++    }));
++  }
++  return url;
++};
++URL.revokeObjectURL = (url) => {
++  probe.revoked.push(url); probe.events.push("URL revoked"); revoke(url);
++};
++const documents = ["report", "forecast"].map(id => ({ title: `合成${id}公告`, issuer_name: "合成",
++  published_at: null, publication_precision: "unknown", physical_page: 1,
++  evidence_text: "合成", source_url: "https://synthetic.invalid", pdf_object_id: id }));
++const slice = { snapshot_id: "synthetic-fixed", instrument_code: "002245", instrument_name: "合成",
++  exchange: "SZSE", source_id: "synthetic", market_contract: { raw_publisher: "synthetic" },
++  calendar_dates: ["2026-09-30"], bars: [], open_session_count: 1, observed_count: 0,
++  unknown_missing_dates: [], complete_through_date: "2026-09-30", documents };
++window.fetch = (async (path: RequestInfo | URL) => ({ ok: true,
++  json: async () => String(path).endsWith("/update") ? { enabled: false, stage: "idle" } : slice,
++  blob: () => new Promise(resolve => {
++    probe.finishBody = () => resolve(new Blob([`explicit synthetic PDF bytes: ${String(path)}`], { type: "application/pdf" }));
++  }),
++})) as typeof fetch;
++
++function Shell() {
++  const [show, setShow] = useState(true);
++  probe.leave = () => document.getElementById("pdf-probe-nav")!.click();
++  useEffect(() => { probe.events.push(show ? "legacy committed" : "market committed"); }, [show]);
++  return <><button id="pdf-probe-nav" onClick={() => setShow(false)}>市场总览</button>
++    {show ? <LegacySliceView sessionToken="synthetic-probe" /> : <div id="market">市场总览（合成测试宿主）</div>}</>;
++}
++createRoot(document.getElementById("root")!).render(probe.strictMode ? <React.StrictMode><Shell /></React.StrictMode> : <Shell />);
++// 断言完成后的夹具恢复不计入生产撤销记录。
++probe.releaseProbeURLs = () => { for (const url of probe.created) revoke(url); };
+--- /dev/null
++++ r5/apps/desktop/scripts/pdf_ownership.test.mjs
+@@ -0,0 +1,113 @@
++/** 使用真实React提交时序和标准浏览器Blob URL核验R01；所有外部路由阻断。 */
++import assert from "node:assert/strict";
++import { createRequire } from "node:module";
++import { readFile } from "node:fs/promises";
++import { createHash } from "node:crypto";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import test from "node:test";
++import { build } from "vite";
++
++const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const require = createRequire(import.meta.url);
++assert.ok(process.env.WOLF_PLAYWRIGHT_MODULE, "按README设置既有运行时的WOLF_PLAYWRIGHT_MODULE，不安装新依赖");
++const { chromium } = require(process.env.WOLF_PLAYWRIGHT_MODULE);
++const bundle = await build({ root: appRoot, configFile: path.join(appRoot, "vite.config.ts"), logLevel: "error",
++  define: { "process.env.NODE_ENV": JSON.stringify("development") },
++  build: { write: false, minify: false, rollupOptions: { input: path.join(appRoot, "scripts/pdf_ownership.fixture.tsx"),
++    output: { format: "iife", name: "PdfOwnershipProbe" } } } });
++const code = bundle.output.find(item => item.type === "chunk" && item.isEntry).code;
++const sourceSha = createHash("sha256").update(await readFile(path.join(appRoot, "src/LegacySliceView.tsx"))).digest("hex");
++
++/** 每个用例持有独立浏览器上下文，失败也关闭并释放夹具URL。 */
++async function withProbe(run, { strictMode = false } = {}) {
++  let browser, context, page;
++  try {
++    browser = await chromium.launch({ headless: true });
++    context = await browser.newContext();
++    await context.route("**/*", route => route.abort());
++    page = await context.newPage();
++    const errors = [];
++    page.on("pageerror", error => errors.push(String(error)));
++    await page.setContent('<!doctype html><html><body><div id="root"></div></body></html>');
++    await page.evaluate(strict => { window.strictMode = strict; }, strictMode);
++    await page.addScriptTag({ content: code });
++    await page.getByRole("button", { name: "打开同版本原件" }).first().waitFor();
++    if (strictMode) await page.waitForFunction(() => window.events.filter(event => event === "legacy committed").length >= 2);
++    await run(page);
++    assert.deepEqual(errors, []);
++  } finally {
++    if (page) await page.evaluate(() => window.releaseProbeURLs?.()).catch(() => {});
++    if (context) await context.close();
++    if (browser) await browser.close();
++  }
++}
++
++async function openBody(page, index, action) {
++  await page.evaluate(next => { window.finishBody = undefined; window.nextAction = next; }, action);
++  await page.getByRole("button", { name: "打开同版本原件" }).nth(index).click();
++  await page.waitForFunction(() => typeof window.finishBody === "function");
++  await page.evaluate(() => window.finishBody());
++}
++
++async function result(page) {
++  return page.evaluate(async () => ({ created: window.created, revoked: window.revoked, events: window.events,
++    readable: await Promise.all(window.created.map(async url => {
++      try { await (await window.originalFetch(url)).text(); return true; } catch { return false; }
++    })), iframeCount: document.querySelectorAll("iframe").length }));
++}
++
++function assertReleased(observed, count) {
++  assert.equal(observed.created.length, count);
++  assert.deepEqual([...observed.revoked].sort(), [...observed.created].sort());
++  assert.deepEqual(observed.readable, Array(count).fill(false));
++  assert.equal(observed.iframeCount, 0);
++  console.log(JSON.stringify({ sourceSha, ...observed }));
++}
++
++for (const strictMode of [false, true]) {
++  test(`R01真实React：URL已接受但状态未提交时普通导航回收${strictMode ? "（StrictMode）" : ""}`, async () => {
++    await withProbe(async page => {
++      await openBody(page, 0, "leave");
++      await page.waitForFunction(() => window.events.includes("market committed"));
++      const observed = await result(page);
++      assert.ok(observed.events.includes("leave before pending child commit"));
++      assertReleased(observed, 1);
++    }, { strictMode });
++  });
++}
++
++test("R01真实React：替换原件状态未提交时导航，同时回收旧URL与新URL", async () => {
++  await withProbe(async page => {
++    await openBody(page, 0); await page.locator("iframe").waitFor();
++    await openBody(page, 1, "leave");
++    await page.waitForFunction(() => window.events.includes("market committed"));
++    assertReleased(await result(page), 2);
++  });
++});
++
++test("R01真实React：替换原件状态未提交时关闭，不遗留新URL", async () => {
++  await withProbe(async page => {
++    await openBody(page, 0); await page.locator("iframe").waitFor();
++    await openBody(page, 1, "close");
++    await page.waitForFunction(() => window.events.includes("close before pending child commit") && !document.querySelector("iframe"));
++    assertReleased(await result(page), 2);
++  });
++});
++
++test("R01真实React：正常切换仅撤销旧URL，关闭、重开及卸载仍正确", async () => {
++  await withProbe(async page => {
++    await openBody(page, 0); await page.locator("iframe").waitFor();
++    await openBody(page, 1); await page.locator('iframe[title^="合成forecast"]').waitFor();
++    const switched = await result(page);
++    assert.deepEqual(switched.revoked, [switched.created[0]]);
++    assert.deepEqual(switched.readable, [false, true]);
++    await page.getByRole("button", { name: "关闭", exact: true }).click();
++    await page.waitForFunction(() => !document.querySelector("iframe"));
++    assertReleased(await result(page), 2);
++    await openBody(page, 0); await page.locator("iframe").waitFor();
++    await page.locator("#pdf-probe-nav").click();
++    await page.waitForFunction(() => window.events.includes("market committed"));
++    assertReleased(await result(page), 3);
++  }, { strictMode: true });
++});
+--- r4/apps/desktop/src/LegacySliceView.tsx
++++ r5/apps/desktop/src/LegacySliceView.tsx
+@@ -70,11 +70,19 @@
+   const [updateError, setUpdateError] = useState<string>();
+   const [updateNotice, setUpdateNotice] = useState<string>();
+   const pdfGeneration = useRef(0);
++  const ownedPdfUrl = useRef<string | undefined>(undefined);
+   const pollStarted = useRef(0);
+   const updateStarting = useRef(false);
+   const uncertainPost = useRef(false);
+   const submissionStarted = useRef(0);
+   const previousJob = useRef<string | null | undefined>(undefined);
++
++  /** 同步释放已接受的原件，覆盖React尚未提交对应状态的窗口。 */
++  function releasePdfUrl() {
++    const ownedUrl = ownedPdfUrl.current;
++    ownedPdfUrl.current = undefined;
++    if (ownedUrl) URL.revokeObjectURL(ownedUrl);
++  }
+ 
+   useEffect(() => { setToken(sessionToken); }, [sessionToken]);
+ 
+@@ -86,6 +94,7 @@
+       .then((nextSlice) => {
+         if (cancelled) return;
+         pdfGeneration.current += 1;
++        releasePdfUrl();
+         setPdfUrl(undefined);
+         setSelectedPdfId(undefined);
+         setPdfLoading(false);
+@@ -155,9 +164,8 @@
+     return () => { cancelled = true; window.clearTimeout(timer); };
+   }, [token, updating]);
+ 
+-  // 切页卸载也使正在读取body的请求失效，避免迟到结果创建无人回收的URL。
+-  useEffect(() => () => { pdfGeneration.current += 1; }, []);
+-  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
++  // URL归属独立于状态提交；卸载既使读取失效，也回收已接受但尚未展示的原件。
++  useEffect(() => () => { pdfGeneration.current += 1; releasePdfUrl(); }, []);
+ 
+   /** 从当前固定快照读取公告原件，避免切换快照后误用其他版本的 PDF。 */
+   async function openEvidence(document: DocumentRecord) {
+@@ -169,6 +177,8 @@
+         () => generation === pdfGeneration.current);
+       if (!nextPdfUrl) return;
+       if (generation !== pdfGeneration.current) { URL.revokeObjectURL(nextPdfUrl); return; }
++      releasePdfUrl();
++      ownedPdfUrl.current = nextPdfUrl;
+       setPdfUrl(nextPdfUrl);
+       setSelectedPdfId(document.pdf_object_id);
+       setError(undefined);
+@@ -313,7 +323,11 @@
+               onClick={() => openSource(document.source_url)}>深交所原件（在浏览器打开）</button></p>
+             {pdfUrl && selectedPdfId === document.pdf_object_id &&
+               <div className="pdf-viewer"><div className="section-heading"><h3>本地归档原件</h3>
+-                <button type="button" onClick={() => { setPdfUrl(undefined); setSelectedPdfId(undefined); }}>关闭</button></div>
++                <button type="button" onClick={() => {
++                  pdfGeneration.current += 1;
++                  releasePdfUrl();
++                  setPdfUrl(undefined); setSelectedPdfId(undefined); setPdfLoading(false);
++                }}>关闭</button></div>
+                 <iframe title={`${document.title}，第 ${document.physical_page} 页`}
+                   src={`${pdfUrl}#page=${document.physical_page}`} /></div>}
+           </section>)}
+--- r4/docs/status.md
++++ r5/docs/status.md
+@@ -8,12 +8,12 @@
+ 
+ | 项目 | 当前有效信息 |
+ |---|---|
+-| 当前工作 | **当前状态：首轮独立审查需要修改，正在处理M01-R01。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)已完成腾讯主采集/中证校核、新空根job7真实发布、原生首末/跨年证据、离线重启、旧东财快照兼容及恢复。协调者核验[完整r3交接](test-reports/TASK-20261005-01-r3-tencent.md)、90文件源码/交付索引/证据ZIP通过，M01-V01开发侧缺口已解除；历史失败保留；首版仍260日、上海当日排除，五年后置 |
++| 当前工作 | **当前状态：第1轮复审仍需修改，M01-R01完整资源归属待修复。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)已完成腾讯主采集/中证校核、新空根job7真实发布、原生首末/跨年证据、离线重启、旧东财快照兼容及恢复。协调者核验[完整r3交接](test-reports/TASK-20261005-01-r3-tencent.md)、90文件源码/交付索引/证据ZIP通过，M01-V01开发侧缺口已解除；历史失败保留；首版仍260日、上海当日排除，五年后置 |
+ | 产品方向 | 需求以[PRD](PRD-V0.1.md)为准；先市场与指标看板，再论点闭环，顺序见[路线图](Implementation-Plan-V0.1.md)。其余整批设计未整体获批 |
+ | 已完成能力 | 既有002245切片于2026-10-03用户验收通过，ODATA01/OUI01保持关闭。新沪深300契约、存储、API、总览日K线及证据查看已实现并有本地自测；真实联网闭环已通过；独立审查发现R01待修复复核，用户验收尚未完成 |
+-| 版本 | 真实HEAD仍为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`，当前固定快照 `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279`；[r3交付索引](test-reports/artifacts/TASK-20261005-01-r3-delivery.json)固定报告、清单、源码/证据ZIP及差异。r0/r1/r2保持；自动模式未暂存/提交 |
++| 版本 | 真实HEAD仍为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`，当前固定快照 `TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d`；[r4交付索引](test-reports/artifacts/TASK-20261005-01-r4-delivery.json)固定报告、清单、源码/证据ZIP及差异。r0/r1/r2保持；自动模式未暂存/提交 |
+ | 授权边界 | 用户先明确“开启自动任务书模式”，随后在本原窗口于2026-10-05明确“确认开发”，对应唯一待启动任务TASK-20261005-01。依据Task-Workflow§9.4授权创建指定开发/独立评审窗口、协调材料、范围内实现/隔离测试/必要修复与复审；不含正式库操作、Git提交或发布。2026-10-06用户另明确同意2次连接诊断及1个开发补证job，见下方诊断授权记录；随后同意先离线检查新浪精度差异；最新明确“再试一下腾讯的数据源精度”，授权候选精度取样，本轮限定1次HTTPS GET/8 MiB，无重试/重定向，保持代理/TLS，已完成；最新明确“那把数据源切换为腾讯，再进行任务”，授权以腾讯替换沪深300主采集、保留中证校核并继续原任务，必要新增1个开发job的边界见任务书r3增补；不重启全部流程 |
+-| 自动任务书模式 | **开启**。coding `01a10a98-c976-75d1-9315-ec9a7af16235`（沪深300价格首版需求coding，gpt-6.1-sol/high）；独立评审 `01a11071-2602-77f1-a45c-ba32ec471bbc`（沪深300价格首版需求独立评审，gpt-6.1-sol/xhigh），运行时均未独立核实。首轮审查需要修改，r4/R01修复已通过43项前端及构建；原生检查途中因用量限制failed，用户现要求继续，已成功向原窗口发送恢复指令并观察到活动回合，继续剩余原生验证及恢复。不新建/换模型、不重新采集。复审修复当前0/3（r4交回后计1），同根因失败0/2；status由协调者唯一维护 |
++| 自动任务书模式 | **开启**。coding `01a10a98-c976-75d1-9315-ec9a7af16235`（沪深300价格首版需求coding，gpt-6.1-sol/high）；独立评审 `01a11071-2602-77f1-a45c-ba32ec471bbc`（沪深300价格首版需求独立评审，gpt-6.1-sol/xhigh），运行时均未独立核实。r4已完成43项前端/构建、原生补证及恢复并交回92文件快照；第1轮复审需要修改，计数1/3，同根因修复失败1/2；继续原coding实施有明确反例依据的r5修复，下一交回为第2轮。不新建/换模型、不重新采集；status由协调者唯一维护 |
+ | 日常运行 | 固定正式根、启动不采集、点击才更新且不导入测试结果的约定保持。本任务仅运行隔离QA并只读复制获准静态备份，未操作当前正式slice根；r1测试进程、故障注入及QA缓存已清理，六个相关端口无监听，代理配置保持，详见r1恢复证据 |
+ | 执行与验证 | r0/r1原有效自测保持，V02/V03已关闭；r3的57项后端、39项前端、构建/回环/生命周期及真实原生证据已核验；90文件源码哈希/模式、交付索引与证据ZIP完整性通过，恢复证据已核验。共享账本已核对job7腾讯71,231字节、中证87,656字节均成功；累计7job/8次/158,887字节，上限8job/12次/64 MiB，新增开发job已用完，最后1个仍保留审查；腾讯候选1次/71,252字节另列，不能替代开发job。单列连接诊断2/2通过但job6失败，实际ClashX路由均DIRECT，不能只凭ProxyError判断断开阶段。外部AI报告另自述约18次东财、4次中证及对照访问，未有逐次原始账本核实，不忽略额外尝试或据此重置预算 |
+ 
+@@ -25,7 +25,7 @@
+ |---|---|---|---|
+ | O01 | 沪深300P02首版设计和M01任务书已形成，日期边界已确认；首版已获本人开发确认，其余候选/整批设计仍未全部收敛 | 开发者按[设计§5.6](Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)实现并验收，协调者依自动模式核验和送审，其余模块按后续步骤细化 | 相应模块约定足够支持实施并有明确开发指令；首个任务书形成不关闭整批O01 |
+ | O02 | 沪深300近期价格主线已有准入证据，但新浪边界舍入方法与准入契约、历史日历/五年覆盖、东财历史访问、估值口径/日期、持续更新及PIT仍有缺口，详见[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)及[新浪复核§10](Data-Sources-V0.1.md#10-新浪沪深300精度离线复核2026-10-06)；既有其他来源风险保留 | M01实施契约已获准改为腾讯/中证；新浪复核已完成，腾讯同窗精度取样通过，见[来源§11](Data-Sources-V0.1.md#11-腾讯沪深300精度受控取样2026-10-06)。原coding窗口按r3完成来源适配、旧快照兼容及必要受控验证；新浪边界方法缺口保留；五年与旧年份抽查缺口不阻塞当前260日M01；历史与估值在对应后续分组按报告证据继续验证，不重置未耗尽请求计数。负责人为对应步骤执行者 | 相应字段/期间/方法和版本证据满足所声明能力；每个缺口有可核验处置，有限样本不关闭全范围O02 |
+-| M01-R01 | 首次独立审查P2：切离002245资料页后，迟到PDF body仍创建Blob URL且无人回收，属累计首版导航/卸载回归；腾讯精度检查通过不关闭此问题。见[审查§4](test-reports/TASK-20261005-01-review.md#4-发现及关闭条件) | 原coding窗口核实并最小修复，交回r4固定快照与关闭条件证据；协调者转同一独立评审复核，不新增来源请求 | 卸载后迟到结果不遗留URL、已有PDF卸载/关闭/选择切换回收；页面切回无迟到显示且两PDF正常，新总览证据/旧更新路径保持；受影响专项/构建及恢复通过，独立复核关闭 |
++| M01-R01 | 首次独立审查P2：切离002245资料页后，迟到PDF body仍创建Blob URL且无人回收，属累计首版导航/卸载回归；腾讯精度检查通过不关闭此问题。见[审查§4](test-reports/TASK-20261005-01-review.md#4-发现及关闭条件) | r4修复了读取中卸载，但实际React普通切页仍复现“URL已接受、更新未提交”泄漏；原coding按审查§6同步建立URL归属并覆盖卸载/关闭/切换，交r5后原评审复核，不新增来源请求 | 卸载后迟到结果不遗留URL、已有PDF卸载/关闭/选择切换回收；页面切回无迟到显示且两PDF正常，新总览证据/旧更新路径保持；受影响专项/构建及恢复通过，独立复核关闭 |
+ | O04 | Python随桌面分发打包仍未验证，不影响现有开发态本地使用 | 需要分发时明确实际依赖和打包验证范围 | 目标环境启动、健康、退出与重启验证通过 |
+ 
+ 待确认建议由O01管理：科创50/北证50、金银午盘基准价、布伦特现货、COMEX结算连续、在岸汇率时点、整批更新策略和分区总览；首个沪深300的手动更新已按设计§5.5确认；具体依据与代价只在设计维护，不把推荐写成已批准。论点阶段再细化最低登记标准、状态/失效判断、AI连接、个人规则值、复核周期与长期效果衡量。
+@@ -36,11 +36,9 @@
+ 
+ ## 下一步
+ 
+-用户在中断后明确“任务被中断了，继续”。coding上一回合因用量限制failed；r4证据根 `/private/tmp/thewolf-m01-r4-78g9r4un` 已有修复前复现、修复后43项前端/构建与部分原生证据，但r4固定交付及恢复记录未齐，不能送复审。协调者已成功向同一窗口发送恢复指令，最新回合 `01a11179-687d-7ad1-b8f6-4499e281767e` 正常运行，开发者已开始补齐原生验证；继续完成剩余验证与清理，保全代码和证据。禁止新金融请求或重跑job7。
+-
+-r3已完成首次独立审查（第0轮），[报告](test-reports/TASK-20261005-01-review.md)结论“需要修改”，唯一问题M01-R01/P2。协调者核对固定材料、真实组件清理路径及复现探针，确认为范围内生命周期回归，已通过工具成功向原coding窗口发送R01/r4最小修复指令；不改金融契约、不额外出站。修复交回复审时计第1轮，正常编辑不逐次计数；当前0/3、同根因失败0/2保持。
+-
+-审查者独立复跑57项后端/39项前端/构建/回环、逐字段核对真实1040值、旧快照兼容及原生证据，均通过；未使用最后审查job。其报告/证据/交付索引哈希及恢复记录经协调者核验，业务工作区未改动。开发修复后须固化r4、保留r3及第0轮“需修改”历史，再送同一评审窗口复核原关闭条件和新增差异。
++第1轮复审结论仍“需要修改”，见[报告§6](test-reports/TASK-20261005-01-review.md)。r4修复body读取中卸载，但URL被接受后、React尚未提交回收effect时普通导航卸载仍遗留真实可读URL；独立真实React/Chromium探针确认。M01-R01保持原P2，不新增ID，修复失败计1/2、已完成复审1/3，未达停止阈值。
++
++协调者核验第1轮报告/证据/交付索引、普通点击复现及恢复后，已通过工具成功向原coding发送r5最小修复完整资源归属指令，复用同一反例先失败后通过，保留既有正常/延迟/关闭/切换边界。不新增金融请求，不因文档澄清或普通编辑重复计数；r5实质交回复审时记第2轮。
+ 
+ 共用账本job7 `d9115075476f425f8d62bab866b449c7` 于UTC 2026-10-06 08:30:02—03执行腾讯/中证各1次成功，共158,887字节；累计7job/8次/158,887字节，最后1job留独立审查，总上限8job/12次/64 MiB。新增开发job已消费，不再重复采集。原P01 28次、腾讯候选1次/71,252字节、诊断2/2及外部自述尝试分别保留。不开新诊断、不改代理/TLS、不重试东财，不因新根或新轮次清零预算。
+ 
+@@ -52,6 +50,16 @@
+ 
+ 
+ ## 历史记录
++
++### 第1轮复审仍需修改 · 2026-10-06
++
++独立评审在实际React/Chromium普通导航按钮中复现R01相邻时序：URL已被回调接受、对应状态更新尚未提交时卸载，创建1个URL、撤销0个且仍可读取。r4覆盖的body迟到路径已修复，但完整资源回收条件未满足；沿原ID/P2，同根因修复失败累计1/2，已完成复审1/3。详见[报告§6](test-reports/TASK-20261005-01-review.md)。
++
++协调者核验本轮报告SHA `1443d018caf82594d49b0edcc0bd1e87f0c310a151007fed11be9821928f4c24`、第1轮交付索引及证据ZIP/探针；恢复通过，无金融请求。评审报告中无关的“AGENTS撤回”断言经核对删除，本轮以当前明确委派执行，不代表项目规则变更；此文档澄清不计额外复审。第0轮全文及原索引字节保持，其当时报告可在r4源码包和第1轮证据review-before.md重建。
++
++### R01修复r4交回与第1轮复审 · 2026-10-06
++
++原coding窗口从中断现场继续并完成[r4固定交接](test-reports/TASK-20261005-01-r4-pdf-unmount.md)。协调者核验92文件源码/模式、工作区匹配、交付索引、证据ZIP及恢复摘要；源码清单SHA `51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d`，源码ZIP SHA `7128174f7c40c3663b9cbe51cee1635268f261a031897d4713fcec15ea0c244d`。R01关闭条件已具开发证据，交原评审复核；计第1轮/3，同根因失败0/2。旧报告结论及全部原件归档保持，无新来源请求。
+ 
+ ### R01修复中断后恢复 · 2026-10-06
+ 
+--- /dev/null
++++ r5/docs/test-reports/TASK-20261005-01-r4-pdf-unmount.md
+@@ -0,0 +1,100 @@
++# TASK-20261005-01 · r4 PDF卸载修复交接
++
++**2026-10-06修复交付状态：待审就绪，可进入第1轮独立复审。** M01-R01已核实并完成最小修复：公告组件卸载时使PDF读取代次失效，迟到正文不再产生无人回收的对象URL。修复前失败证据、43项前端检查、构建、原生两PDF/切页/受影响路径及恢复核验已齐。M01-R01仍由原独立评审复核关闭；本文不宣布独立审查通过、用户验收或发布完成。第0轮“需要修改”结论及r0–r3材料保持。
++
++本报告是本次修复唯一交接入口。适用[原任务书](../tasks/TASK-20261005-01-csi300-price-slice.md)、[审查§4关闭条件](TASK-20261005-01-review.md#4-发现及关闭条件)、[AGENTS](../../AGENTS.md)、[代码规范](../Coding-Standards.md)、[固定交付流程](../Task-Workflow.md#7-开发与修复的固定交付)、[README验证入口](../../README.md#验证入口)。当前授权与问题状态由协调者在[status](../status.md)维护，coding未写入该文件。
++
++## 1. 固定版本与交接字段
++
++| 字段 | 本轮值 |
++|---|---|
++| 任务/阶段/模式 | TASK-20261005-01；M01-R01范围内修复；已授权自动任务书模式 |
++| 开发窗口 | `01a10a98-c976-75d1-9315-ec9a7af16235`，复用原窗口，无新Agent/聊天 |
++| 模型与档位 | 请求配置 `gpt-6.1-sol/high`；运行时型号/档位未独立核实 |
++| 初始真实Git基线 | `ff614e4e2605292a9a151ea38a752677f10cd7e7`，HEAD及空索引保持 |
++| 上次所审版本/本轮比较基线 | `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279` |
++| 本次固定源码快照 | `TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d`；内容清单身份，**不是Git提交SHA** |
++| 待审SHA/父提交 | 不适用：自动模式未暂存、未提交 |
++| 源码ZIP SHA-256 | `7128174f7c40c3663b9cbe51cee1635268f261a031897d4713fcec15ea0c244d` |
++| 第0轮审查报告SHA-256 | `b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5` |
++| 第0轮审查证据ZIP SHA-256 | `f8ee7f671ccc702f34e0f74b033fa8e297ffd32e4894f366875845a8968686f5` |
++| 修复计数/停止判断 | 本次实质交回复审计第1轮/上限3；同根因有依据修复失败0/2，未触发停止条件。正常编辑和r3基线预期失败不另计失败 |
++| 接收者/发送状态 | 原协调者核验后交原独立评审 `01a11071-2602-77f1-a45c-ba32ec471bbc`；本窗口仅交回材料，未跨窗口发送 |
++
++固定材料：[92文件清单](artifacts/TASK-20261005-01-r4-manifest.json)、[源码ZIP](artifacts/TASK-20261005-01-r4-source.zip)、[r3→r4差异](artifacts/TASK-20261005-01-r3-to-r4.patch)、[真实HEAD→r4业务差异](artifacts/TASK-20261005-01-head-to-r4-business.patch)、[证据ZIP](artifacts/TASK-20261005-01-r4-evidence.zip)、[交付索引及最终哈希](artifacts/TASK-20261005-01-r4-delivery.json)。报告与证据ZIP自身哈希集中于交付索引，避免循环自引用。
++
++源码包在 `workspace/` 保存实际源码、测试、锁定依赖声明及适用只读材料；包含r3报告和第0轮审查报告，不包含真实库、金融原响应、凭据、缓存、依赖安装目录或整套运行环境。文件模式和逐文件哈希已核验；无删除或重命名。清单保留任务开始及r0/r1/r2/r3来源指纹。status相对r3和本轮开始的差异均来自协调者，本窗口只读并保留；其他规划文档增量继续按原归属处理，HEAD累计README差异不能全部归为本轮。
++
++## 2. 根因与最小修复
++
++M01-R01是累计首版增加导航、抽取旧资料组件后的生命周期回归。PDF正文读取中切离002245页，原清理闭包中的 `pdfUrl` 仍为空，卸载又未改变 `pdfGeneration`，于是正文完成后仍创建URL。已卸载组件不再运行下一次URL清理effect，资源继续持有。没有错版显示证据，也未测量原生堆增长数值。
++
++本轮相对r3只修改三份开发文件：
++
++- [LegacySliceView.tsx](../../apps/desktop/src/LegacySliceView.tsx)：新增独立挂载effect的卸载清理，递增PDF代次。保留现有URL所属effect、读取后的代次校验与回收、关闭和选择切换处理；不改导航、PDF来源或读取接口。
++- [evidence_read.test.mjs](../../apps/desktop/scripts/evidence_read.test.mjs)：保留原迟到响应测试，新增4项真实生产组件回调/清理测试，使用标准可读且可撤销的Blob URL。卸载后不重新运行effect；断言先于夹具清理，夹具最终释放只用于测试恢复，不能替代产品回收。
++- [README](../../README.md#验证入口)：沿用V-FE命令，补充PDF卸载、关闭和切换覆盖说明。
++
++没有金融契约、Python、Rust、CSS、权限、依赖或其他业务改动，没有扩大需求。已有PDF的URL回收仍由原effect承担；新增卸载代次防护同时保护body完成前及URL创建后、组件接收前两个边界。
++
++## 3. R01关闭条件证据
++
++### 3.1 修复前失败与修复后通过
++
++修改前使用第0轮审查探针读取原r3生产组件，源码SHA为 `fa5f9ab6d2855794f084eb000ae007957b3d3d088aa579877692759de1731e4d`。执行所有卸载清理后再完成正文，生产逻辑创建1个URL、回收0个，真实URL仍可读取。结果 `REPRODUCED` 见证据ZIP的 `probe-pdf-unmount-r3.cjs`、`probe-r3-result.json`；探针最终主动释放残留URL。
++
++新增同一组回归再运行于从固定r3源码ZIP解压的副本，5项中3项通过、2项按预期失败，命令退出1。失败项为“body读取中卸载不创建URL”和“URL创建后接收前卸载立即回收”；日志 `r3-regression-expected-failure.log`。此副本使用旧生产组件、当前新增测试及既有依赖引用，未改r3归档；临时副本及依赖引用已清理。重建时从r3源码包解压、放入r4的该测试文件，再运行 `node --test scripts/evidence_read.test.mjs` 即可验证基线失败。
++
++修复版V-FE共43项全部通过，其中PDF5项覆盖：正文读取中卸载后创建0个URL；已有URL卸载时实际撤销且不能继续读取；公告选择切换和关闭回收旧URL、当前原件仍可读；创建后接收前卸载立即撤销；原快照选择改变后拒绝迟到响应。其他市场迟到证据、更新不确定结果恢复、入口及K线几何检查保持。详见 `v-fe.log`。
++
++### 3.2 原生消费者复核
++
++隔离根 `/private/tmp/thewolf-m01-r4-78g9r4un`；Vite5174、本地Python8001、QA标识 `com.thewolf.qa.p5174.p8001`，520×560原生窗口。复用上轮已构建QA二进制与当前前端代码，无Rust变更。只复制获准旧测试根的两公告/60日日线及r3真实指数结果，未访问当前正式库。
++
++本机临时ASGI测试层延迟PDF正文和市场证据，所有POST经鉴权后返回明确合成403且不转发。固定接口内容和两PDF来自获准原件；不伪造金融响应，不把合成拒绝当真实来源失败。注入源代码保存在证据 `local_ui_faults.py`，运行注入和配置已删除。
++
++| 操作及观察 | 固定证据ZIP内文件 |
++|---|---|
++| 报告body延迟5.5秒，显示“正在读取原件…”时切至市场；本地市场GET发生在正文发送前；正文发送完再回002245页，无迟到原件视图 | `ui-pdf-body-pending-ax.txt`、`ui-pdf-unmounted-ax.txt`、`ui-pdf-reentered-ax.txt`、`local-ui-events.jsonl` |
++| 半年度报告及业绩预告正常读取，实际PDF渲染可见，再点击关闭均移除原件视图 | `ui-report/forecast-open-ax.txt`、`ui-report/forecast-scroll-ax.txt`、`ui-report/forecast-closed-ax.txt`、`ui-report.png`、`ui-forecast.png` |
++| 已打开PDF后切至市场，再回资料页，无旧原件视图 | `ui-existing-pdf-away-ax.txt`、`ui-existing-pdf-reentered-ax.txt` |
++| 两源市场证据延迟5.5秒，在“读取固定原件…”时切至资料页；旧响应完成后返回市场，无迟到证据面板 | `ui-market-evidence-pending/away/reentered-ax.txt`、`local-ui-events.jsonl` |
++| 旧更新收到本地合成拒绝后，仅GET核对；等待120秒截止仍禁止重复更新，点击“核对结果”得到“未发现新的更新任务”，恢复人工按钮；全程仅1个POST且未转发 | `ui-update-uncertain/deadline/resolved-ax.txt`、`local-ui-events.jsonl` |
++
++表内斜杠表示同前缀各独立文件，实际文件名见ZIP。实际报告第7物理页和预告第1页可读，AX包含本地Blob地址及原文，截图已人工查看。两原件SHA分别为 `71409583d1d8ce18a49951d2d3079faea8e35a5df8473020f1723a3777eaefdc`、`d3a5bb349f74f1acb1da17607a877564a969d17eceb39d3d08bedd5bb7d3de51`。
++
++`check_ui.py` 对保存的AX及请求时序断言通过，见 `ui-verification.json`。原生证据支持阅读/关闭及切页消费者行为；URL资源归属由上述确定性真实Blob URL回归证明，**没有原生heap测量**，不以“未显示迟到PDF”单独证明资源泄漏已修复。
++
++## 4. 验证与未执行项
++
++所测业务代码与r4固定快照匹配，使用项目已有锁定依赖；未安装或升级依赖。以下为coding自检，不是独立审查。
++
++| 入口/工作目录/实际命令 | 结果 |
++|---|---|
++| 修复前复现，仓库根：`node /private/tmp/thewolf-m01-r4-78g9r4un/evidence/probe-pdf-unmount-r3.cjs` | 修改前退出0且结果为REPRODUCED，真实r3缺陷确认 |
++| 固定r3对照，仓库根：`node --test /private/tmp/thewolf-m01-r4-78g9r4un/repro-r3/apps/desktop/scripts/evidence_read.test.mjs` | 预期退出1，5项3通过2失败；临时路径已清理，重建方法见§3.1 |
++| V-FE，`apps/desktop`：`node --test scripts/evidence_read.test.mjs scripts/index_view.test.cjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs` | 43项通过，`v-fe.log` |
++| V-FE构建，`apps/desktop`：`npm run build` | 类型检查及构建通过，`v-build.log` |
++| V-UI，`apps/desktop`：`npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`；临时QA包5174/8001及CUA原生操作 | §3.2全部观察通过，`vite.log`、`native.log`、AX/截图及 `ui-verification.json` |
++| 原生证据自检，仓库根：`python3 /private/tmp/thewolf-m01-r4-78g9r4un/evidence/check_ui.py` | 时序、两个PDF、重入/迟到保护及唯一拦截POST通过 |
++| 快照，仓库根：`python3 /private/tmp/thewolf-m01-r4-78g9r4un/evidence/verify_snapshot.py docs/test-reports/artifacts` | 92文件哈希/模式及ZIP CRC通过，最终结果见 `snapshot-verification.json` |
++| V-DOC，仓库根：`python3 /private/tmp/thewolf-m01-r4-78g9r4un/evidence/check_docs.py` | README/本报告的本地链接、锚点、围栏、空白及Git工作区/暂存差异检查通过，`vdoc-result.json` |
++| 恢复，仓库根：`python3 /private/tmp/thewolf-m01-r4-78g9r4un/evidence/restore.py` | 六端口、代理摘要、原输入、旧报告及HEAD/索引/账本保持，见 `restoration.json` |
++
++没有重复57项Python、回环API/父EOF、金融真实采集/1040值校核、旧东财兼容与离线重启：本轮仅组件卸载防护和FE测试/说明，相关后端及金融内容未变；沿用[r3报告](TASK-20261005-01-r3-tencent.md)及[首次独立审查](TASK-20261005-01-review.md)对应固定版本证据。未重跑全部宽窗UI矩阵，局部修复无布局修改，本轮实际窄窗消费者已检查。Python分发、五年/估值/PIT、正式启用、用户验收及发布均未执行，保持原范围。
++
++## 5. 恢复、预算与剩余事项
++
++开始已记录HEAD、空索引、92份源码/依赖及旧报告和全部已有归档指纹、六端口、代理脱敏摘要、共享账本及QA持久路径不存在的基线。原输入根指纹在 `input-fingerprints.json`；测试只操作独立副本。上回合因用量限制中断，用户要求继续后从原现场接续，未重新采集或重复已通过前端检查，没有换模型或新建窗口。
++
++完成后通过原生退出触发父EOF、停止本轮Vite；桌面/uvicorn/获取进程无残留，5173/8000/5174/8001/5184/8014均无监听。仅删除本轮开始不存在且创建时间匹配的QA专用WebKit/Caches，Preferences/SavedState仍不存在；临时QA包、sitecustomize、fault-mode、pycache、r3对照副本及其依赖引用均移除。代理/原输入根/旧报告和归档/HEAD及空索引保持；正式库未访问。仅保留无活动进程引用的测试数据副本与必要证据。**未恢复项：无。**
++
++首次清理已完成，但恢复断言将协调者并发status更新误列为不允许差异；核对确认其归属后修正核验名单，再完整复核通过，不回退或写入status。最终快照重新收录该只读依赖，所测业务代码未变，不新增测试轮次。证据见 `restoration.json` 与最终 `snapshot-verification.json`。
++
++共享账本字节保持，SHA `8010f55c7f05d850c6ab25331a45238ff1de863eab245ff52873e1a112adcc4a`，累计**7job/8次/158,887字节**。本轮新增金融来源请求0；最后1job/4次/66,949,977字节继续仅留独立审查。P01的28次、腾讯候选1次/71,252字节、诊断2/2及外部自述尝试另列，旧失败不清零。
++
++必要脚本、摘要、日志及截图已归档，不承诺临时目录永久存在。重建时解压r4源码至新隔离目录，核对清单/模式，使用锁定依赖和README命令；证据脚本本机ROOT/测试路径须替换，原生复核需要与上述哈希匹配的获准测试输入。缺少原件时如实记录，不以合成文件顶替真实PDF。
++
++本次开发侧没有剩余材料或环境阻塞，M01-R01待独立关闭。历史M01-V01已由协调者按r3关闭，V02/V03、ODATA01/OUI01原结论不改写；O01/O02/O04和用户验收保持各自边界。Git未暂存、未提交、未amend/reset/push/部署。
++
++下一步一句话入口：**“按《TASK-20261005-01 · r4 PDF卸载修复交接》核对r4固定快照、r3新增差异和累计范围，执行第1轮独立复审并复核M01-R01全部关闭条件。”** 原协调者核验后复用原独立评审窗口，本窗口不自行发送、创建新审查或修改审查报告。
+--- r4/docs/test-reports/TASK-20261005-01-review.md
++++ r5/docs/test-reports/TASK-20261005-01-review.md
+@@ -102,3 +102,70 @@
+ 下一步可直接使用：**“按《TASK-20261005-01 · 首次独立审查（第0轮）》核实并修复M01-R01，保持原范围，交回固定修复快照和关闭条件证据。”** 由原协调者依据既有自动模式发送给原coding窗口；本审查窗口不自行改码、创建会话或跨窗口发送消息。新快照必须复核差异、R01关闭条件及受影响消费者，不需重复未受影响金融联网。
+ 
+ 接收者：原协调者。实际发送状态：本窗口报告交回，**未跨窗口发送**；status由协调者唯一维护。Git：未暂存、未提交、未amend/reset/push/发布；尚不能进入“独立审查通过，Git待提交”的成功终点。
++
++## 6. 第1轮独立复审 · r4 · 2026-10-06
++
++**本轮结论：需要修改（needs_changes）。M01-R01保持P2、真实缺陷、未关闭。** r4修复了第0轮复现的“正文读取中卸载”路径，已有43项前端检查及构建通过；但URL被组件接收、状态更新尚未提交时切页，仍会留下无人回收的URL。独立实际React/无头浏览器探针已确定性复现同一资源归属问题。未新增问题ID，未宣告本任务通过。
++
++第0轮以上全文逐字节保留，原SHA为 `b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5`；历史适用规则及当时结论保持为历史记录。本轮依据当前明确委派执行；此处仅说明本评审会话的执行依据，不涉及项目AGENTS协作规则的撤回或原协调窗口授权变更。仍复用原评审窗口与请求配置，无新Agent/聊天；运行时型号/档位仍未独立核实。
++
++### 6.1 固定版本、材料及增量
++
++| 字段 | 本轮核验值 |
++|---|---|
++| 启动入口 | [r4修复交接](TASK-20261005-01-r4-pdf-unmount.md)，SHA `f7ca75375948900c7daeccd7a156ac1cabdb8bef456f2e941b8c6d9a3cd6da35` |
++| 上次所审版本 | `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279` |
++| 本次所审版本 | `TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d`；92文件；内容清单身份，不是Git提交 |
++| r4源码ZIP | SHA `7128174f7c40c3663b9cbe51cee1635268f261a031897d4713fcec15ea0c244d` |
++| r4开发证据ZIP | SHA `3d834e50520d7d03368238921d7ee522dc15db8422bcf7300b745e92dffbb0c4` |
++| 真实HEAD/待审提交 | `ff614e4e2605292a9a151ea38a752677f10cd7e7`保持、索引为空；未产生待审Git提交 |
++| 本轮独立材料 | [第1轮证据ZIP](artifacts/TASK-20261005-01-review-r1-evidence.zip)、[第1轮交付索引](artifacts/TASK-20261005-01-review-r1-delivery.json)；当前报告/证据哈希列于索引 |
++
++在 `/private/tmp/thewolf-m01-r4-review-vv_8tefy/workspace` 解压r4。6项交付文件的SHA/字节数、源码与证据ZIP的CRC、92文件集合/逐文件哈希/模式及内外清单均通过；独立重建r3→r4和真实HEAD→r4业务差异，均与交付patch逐字节相等。测后92文件仍匹配。证据为 `material-check.json`、`prepare.py`、`restoration.json`。
++
++r3→r4的开发增量仅为LegacySliceView卸载时递增代次、PDF回归测试和README覆盖说明；协调status及新增只读报告按各自归属处理。金融/Python/Rust、App导航、市场页面和样式均未变化。第0轮对累计实现、57项Python、回环/父EOF、1040值真实原件校核、旧源兼容及未受影响消费者的结论与证据继续有效。本轮围绕R01及这三份增量复核。
++
++### 6.2 已完成的独立验证
++
++以下命令的工作目录为隔离副本，前端依赖沿用项目已有锁定环境，没有安装/升级。
++
++| 验证 | 实际执行及结果 |
++|---|---|
++| 固定r3失败对照 | r3 Legacy组件配r4 PDF测试，`node --test scripts/evidence_read.test.mjs`；5项中3通过、2按预期失败，退出1。对应正文读取中卸载及URL创建后接收前卸载，见 `r3-regression-expected-failure.log` |
++| r4前端专项 | `node --test scripts/evidence_read.test.mjs scripts/index_view.test.cjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs`；**43项通过**，退出0，见 `v-fe.log` |
++| r4构建 | `npm run build`；tsc及Vite通过，退出0，见 `v-build.log` |
++| 补充实际React探针 | `node <证据>/build-react-probe.mjs`生成内存测试bundle，再 `node <证据>/run-real-react-probe.cjs`；退出0、**结果REPRODUCED**，表示下述缺陷断言成立。见 `real-react-before-commit.json`、脚本及 `real-react-probe.log` |
++| 开发原生证据复核 | 在开发证据解压副本运行其 `check_ui.py`，通过；独立阅读AX/请求时序，并查看两真实PDF截图。见 `ui-independent-check.json`；未另启动原生QA |
++| 材料、文档与恢复 | 固定文件核验及环境恢复通过；报告本地链接/锚点/围栏/空白和Git差异检查结果见 `vdoc-result.json` |
++
++r4专项证明：body完成前卸载后不创建URL；创建URL期间、组件接收前卸载能立即撤销；已提交的已有URL卸载能回收；正常读取、关闭和公告切换保持。原市场迟到证据和旧更新不确定结果检查亦通过。正常关闭/切换测试等待组件更新完成后检查，没有覆盖URL已被接受、更新仍待提交的窗口。
++
++开发原生证据的本地请求时序支持：PDF正文延迟期间先切到市场，正文发送后重入无迟到视图；两真实PDF显示/关闭和已有PDF切页/重入正常；市场证据延迟期间先切离，重入无迟到面板；旧更新仅一次被明确合成拦截的POST、120秒后人工GET核对恢复，POST未转发。这些支持原§4关闭条件2的消费者行为，属于本审查核验的固定开发证据；“无迟到视图”仍不能证明资源已回收。
++
++### 6.3 M01-R01复审发现：URL接收后、回收effect提交前卸载
++
++位置：[LegacySliceView.tsx](../../apps/desktop/src/LegacySliceView.tsx)第159—172行；[App.tsx](../../apps/desktop/src/App.tsx)第23、28行对应普通导航与条件卸载。固定组件SHA为 `afa4fa323f7407668ef404ba1183f4e0000d3ba12ff196f1a81f17b02df4fd78`。
++
++确定性触发顺序：PDF body完成并创建URL；`openEvidence`的后置代次检查通过，`setPdfUrl(nextPdfUrl)`已排入React更新；该更新尚未提交新的URL清理effect时，普通导航按钮的点击先卸载旧组件。第159行虽递增代次，此时异步回调已完成接收；第160行最后提交的清理闭包仍只持有undefined或上一个URL，不能释放本次新URL。
++
++补充探针直接导入未改动r4生产组件，使用真实React `createRoot`及标准浏览器Blob URL；测试宿主按App的按钮/setState/条件子组件方式卸载，通过两次microtask安排上述窄时序，再触发普通按钮 `.click()`。未使用 `flushSync`，未替代React调度。显式合成传输只控制正文完成时机，浏览器所有外部路由被阻断；这不是新金融响应或原生人工切页实测。
++
++实际记录：**新建1个URL、生产撤销0个**；市场宿主已提交、iframe为0，但原URL仍可读取 `explicit synthetic PDF bytes`，无页面错误。事件为旧组件提交→URL创建→待提交更新前导航→市场提交。`real-react-before-commit.json`保存结果，`review-react-entry.tsx`、构建/执行脚本和bundle保存精确复现；截图 `real-react-after-unmount.png`仅支持页面已切离，资源判断以真实URL读回为准。探针最后释放其URL并关闭浏览器，仅用于测试恢复。
++
++**判断：第0轮相同根因的资源归属仍不完整，修复尚不能关闭M01-R01。** 本轮没有证据表明这一相邻边界由r4新增，也未测量原生heap增长或证明错版显示。其影响与原发现相同：WebView上下文内未撤销URL持续持有正文，反复命中窗口会累积。无另列必要验证缺口、关键疑点或新需求；既有M01-V01/V02/V03及其他历史问题结论保持。
++
++最小修复方向：URL被接受时同步建立能覆盖待提交状态的资源归属，卸载能释放已提交与待提交URL，关闭/切换仍正确；不能仅依赖下一次状态提交后安装的effect。原§4关闭条件继续有效；补充上述“已接受但未提交”反例，是检查原“不遗留新URL”条件的具体边界。下一版先用r4确定性复现，再证明同一时序不留URL，并保留本轮已通过的正文延迟、创建前后、已有URL、正常读取/关闭/切换及受影响消费者证据。
++
++关闭条件状态：原条件1 **部分满足、仍有确定性残留**；条件2的固定原生消费者证据已核验；条件3的专项、构建、固定材料与恢复已核验，但要求完整复审确认，尚未达到。
++
++### 6.4 恢复、计数与交回
++
++恢复脚本在报告追加前核验原工作区全部开始文件指纹不变，HEAD/空索引不变；共享账本SHA仍为 `8010f55c7f05d850c6ab25331a45238ff1de863eab245ff52873e1a112adcc4a`。代理/数据根/写开关环境摘要相同；六端口5173/8000/5174/8001/5184/8014均无监听，本轮任务进程及Playwright无头进程均为0。隔离构建输出、tsbuildinfo、r3测试副本、测试entry和两处node_modules引用已移除；固定源码及必要证据保持，无活动引用。浏览器独立临时上下文已关闭，未启动原生应用或改动其持久配置。**未恢复项：无。** 见 `baseline.json`、`restore.py`、`restoration.json`。
++
++本轮新增金融来源请求0，账本仍7job/8次/158,887字节，最后1个审查job未使用。不重复未受影响Python/金融联网/完整原生矩阵。第0轮证据ZIP及交付索引字节保持；旧报告完整字节另存于本轮证据 `review-before.md`，亦已冻结于r4源码包。当前仅追加此报告及新增第1轮审查证据/索引，没有业务代码、status或Git写入，也没有跨窗口发送。
++
++计数交回协调者：**已执行第1轮复审/上限3，结论需要修改；同根因有依据的修复失败建议从0/2累计至1/2。** r4已有实质修复，但完整关闭条件被确定性反例推翻，属于本次修复未完全成功；不把预期r3失败或普通编辑另计。尚未达到停止阈值，由协调者唯一维护status及后续委派。
++
++复现材料中的本机ROOT/依赖路径需要在新隔离目录替换：解压r4并核对清单，沿用锁定依赖，将 `review-react-entry.tsx`放入隔离的 `apps/desktop`，运行保存的构建/执行脚本；已归档bundle也可直接注入临时页面验证。Playwright使用本机已有运行时；原生证据依其固定归档复核，不以合成PDF替代真实原件。临时目录不承诺永久存在。
++
++下一步入口：**“按本报告§6复核r4的已接受URL/待提交effect卸载反例，最小修复M01-R01的完整资源归属，交回固定版本和同一反例通过证据后执行第2轮复审。”** 接收者仍为原协调者；本窗口通过材料交回，未自行发送或更改状态。尚不能进入独立审查通过、提交或发布终点。

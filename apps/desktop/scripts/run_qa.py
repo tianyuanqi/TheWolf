@@ -40,7 +40,14 @@ def main() -> int:
     parser.add_argument("--frontend-port", required=True, type=_port)
     parser.add_argument("--service-port", required=True, type=_port)
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--enable-index-update", action="store_true", help="仅本隔离会话启用沪深300手动写入")
+    parser.add_argument("--window-width", type=int, help="本会话窗口宽度，至少520")
+    parser.add_argument("--window-height", type=int, help="本会话窗口高度，至少560")
     args = parser.parse_args()
+    if (args.window_width is None) != (args.window_height is None):
+        parser.error("窗口宽高须同时指定")
+    if args.window_width is not None and (args.window_width < 520 or args.window_height < 560):
+        parser.error("窗口不得小于520×560")
     if args.frontend_port == args.service_port:
         parser.error("前端与服务端口必须不同")
     data_root = args.data_root.expanduser().resolve()
@@ -68,6 +75,10 @@ def main() -> int:
             ),
         },
     }
+    if args.window_width is not None:
+        override["app"] = {"windows": [{"label": "main", "title": "TheWolf · 本地研究工作台",
+                                        "width": args.window_width, "height": args.window_height,
+                                        "minWidth": 520, "minHeight": 560}]}
     environment = os.environ.copy()
     environment.update(
         CARGO_TARGET_DIR=str(APP_ROOT / "src-tauri" / "target" /
@@ -76,6 +87,7 @@ def main() -> int:
         WOLF_SERVICE_PORT=str(args.service_port),
         WOLF_SLICE_DATA_ROOT=str(data_root),
         WOLF_ENABLE_DATA_UPDATE="1",
+        WOLF_ENABLE_INDEX_UPDATE="1" if args.enable_index_update else "0",
     )
     with tempfile.TemporaryDirectory(prefix="thewolf-qa-config-") as directory:
         config = Path(directory) / "tauri-qa.json"

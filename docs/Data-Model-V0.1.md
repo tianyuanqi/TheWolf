@@ -1,12 +1,14 @@
 # Data Model V0.1
 
-本文件为逻辑 schema 与约束设计，**不是已运行的数据库迁移**。P0 表在 V0.1 实现；P1/P2 仅预留契约，避免把整个未来平台一次建完。
+概念对齐：2026-10-04。本文件为逻辑 schema 与约束设计，**不是已运行的数据库迁移**。现有存储继续按已验收切片运行；下文旧 P0/P1/P2 表示原提案的能力分组，不再表示必须在某个 V0.x 一次建齐。实际所需结构按 [PRD](PRD-V0.1.md) 和 [路线图](Implementation-Plan-V0.1.md) 分阶段确定。
+
+首批市场/指标需要的时间序列与未来论点概念在此说明语义；新字段、表、存储引擎和迁移方案须由对应实施设计确定。本轮不建立它们。
 
 ## 1. 全局约定
 
 - 内部 ID 使用无业务含义的 UUID；证券代码只是有时效的外部标识。公司主体 `issuer_id` 与上市证券 `instrument_id` 分离，转板/换代码不生成假公司。
 - 时间戳以 UTC 保存，展示以 Asia/Shanghai 或指标原生时区；同时保留源字符串与时间精度。交易日、报告期用 DATE，不把它们直接当发布时间。
-- 金额统一元，数量统一股，比率统一小数（5% 存 0.05），币种明确；指数点位单列。源单位与转换规则版本同时保留。原始价格/金额优先 decimal，派生分析可 float64，但保留计算精度说明。
+- 金额记录原生币种与单位；股票数量按股，商品按明确克/千克/磅/桶或合约单位，禁止把所有资产统一当作股或人民币。比率统一小数（5% 存 0.05），收益率差显示百分点或基点，比值显示倍数；指数点位单列。源单位与转换规则版本同时保留。原始价格/金额优先 decimal，派生分析可 float64，但保留计算精度说明。
 - 缺值用 NULL + reason：not_disclosed、not_applicable、source_missing、not_yet_available、parse_failed。不得用 0、空串或 NaN 混淆语义。
 - 时间区间统一左闭右开 `[valid_from, valid_to)`；日期类业务事件映射到其适用交易日。重复的业务键只有在不同 source/version 下才允许共存。
 - 所有来源事实可追溯到 source_id、batch_id、record_version_id、获取时刻；所有计算可追溯到输入快照及算法版本。
@@ -45,7 +47,7 @@
 | `source` | PK source_id；name、type、base_url、authority_rank、terms_url、access_status、adapter_version | provider 与原始发布主体分开；不把第三方 SDK 视为官方来源 |
 | `dataset_contract` | PK dataset_id+contract_version；fields、units、business_key、source_policy_version、pit_rules、calendar_id | schema 与口径版本不可原地改写 |
 | `issuer` | PK issuer_id；legal_name、country | 名称历史另存版本，不以简称去重 |
-| `instrument` | PK instrument_id；issuer_id FK、asset_type、currency | A 股/指数区分；代码不能做全库主键 |
+| `instrument` | PK instrument_id；issuer_id FK（适用时）、asset_type、currency | 区分A股、港股、指数、商品合约等；代码不能做全库主键，宏观统计序列不强造公司主体 |
 | `instrument_identity_version` | PK version_id；instrument_id FK、exchange、symbol、name、list_date、delist_date、valid_from,to、时间字段 | 同来源同证券有效区间不重叠；历史代码解析带日期 |
 | `trading_session` | PK calendar_id+trade_date+version_id；is_open、open_at、close_at、时间字段 | 周末/临时休市可版本化 |
 | `instrument_status_version` | PK version_id；instrument_id、status、effective_from,to、时间字段 | suspended/delisted/ST 等分开；用于预期行数计算 |
@@ -55,23 +57,23 @@
 | `research_project` | PK project_id；issuer_id、status、questions、archive_policy、created_at | 一个主体可有多个研究主题 |
 | `research_report` | PK report_id；project_id、content_path、context_json、snapshot_id、tool_registry_version、model_info、created_at | 保存 prompt 模板版本、运行参数、引用；报告不可被最新重生成静默覆盖 |
 
-证券全集定义版本单独保存 `universe_definition` 与 `universe_snapshot`：按历史存续状态选成员并固定 instrument_id 集合。历史全市场不能使用今天的上市公司名单，尤其不能遗漏已经退市的样本。
+需要逐股计算市场统计时，按历史存续状态保存计算所需 `universe_definition` 与 `universe_snapshot`，不能以今天名单回算过去或遗漏退市样本。直接采用来源汇总时保存其统计范围与原始发布，不冒称已取得逐股全集。两种路径不要求先建设全市场长期个股库。
 
-## 4. 结构化金融事实（Parquet P0）
+## 4. 结构化金融事实（逻辑契约，物理存储待按需选择）
 
 每条记录公共字段：`record_version_id, source_id, batch_id, published_at?, public_available_at?, first_seen_at, retrieved_at, pit_grade, contract_version, quality_flags`。记录更新采用 append 新版本，查询视图做版本选择。
 
 | 数据集 | 业务键 | 核心字段 |
 |---|---|---|
-| `equity_daily` | instrument_id + trade_date + session_scope | open/high/low/close、reference_close、volume_shares、amount_cny、currency；raw 未复权 |
+| `equity_daily` | instrument_id + trade_date + session_scope | open/high/low/close、reference_close、volume_shares、amount_native、currency；raw 未复权，原金额单位另存；这是演进概念，不重命名现有字段 |
 | `daily_metrics` | instrument_id + trade_date + metric_basis | turnover_float、turnover_free、total_shares、float_shares、free_shares、total_mv、float_mv、pe、pe_ttm、pb、dividend_yield_ttm |
 | `adjustment_factor` | instrument_id + effective_date + method_id | factor、anchor_rule、provider_method_version；保留历史可用性 |
-| `corporate_action` | instrument_id + action_id | action_type、announcement_at、record_date、ex_date、payment_date、cash_per_share、share_ratio、status；V0.1 接入可得事件以核验复权 |
+| `corporate_action` | instrument_id + action_id | action_type、announcement_at、record_date、ex_date、payment_date、cash_per_share、share_ratio、status；按所选证券需要接入可得事件以核验复权 |
 | `index_daily` | instrument_id + trade_date | OHLC、amount（若支持）、return_type、currency |
 | `market_metric`（派生） | universe_id + trade_date + metric_id + input_snapshot_id + algorithm_version | value、unit、eligible_count、observed_count、missing_count、params、pit_mode |
 | `sector_metric`（派生） | sector_id + trade_date + metric_id + input_snapshot_id + membership_snapshot_id | value、denominator、coverage、taxonomy_version |
 
-物理布局建议 dataset/year/month，内部按 trade_date、instrument_id 排序；单个版本文件目标 64–256 MiB，实际按回填基准调整。每日小增量允许小文件，后台合并；不为每只股票每天创建一个文件。修订只替换相关分区版本的有效清单，而非全库覆盖。
+若数据规模证明需要批量 Parquet，物理布局候选为 dataset/year/month，内部按 trade_date、instrument_id 排序；单个版本文件目标 64–256 MiB，实际按回填基准调整。每日小增量允许小文件，后台合并；不为每只股票每天创建一个文件。修订只替换相关分区版本的有效清单，而非全库覆盖。
 
 ### 4.1 复权与价格
 
@@ -83,8 +85,9 @@
 
 默认 universe 是指定日期存续的沪深京普通 A 股；ETF、B 股、债券、基金不纳入。成交口径 `session_scope` 明确是否包含盘后固定价格交易、大宗等；未实测前不将不同范围的供应商与交易所总额强制对齐。
 
-- 全市场成交额：符合全集与同一交易口径的 amount 求和。展示 observed 与 expected；合法停牌单独计数，未知缺行不能当成停牌。
-- 涨跌家数：有有效可比昨收且当日交易的证券分类；新股无可比昨收、停牌、缺数分别列出。分母必须展示。
+- 市场成交额：可保存可靠来源的同口径汇总及发布依据；本地计算时对同一全集和交易口径求和并保存必要输入。两者分清 provider-reported 与 computed。A股/港股分别计价；展示可核实覆盖，来源未提供的 expected 不伪造。
+- 涨跌家数：有有效可比昨收且当日交易的证券分为上涨、下跌、平盘；新股无可比昨收、停牌、缺数分别列出。上涨占比以有效分类的证券数为分母，缺失不进入平盘。
+- 涨跌停：按当日适用的证券/板块/状态规则及价格精度核验收盘状态，无涨跌幅限制的交易日不能套用固定比例。盘中触及与收盘封板分开；涨停/跌停不是与上涨/下跌可再相加的独立分类。
 - 成交相对强度：当日成交额 / 前 N 个有效交易日平均成交额，明确不含当日；缺失窗口不自动补零。
 - 行业成交占比：行业成员成交额 / 同口径市场成交额。成员未知的证券进“未分类”，互斥一级行业加未分类才可做总和校验。
 - 概念板块允许一股多概念，占比总和可能超过 100%，不能画成总和为 100% 的市场饼图，也不能推断净流入。
@@ -92,6 +95,21 @@
 - 历史分位显示窗口、有效样本量和统计定义。样本不足返回 insufficient_history；对负盈利的 PE 不做“越低越便宜”排序。
 
 供应商 PE/PB/股息率作为 provider-reported 独立指标，不自动视作 PIT。以后本地重算需使用截至当时已披露财务版本、正确股本、分红状态与报告期间。
+
+### 4.3 首批指标与公共序列的语义
+
+首批名单与观察窗口统一见 PRD §5，不在此维护第二份范围表。以下是计算和版本约束：
+
+- 区间涨跌使用可比价格序列；个股复权方法和锚点固定，指数价格收益与全收益不能混接。窗口最高收盘价到当前的跌幅不等于窗口最大回撤，不以最低/最高区间位置替代历史分位。
+- 五年估值分位按截至观察时点的同一指数、同一来源方法和有效样本计算，明确排序/并列值算法及实际覆盖。缺失不补零，负盈利或不适用PE不参与“低即便宜”解释。指数换样是历史指数的一部分，不能用当前成分倒算旧值。
+- 股债比较：盈利收益率取 `1 / PE_TTM`（倍数PE转小数收益率），与中国10年期国债到期收益率相减；股息率为同口径过去12个月现金股息率，与该国债收益率相减或相除。差值存小数、展示百分点/基点；比值为倍数。PE非正、债券收益率为零等情况需返回不适用原因，不输出无穷大。
+- 优先采用编制方的指数整体估值，固定计算用股本/权重、亏损剔除与分红统计方法；不能把个股PE简单平均后称为同一官方指数PE。港股股债比较另定适用债券/币种，不直接套人民币国债基准。
+- 社融与M2使用同一统计月份的官方存量同比增速，差值为前者减后者；存量、增量、余额及同比分别识别。优先保留官方可比口径增速及其版本，不用不可比的修订余额自行重算冒充官方值。
+- DR007使用日终加权利率，FDR007是另一指标；政策利率按生效区间，HIBOR按已选期限和 fixing 口径。每日收益率与价格、收盘价与结算价分别建序列。
+- 参考序列概念记录 `series_id`、发布方、原标的、价格/收益率类型、频率、币种、报价单位、时区/日历与方法版本；观测记录所属日期/期间、值、发布时间、获取时间、修订版本及质量。月度数据不能从所属月末起回填为当时已知每日观测。
+- 连续期货记录底层合约、主力/近月选择和换月/调整规则，未经定义的拼接跳变不能解释为真实现货变化。外汇区分在岸、离岸、中间价；黄金现货、基准价和期货不能混为一个字段。
+
+选定序列的五年行情、五年估值和原始发布版本能力分别验证；`latest_revised` 可用于明确标注的历史描述，但不能进入严格当时可知的决定重放。
 
 ## 5. 文档与证据表（SQLite P0 + 文件对象）
 
@@ -112,6 +130,25 @@
 | `computation` | PK computation_id；tool_version、formula_version、parameters、context、snapshot_id、selection_spec、result_path/hash、unit、created_at | 可复算；涉及输入版本被快照保护 |
 
 `document_version` 的索引入库阶段可能没有 content_hash，后续下载才补充；但必须保留索引观测记录 `document_observation`（origin_id、metadata_hash、observed_at、metadata_json）。若不能证明后来下载的内容就是早期发布版本，PIT 等级保持 observed_only。相同 URL 覆盖更新不能凭旧索引时间得到 verified_vintage。
+
+### 5.1 论点与决策对象的演进边界
+
+以下是概念关系与不可变性要求，具体字段、状态机和表结构尚待论点阶段设计：
+
+| 对象 | 最小语义与关系 | 历史约束 |
+|---|---|---|
+| 原始表达 / Thesis版本 | 原话、作者与记录时间；AI结构化文本另有版本和用户确认状态 | AI不覆盖原话；修订追加；事后回忆标注记录时点 |
+| 子问题 / Hypothesis | 分别表达行业、公司受益、估值等可检验判断及竞争解释 | 时间窗口、关键变量、削弱/重研条件可未知；不能强造数值阈值 |
+| Evidence关系 | 一证据多判断、支持/反对/背景；来源性质、预测属性、依赖原始来源、冲突与时效 | AI推断不作为独立外部证据；可复算计算保留输入；关联版本固定 |
+| Strategy/Policy | 个人规则版本和变更原因 | 已使用旧版本不可覆盖；不预填未经用户确认的仓位上限 |
+| State Snapshot | 决策相关资金、持仓/暴露、现金与流动性需求，按实际必要程度记录 | 手工数据来源、记录/适用时点和缺项明确；不是完整账户账本 |
+| Decision Snapshot | 多条论点版本、证据/反证/未知、数据快照、规则/状态、备选和不操作、参考基线、AI分析、用户决定、复核安排 | 数据快照只是其中一部分；AI分析与用户决定分开，固定后更正另存 |
+| Monitoring Variable | 变量与论点关系，自动/人工/不可观测，更新状态 | 未取得值与论点未变化不同，过期不能当作正常 |
+| Review | 与论点版本/决定关联的维持、修改或放弃理由和遗漏 | 当时记录与事后解释分开；不从收益倒推原判断正确 |
+
+既有设计中的 `research_project.issuer_id` 是旧公司研究候选，不能限制跨行业、多公司论点；`claim` 也不等于完整 Thesis。Decision 可以关联多个 Thesis，Thesis 可以经历多次 Decision，Evidence 可以服务多个 Hypothesis。多对多关系的实际实现待设计，不在本轮创建兼容层或迁移。
+
+固定决定所需原话、AI分析、规则/状态和证据依赖进入保护集；运行日志不保存全文提示词的原则，不等于可以丢弃决定中明确需要留存的AI分析。必要内容最小化、发送远程模型的边界在对应阶段确认。
 
 ## 6. 同步、快照与运行表（SQLite P0）
 
@@ -134,34 +171,22 @@
 
 `job_run` 正式字段还包括 `next_retry_at`。已发布 claim 的证据关系也不可原地替换，更正随新 claim ID 保存。快照的文件清单和维度版本在同一控制库事务中发布；报告重放只读取固定版本，不能从“最新公司画像”旁路补充信息。
 
-## 7. 后续扩展 schema（P1/P2，不在 V0.1 全建）
+## 7. 按阶段选用的扩展概念（不预建全部 schema）
 
 - `financial_fact`：issuer_id、statement_type、metric_id、period_start/end、period_kind（单季/累计/年度/TTM）、consolidation_scope、currency、unit、value、document_version_id、版本时间。重述前后独立，单季从累计差分需两个可知版本且口径一致。
 - `revenue_segment`：issuer_id、period、segment_dimension（产品/地区/行业）、segment_name、revenue、share、currency、scope、evidence_id。不同维度不混合加总；未披露占比留空。
-- `macro_series` / `macro_observation`：series_id、定义/频率/季调/单位/发布机构；series_id+period+vintage_id、value、发布时间与修订链。累计值、同比、环比各为不同 series。
-- `global_series` / `global_observation`：市场/交易时区、当地交易日、实际可用时刻、currency、close/value、source、revision。中国收盘研究不能用其后才形成的美股当日收盘。
+- `macro_series` / `macro_observation`（已选序列支持首批看板，更广覆盖后续）：series_id、定义/频率/季调/单位/发布机构；series_id+period+vintage_id、value、发布时间与修订链。累计值、同比、环比各为不同 series。
+- `global_series` / `global_observation`（按已选白名单，不整体后置）：市场/交易时区、当地交易日、实际可用时刻、currency、close/value、source、revision。中国收盘研究不能用其后才形成的美股当日收盘。
 - `valuation_profile`：profile_id、version、适用行业/公司类型、required_metrics、rule_definition、validation_state。缺行业专属数据时禁用对应解释。
 - `event` / `event_study_run`：事件首次公开时刻、研究窗口、证券历史全集、基准、输入快照、算法版本与偏差诊断。
 - `trade_import_batch` / `trade_record`（更后期）：导入身份、时区、证券映射、费用、数量与成交价、去重键；仅用于行为分析，不对应交易执行接口。
 
 ## 8. 150 GB 预算与生命周期
 
-以下均为十进制 GB 的规划额度，**不是已经实测的占用或容量承诺**。
+150 GB 是已确认的本地金融数据软上限。原提案按全市场估算的类别额度、6000只证券示例、全市场30日采样与固定文件大小，不再作为当前容量承诺或前置采集要求。
 
-| 类别 | 规划额度 | 保留规则 |
-|---|---:|---|
-| A 股、指数、财务、宏观、全球结构化及版本 | 30 GB | 长期保留；去重压缩，不丢历史事实 |
-| 文档索引、项目、引用与控制库 | 8 GB | 长期保留；审计归档有清单 |
-| 官方与重点公司原件 | 45 GB | 引用/重点保护；项目体积可配 |
-| 解析正文、表格和搜索索引 | 12 GB | 正文引用版本保护；搜索索引可重建 |
-| 派生缓存、短期原响应、日志 | 5 GB | 限额轮转；必要计算输入仍保护 |
-| staging、合并与升级临时峰值 | 10 GB | 作业前检查；发布完成后清理 |
-| 本机增量备份 | 20 GB | 固定清单+增量对象；不得无限复制全库 |
-| 增长与紧急余量 | 20 GB | 提前预警 |
-| 合计 | **150 GB** | 软上限，满时停采集而非破坏证据 |
+按已选参考序列、重点证券、来源响应、历史修订、用户研究资料和必要计算输入实测增长；把SQLite/索引、不可变对象、暂存峰值、派生缓存及本机备份一起计算。采样范围随对应任务授权确定，不为估容量先启动全市场采集。
 
-容量估算方法：例如用 6,000 只证券作为规划样本数量（不是当前数量声明），每年 250 个交易日，20 年约 3,000 万条股日记录；按每条 150–400 字节仅估日线主表未压缩载荷约 4.5–12 GB。每日指标、历史版本、主键、索引及压缩率需另算；不能据此认定全部数据只占这个体积。
+原始结构化响应按用途分类：被固定决定/报告引用、用于来源核验、支持唯一历史版本或计算重放的长期保护；只有可丢弃的诊断响应才适用短期回收。已保存长期历史默认不滚动删除，取消自选不改变该原则。
 
-前置验证实际采样至少 30 个交易日全市场及 2 家公司文档，测每条字节数、压缩比、文档均值/长尾、解析膨胀率、版本频率，再以真实记录数估初次回填、日增量和年增量。报告 p50/p95 文档体积，避免少数大型扫描 PDF 冲垮预算。
-
-原始结构化响应默认短期保留供排错；用于关键口径判断的原响应和全部标准化历史版本长期保留。目录扫描总量与对象清单定期对账，索引/WAL/临时文件也要计入。压缩合并至少需要输入和输出并存的空间，不能在满盘时启动合并救急。
+容量紧张先提示并暂停非必要新增，再由用户决定存储或范围调整；不删除保护依据达标。压缩合并保留内容语义、引用和发布原子性，并预留新旧文件同时存在的空间。具体预警阈值、分类配额与空间性能指标仍待实测和设计。

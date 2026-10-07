@@ -9,7 +9,7 @@ const { test } = require('node:test');
 const desktop = path.resolve(__dirname, '..');
 const dependency = createRequire(path.join(desktop, 'package.json'));
 const ts = dependency('typescript');
-const code = ts.transpileModule(fs.readFileSync(path.join(desktop, 'src/App.tsx'), 'utf8'), {
+const code = ts.transpileModule(fs.readFileSync(path.join(desktop, 'src/LegacySliceView.tsx'), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 const oldSuccess = '2026-10-02T16:22:42.271564Z';
@@ -71,7 +71,7 @@ async function harness(initial = { stage: 'idle', job_id: null }) {
   }, { filename: 'actual-App.cjs' });
   async function settle() {
     for (let step = 0; step < 8; step++) {
-      cursor = 0; tree = module.exports.App();
+      cursor = 0; tree = module.exports.LegacySliceView({ sessionToken: "synthetic-session" });
       while (effects.length) effects.shift()();
       await new Promise(resolve => setImmediate(resolve));
     }

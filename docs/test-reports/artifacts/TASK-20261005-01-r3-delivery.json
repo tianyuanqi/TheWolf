@@ -1,0 +1,79 @@
+{
+  "task": "TASK-20261005-01",
+  "round": "r3",
+  "state": "ready-for-first-independent-review",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "previous_snapshot": "TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0",
+  "fixed_snapshot": "TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279",
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r3-tencent.md",
+      "sha256": "006de80f29e17a91fa9b7645443f8afd671c296a5caeab52ae36b176df96a271",
+      "bytes": 16084
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r3-manifest.json",
+      "sha256": "af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279",
+      "bytes": 64771
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r3-source.zip",
+      "sha256": "7803c72fc4a8c3053a8e794346a0a6ece43de0c5892cd2f08d90c01d49709090",
+      "bytes": 642513
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r3-evidence.zip",
+      "sha256": "b9c60a5986d148d1328fa2c49fb6e781f89c0a603afee59ab29bc1afd2a4d6b2",
+      "bytes": 2223405
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r2-to-r3.patch",
+      "sha256": "6141a81e53d42febd959137def0472968c189ca7f70efd963f3479fd3b953a09",
+      "bytes": 119616
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-head-to-r3-business.patch",
+      "sha256": "85db62983a0cc3dfbbad408596cad3806595b82d38384c3c21e9405e9bf6b65a",
+      "bytes": 193642
+    }
+  ],
+  "verification": {
+    "backend_tests": 57,
+    "frontend_tests": 39,
+    "build": "PASS",
+    "loopback_api_parent_eof": "PASS",
+    "source_files": 90,
+    "real_job7": "PASS",
+    "raw_ohlc_exact_matches": 1040,
+    "native_representative_evidence": "PASS",
+    "offline_restart": "PASS",
+    "legacy_fixed_evidence_compatibility": "PASS",
+    "narrow_520x560": "PASS",
+    "restored": true,
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 2,
+      "local_links": 39,
+      "errors": []
+    },
+    "no_commit": true,
+    "no_status_write": true,
+    "no_cross_thread_message": true,
+    "independent_review": "not performed",
+    "user_acceptance": "not performed"
+  },
+  "real_budget": {
+    "jobs": 7,
+    "attempts": 8,
+    "bytes": 158887,
+    "remaining_jobs": 1,
+    "remaining_attempts": 4,
+    "remaining_bytes": 66949977,
+    "last_job_reserved_for_review": true,
+    "history_preserved": true,
+    "offline_restart_no_source_requests": true
+  },
+  "review_fix_rounds": "0/3",
+  "same_root_code_fix_failure_count": "0/2",
+  "runtime_model_verification": "not independently verified"
+}

@@ -1,0 +1,70 @@
+{
+  "task": "TASK-20261005-01",
+  "round": "r2",
+  "state": "blocked-not-ready-for-independent-review",
+  "remaining_blocker": "M01-V01/A04, A05 real successful update",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "previous_snapshot": "TASK-20261005-01+r1+111422d71d067d764c6b3bf52a48baa5005b2f5c81e2198ea63481564ecb2173",
+  "fixed_snapshot": "TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0",
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r2-supplement.md",
+      "sha256": "5e6c6355a81b6b1e26330cebcf5c15c0051cc5261c717faa375d5b1f612c1b8a",
+      "bytes": 12855
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r2-manifest.json",
+      "sha256": "1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0",
+      "bytes": 52435
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r2-source.zip",
+      "sha256": "1c8a18d63a4108aae0aa14fab884dc5846a08fa60a2b7b6392ab47f50bbf178c",
+      "bytes": 604784
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r2-evidence.zip",
+      "sha256": "02c86c59a0bf67c1c3d9a0d211cac9510731fa08750b784098f168c49a25fa83",
+      "bytes": 280360
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r1-to-r2.patch",
+      "sha256": "36f5b66f35fd83330145b75dd810746c4d882f24159467c26359fd0aacf916e8",
+      "bytes": 9561
+    }
+  ],
+  "verification": {
+    "budget_targeted_tests": 4,
+    "passed": true,
+    "source_files": 86,
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 3,
+      "local_links": 48,
+      "errors": []
+    },
+    "restored": true,
+    "no_commit": true,
+    "no_status_write": true,
+    "no_cross_thread_message": true,
+    "independent_review": "not performed"
+  },
+  "real_budget": {
+    "jobs": 6,
+    "attempts": 6,
+    "bytes": 0,
+    "job_limit": 7,
+    "attempt_limit": 12,
+    "byte_limit": 67108864,
+    "remaining_jobs": 1,
+    "remaining_attempts": 6,
+    "remaining_bytes": 67108864,
+    "reserved_for_review": true,
+    "job6": "beda26e25276410c91d2b2b3b3b370f1",
+    "history_prefix_preserved": true,
+    "new_real_attempts": 1,
+    "diagnosis_used": 2,
+    "diagnosis_limit": 2,
+    "additional_diagnosis_executed": false
+  }
+}

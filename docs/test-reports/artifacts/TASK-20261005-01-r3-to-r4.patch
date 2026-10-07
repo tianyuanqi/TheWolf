@@ -1,0 +1,441 @@
+--- r3/README.md
++++ r4/README.md
+@@ -123,7 +123,7 @@
+ 
+ 受保护接口为 `POST /api/slice/update`（空 JSON 对象）和 `GET /api/slice/update`。服务端固定证券、URL、时间与数据根；POST 禁止额外字段和查询参数。文件锁协调 CLI 与服务，启动时以本地观察索引核对未完成任务。
+ 
+-V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、新响应可读；无外部网络，临时模块自动清理。
++V-FE 的延迟 PDF 响应专项：在 `apps/desktop` 运行 `node --test scripts/evidence_read.test.mjs`，退出 0 验证旧快照响应不展示、body读取中卸载后不遗留对象URL、已有PDF卸载/关闭/选择切换回收，以及新响应仍可读；使用真实Blob URL，网络全部隔离替代，临时模块与对象URL在测试结束时清理。
+ 
+ V-FE 的更新恢复专项：在 `apps/desktop` 运行 `node --test scripts/update_recovery.test.cjs`，退出 0 验证真实 LegacySliceView 回调在请求未送达、响应丢失、拒绝和查询失败时的恢复；只替代 React 调度、时钟及网络，无真实数据写入或外部请求。请求结果不确定时先进行约 120 秒的有界核对；之后人工“核对结果”若成功读到相同旧闲置/终态，明确提示未发现新任务并恢复手动更新入口，不自动重发，也不把旧完成结果当作本次成功。运行中或查询失败继续保守核对；原生界面仍须按 V-UI 验证。
+ 
+--- r3/apps/desktop/scripts/evidence_read.test.mjs
++++ r4/apps/desktop/scripts/evidence_read.test.mjs
+@@ -4,9 +4,135 @@
+ import path from "node:path";
+ import { fileURLToPath } from "node:url";
+ import test from "node:test";
++import vm from "node:vm";
++import { createRequire } from "node:module";
+ import ts from "typescript";
+ 
+ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const dependency = createRequire(path.join(appRoot, "package.json"));
++
++/** 执行真实组件及所有effect清理，使用可读/可撤销的真实Blob URL核验资源归属。 */
++async function componentHarness({ delayedBody = false, unmountOnCreate = false } = {}) {
++  const hooks = [], effects = [], created = [], revoked = [];
++  let cursor = 0, tree, completeBody, bodyStarted, mounted = true;
++  const started = new Promise(resolve => { bodyStarted = resolve; });
++  const react = {
++    useState(initial) {
++      const index = cursor++;
++      if (!hooks[index]) hooks[index] = { value: initial };
++      return [hooks[index].value, value => { hooks[index].value = typeof value === "function" ? value(hooks[index].value) : value; }];
++    },
++    useRef(initial) {
++      const index = cursor++;
++      if (!hooks[index]) hooks[index] = { current: initial };
++      return hooks[index];
++    },
++    useEffect(callback, dependencies) {
++      const index = cursor++, previous = hooks[index];
++      if (!previous || dependencies.some((value, i) => value !== previous.dependencies[i])) {
++        hooks[index] = { dependencies };
++        effects.push(() => { previous?.cleanup?.(); hooks[index].cleanup = callback(); });
++      }
++    },
++  };
++  const documents = ["forecast", "report"].map(id => ({ title: `合成${id}公告`, pdf_object_id: id,
++    issuer_name: "合成", published_at: null, physical_page: 1, evidence_text: "合成",
++    publication_precision: "unknown", source_url: "https://synthetic.invalid" }));
++  const slice = { snapshot_id: "fixed", instrument_code: "002245", instrument_name: "合成", exchange: "SZSE",
++    source_id: "synthetic", market_contract: { raw_publisher: "synthetic" }, calendar_dates: ["2026-09-30"],
++    bars: [], open_session_count: 1, observed_count: 0, unknown_missing_dates: [], complete_through_date: "2026-09-30", documents };
++  const source = await readFile(path.join(appRoot, "src", "LegacySliceView.tsx"), "utf8");
++  const code = ts.transpileModule(source, { compilerOptions: {
++    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
++  } }).outputText;
++  const module = { exports: {} };
++  function unmount() {
++    if (!mounted) return;
++    mounted = false;
++    for (const hook of hooks) hook?.cleanup?.();
++  }
++  vm.runInNewContext(code, {
++    module, exports: module.exports,
++    require: name => name === "react" ? react : name === "@tauri-apps/api/core" ? { invoke: async () => {} } : dependency(name),
++    fetch: async path => ({ ok: true,
++      json: async () => path.endsWith("/update") ? { enabled: false, stage: "idle" } : slice,
++      blob: () => {
++        bodyStarted();
++        if (delayedBody) return new Promise(resolve => { completeBody = resolve; });
++        return Promise.resolve(new Blob([path]));
++      },
++    }),
++    URL: {
++      createObjectURL(blob) {
++        const url = URL.createObjectURL(blob); created.push(url);
++        if (unmountOnCreate) unmount();
++        return url;
++      },
++      revokeObjectURL(url) { revoked.push(url); URL.revokeObjectURL(url); },
++    },
++    AbortSignal, Date, window: { setTimeout, clearTimeout },
++  });
++  function nodes(value) {
++    if (Array.isArray(value)) return value.flatMap(nodes);
++    if (!value || typeof value !== "object") return [];
++    return [value, ...nodes(value.props?.children)];
++  }
++  async function settle() {
++    assert.ok(mounted, "卸载后不得再次执行effect来代替生产回收");
++    for (let i = 0; i < 6; i++) {
++      cursor = 0; tree = module.exports.LegacySliceView({ sessionToken: "synthetic" });
++      while (effects.length) effects.shift()();
++      await new Promise(resolve => setImmediate(resolve));
++    }
++  }
++  await settle();
++  return { created, revoked, started, unmount, settle,
++    complete: () => completeBody(new Blob(["合成迟到PDF body"])),
++    open: index => nodes(tree).filter(node => node.type === "button" && node.props.children === "打开同版本原件")[index].props.onClick(),
++    close: () => nodes(tree).find(node => node.type === "button" && node.props.children === "关闭").props.onClick(),
++    frames: () => nodes(tree).filter(node => node.type === "iframe"),
++    cleanup: () => { unmount(); for (const url of created) URL.revokeObjectURL(url); },
++  };
++}
++
++test("M01-R01：body读取中卸载，迟到结果不创建对象URL", async () => {
++  const h = await componentHarness({ delayedBody: true });
++  try {
++    const pending = h.open(0); await h.started; h.unmount(); h.complete(); await pending;
++    assert.equal(h.created.length, 0); assert.equal(h.revoked.length, 0);
++  } finally { h.cleanup(); }
++});
++
++test("已有PDF在组件卸载时回收，真实Blob URL无法继续读取", async () => {
++  const h = await componentHarness();
++  try {
++    await h.open(0); await h.settle(); assert.equal(h.frames().length, 1);
++    const url = h.created[0]; assert.match(await (await fetch(url)).text(), /forecast/);
++    h.unmount(); assert.deepEqual(h.revoked, [url]); await assert.rejects(fetch(url));
++  } finally { h.cleanup(); }
++});
++
++test("正常PDF关闭与公告选择切换均回收旧URL，当前原件仍可读", async () => {
++  const h = await componentHarness();
++  try {
++    await h.open(0); await h.settle(); const first = h.created[0];
++    assert.match(h.frames()[0].props.title, /forecast/);
++    await h.open(1); await h.settle(); const second = h.created[1];
++    assert.deepEqual(h.revoked, [first]); await assert.rejects(fetch(first));
++    assert.match(h.frames()[0].props.title, /report/); assert.match(await (await fetch(second)).text(), /report/);
++    h.close(); await h.settle(); assert.equal(h.frames().length, 0);
++    assert.deepEqual(h.revoked, [first, second]); await assert.rejects(fetch(second));
++    await h.open(0); await h.settle(); assert.match(await (await fetch(h.created[2])).text(), /forecast/);
++  } finally { h.cleanup(); }
++});
++
++test("对象URL已创建但组件在接收前卸载，后置代次核对立即回收", async () => {
++  const h = await componentHarness({ unmountOnCreate: true });
++  try {
++    await h.open(0); assert.equal(h.created.length, 1);
++    assert.deepEqual(h.revoked, h.created); await assert.rejects(fetch(h.created[0]));
++  } finally { h.cleanup(); }
++});
+ 
+ test("加载中的旧 PDF 在快照切换后不显示，新响应仍可读取", async () => {
+   const directory = await mkdtemp(path.join(appRoot, "node_modules", ".wolf-evidence-test-"));
+--- r3/apps/desktop/src/LegacySliceView.tsx
++++ r4/apps/desktop/src/LegacySliceView.tsx
+@@ -155,6 +155,8 @@
+     return () => { cancelled = true; window.clearTimeout(timer); };
+   }, [token, updating]);
+ 
++  // 切页卸载也使正在读取body的请求失效，避免迟到结果创建无人回收的URL。
++  useEffect(() => () => { pdfGeneration.current += 1; }, []);
+   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
+ 
+   /** 从当前固定快照读取公告原件，避免切换快照后误用其他版本的 PDF。 */
+--- r3/docs/status.md
++++ r4/docs/status.md
+@@ -8,14 +8,14 @@
+ 
+ | 项目 | 当前有效信息 |
+ |---|---|
+-| 当前工作 | **当前状态：r3实现及验证进行中，尚未进入独立审查。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)换源代码已实现并通过初步离线/回环检查；新空根job7腾讯/中证均真实成功且完成发布，原生证据/离线重启/清理及固定交付待齐，M01-V01暂不关闭。原job6失败记录保留。原coding窗口已恢复并补齐r2材料，经协调者核对归档通过。新浪离线复核仍有边界差异；最新获准腾讯取样已完成，260日1040个OHLC与中证保存原件全相等，见[报告](test-reports/PLAN-P01-20261006-tencent-precision.md)，用户随后已明确授权切换腾讯并继续任务，r3换源指令已成功发送原coding窗口，现继续成功更新后的补证和收尾；首版仍260日、上海当日排除，五年后置 |
++| 当前工作 | **当前状态：首轮独立审查需要修改，正在处理M01-R01。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)已完成腾讯主采集/中证校核、新空根job7真实发布、原生首末/跨年证据、离线重启、旧东财快照兼容及恢复。协调者核验[完整r3交接](test-reports/TASK-20261005-01-r3-tencent.md)、90文件源码/交付索引/证据ZIP通过，M01-V01开发侧缺口已解除；历史失败保留；首版仍260日、上海当日排除，五年后置 |
+ | 产品方向 | 需求以[PRD](PRD-V0.1.md)为准；先市场与指标看板，再论点闭环，顺序见[路线图](Implementation-Plan-V0.1.md)。其余整批设计未整体获批 |
+-| 已完成能力 | 既有002245切片于2026-10-03用户验收通过，ODATA01/OUI01保持关闭。新沪深300契约、存储、API、总览日K线及证据查看已实现并有本地自测；真实联网闭环、独立审查及用户验收尚未完成 |
+-| 版本 | 真实HEAD仍为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`；r1正式固定材料见[r1报告](test-reports/TASK-20261005-01-r1-supplement.md)。当前另有r2源码快照 `TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0`，业务增量仅预算守卫7job及对应测试/文档；[r2完整报告](test-reports/TASK-20261005-01-r2-supplement.md)及证据ZIP/交付索引已核验，原A04仍未通过；后续r3须新固定快照。未暂存/提交 |
++| 已完成能力 | 既有002245切片于2026-10-03用户验收通过，ODATA01/OUI01保持关闭。新沪深300契约、存储、API、总览日K线及证据查看已实现并有本地自测；真实联网闭环已通过；独立审查发现R01待修复复核，用户验收尚未完成 |
++| 版本 | 真实HEAD仍为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`，当前固定快照 `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279`；[r3交付索引](test-reports/artifacts/TASK-20261005-01-r3-delivery.json)固定报告、清单、源码/证据ZIP及差异。r0/r1/r2保持；自动模式未暂存/提交 |
+ | 授权边界 | 用户先明确“开启自动任务书模式”，随后在本原窗口于2026-10-05明确“确认开发”，对应唯一待启动任务TASK-20261005-01。依据Task-Workflow§9.4授权创建指定开发/独立评审窗口、协调材料、范围内实现/隔离测试/必要修复与复审；不含正式库操作、Git提交或发布。2026-10-06用户另明确同意2次连接诊断及1个开发补证job，见下方诊断授权记录；随后同意先离线检查新浪精度差异；最新明确“再试一下腾讯的数据源精度”，授权候选精度取样，本轮限定1次HTTPS GET/8 MiB，无重试/重定向，保持代理/TLS，已完成；最新明确“那把数据源切换为腾讯，再进行任务”，授权以腾讯替换沪深300主采集、保留中证校核并继续原任务，必要新增1个开发job的边界见任务书r3增补；不重启全部流程 |
+-| 自动任务书模式 | **开启**。原coding窗口 `01a10a98-c976-75d1-9315-ec9a7af16235`（local，沪深300价格首版需求coding）请求配置 `gpt-6.1-sol/high`，运行时配置未独立核实；原窗口已恢复且r2收尾完成，继续承接获准腾讯换源r3，不重复job6。因A04阻塞未创建评审。复审修复0/3，已定位同根因代码修复失败0/2；status由本协调者唯一维护 |
++| 自动任务书模式 | **开启**。coding `01a10a98-c976-75d1-9315-ec9a7af16235`（沪深300价格首版需求coding，gpt-6.1-sol/high）；独立评审 `01a11071-2602-77f1-a45c-ba32ec471bbc`（沪深300价格首版需求独立评审，gpt-6.1-sol/xhigh），运行时均未独立核实。首轮审查需要修改，r4/R01修复已通过43项前端及构建；原生检查途中因用量限制failed，用户现要求继续，已成功向原窗口发送恢复指令并观察到活动回合，继续剩余原生验证及恢复。不新建/换模型、不重新采集。复审修复当前0/3（r4交回后计1），同根因失败0/2；status由协调者唯一维护 |
+ | 日常运行 | 固定正式根、启动不采集、点击才更新且不导入测试结果的约定保持。本任务仅运行隔离QA并只读复制获准静态备份，未操作当前正式slice根；r1测试进程、故障注入及QA缓存已清理，六个相关端口无监听，代理配置保持，详见r1恢复证据 |
+-| 执行与验证 | r0/r1原有效自测保持，V02/V03已关闭；r3开发者报告57项后端、39项前端及构建/回环/生命周期检查通过，最终材料待核。共享账本已核对job7腾讯71,231字节、中证87,656字节均成功；累计7job/8次/158,887字节，上限8job/12次/64 MiB，新增开发job已用完，最后1个仍保留审查；腾讯候选1次/71,252字节另列，不能替代开发job。单列连接诊断2/2通过但job6失败，实际ClashX路由均DIRECT，不能只凭ProxyError判断断开阶段。外部AI报告另自述约18次东财、4次中证及对照访问，未有逐次原始账本核实，不忽略额外尝试或据此重置预算 |
++| 执行与验证 | r0/r1原有效自测保持，V02/V03已关闭；r3的57项后端、39项前端、构建/回环/生命周期及真实原生证据已核验；90文件源码哈希/模式、交付索引与证据ZIP完整性通过，恢复证据已核验。共享账本已核对job7腾讯71,231字节、中证87,656字节均成功；累计7job/8次/158,887字节，上限8job/12次/64 MiB，新增开发job已用完，最后1个仍保留审查；腾讯候选1次/71,252字节另列，不能替代开发job。单列连接诊断2/2通过但job6失败，实际ClashX路由均DIRECT，不能只凭ProxyError判断断开阶段。外部AI报告另自述约18次东财、4次中证及对照访问，未有逐次原始账本核实，不忽略额外尝试或据此重置预算 |
+ 
+ 首版需求采用260日并暂不含上海当日；工作区已有本任务代码增量，当前不作为已验收版本。五年、其他市场与估值保留后续目标；150 GB软上限、时间正确性、引用保护和测试隔离约束继续有效。
+ 
+@@ -25,22 +25,26 @@
+ |---|---|---|---|
+ | O01 | 沪深300P02首版设计和M01任务书已形成，日期边界已确认；首版已获本人开发确认，其余候选/整批设计仍未全部收敛 | 开发者按[设计§5.6](Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)实现并验收，协调者依自动模式核验和送审，其余模块按后续步骤细化 | 相应模块约定足够支持实施并有明确开发指令；首个任务书形成不关闭整批O01 |
+ | O02 | 沪深300近期价格主线已有准入证据，但新浪边界舍入方法与准入契约、历史日历/五年覆盖、东财历史访问、估值口径/日期、持续更新及PIT仍有缺口，详见[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)及[新浪复核§10](Data-Sources-V0.1.md#10-新浪沪深300精度离线复核2026-10-06)；既有其他来源风险保留 | M01实施契约已获准改为腾讯/中证；新浪复核已完成，腾讯同窗精度取样通过，见[来源§11](Data-Sources-V0.1.md#11-腾讯沪深300精度受控取样2026-10-06)。原coding窗口按r3完成来源适配、旧快照兼容及必要受控验证；新浪边界方法缺口保留；五年与旧年份抽查缺口不阻塞当前260日M01；历史与估值在对应后续分组按报告证据继续验证，不重置未耗尽请求计数。负责人为对应步骤执行者 | 相应字段/期间/方法和版本证据满足所声明能力；每个缺口有可核验处置，有限样本不关闭全范围O02 |
+-| M01-V01 | r3新空根job7两源已成功且开发者报告发布成功，A04/A05其余证据及固定交付待核，暂不关闭。此前6次东财0正文失败保留。最新job6路由DIRECT；断开具体环节/责任端未知，“出口IP封禁”仅为外部待证假设，见[诊断记录](test-reports/TASK-20261005-01-network-diagnosis.md) | 用户已授权改用腾讯并继续。原coding窗口已实现并用完新增1个开发job，两源可访问已得到本次证据；继续原生代表日依据、离线重启和清理/固定材料，不改代理/TLS、不重试东财或诊断，不挪用最后审查job。r2材料缺口已解除，A04实际成功仍待补齐；当前无需用户额外操作 | 真实新空根双源获取、校核、发布和原生证据通过，固定材料齐全；跨出口/NO_PROXY/外部脚本重跑需具体方案及适用授权，参考文件本身不是授权 |
++| M01-R01 | 首次独立审查P2：切离002245资料页后，迟到PDF body仍创建Blob URL且无人回收，属累计首版导航/卸载回归；腾讯精度检查通过不关闭此问题。见[审查§4](test-reports/TASK-20261005-01-review.md#4-发现及关闭条件) | 原coding窗口核实并最小修复，交回r4固定快照与关闭条件证据；协调者转同一独立评审复核，不新增来源请求 | 卸载后迟到结果不遗留URL、已有PDF卸载/关闭/选择切换回收；页面切回无迟到显示且两PDF正常，新总览证据/旧更新路径保持；受影响专项/构建及恢复通过，独立复核关闭 |
+ | O04 | Python随桌面分发打包仍未验证，不影响现有开发态本地使用 | 需要分发时明确实际依赖和打包验证范围 | 目标环境启动、健康、退出与重启验证通过 |
+ 
+ 待确认建议由O01管理：科创50/北证50、金银午盘基准价、布伦特现货、COMEX结算连续、在岸汇率时点、整批更新策略和分区总览；首个沪深300的手动更新已按设计§5.5确认；具体依据与代价只在设计维护，不把推荐写成已批准。论点阶段再细化最低登记标准、状态/失效判断、AI连接、个人规则值、复核周期与长期效果衡量。
+ 
++M01-V01已按r3开发证据关闭：新空根两源成功、260日发布、原生首末/跨年证据、成功后离线重启与固定材料齐全。此为协调验收证据核验，不是独立审查结论；r0/r1/r2历史阻塞判定保留。
++
+ 技术风险及验证方法只在来源文档维护；不新增重复风险表。ODATA01/OUI01和旧审查关闭项不重开；首批指标需求成立不等于所有数据已可获取，也不等于关闭O02。
+ 
+ ## 下一步
+ 
+-用户明确“那把数据源切换为腾讯，再进行任务”。本轮沿用TASK-20261005-01及本人原开发确认，自动任务书模式继续：腾讯主采集、中证精确校核，保持260日/当日排除及原验收。协调者已更新设计§5.6、来源§11和任务书r3增补，文档检查4份/107处链接通过；已通过工具成功向同一coding窗口发送r3执行指令；待审就绪后才创建指定独立评审。
+-
+-r3重点：腾讯day分支/身份/Decimal、640行响应裁剪与原下标证据、源契约版本、旧东财快照只读兼容、API/前端来源显示，以及新空根真实成功更新和离线重启。候选报告只是精度依据，不能代替A04；当前真实采集/发布已由开发者完成，完整原生与恢复证据及快照仍待核；不能预先写独立审查通过。
++用户在中断后明确“任务被中断了，继续”。coding上一回合因用量限制failed；r4证据根 `/private/tmp/thewolf-m01-r4-78g9r4un` 已有修复前复现、修复后43项前端/构建与部分原生证据，但r4固定交付及恢复记录未齐，不能送复审。协调者已成功向同一窗口发送恢复指令，最新回合 `01a11179-687d-7ad1-b8f6-4499e281767e` 正常运行，开发者已开始补齐原生验证；继续完成剩余验证与清理，保全代码和证据。禁止新金融请求或重跑job7。
++
++r3已完成首次独立审查（第0轮），[报告](test-reports/TASK-20261005-01-review.md)结论“需要修改”，唯一问题M01-R01/P2。协调者核对固定材料、真实组件清理路径及复现探针，确认为范围内生命周期回归，已通过工具成功向原coding窗口发送R01/r4最小修复指令；不改金融契约、不额外出站。修复交回复审时计第1轮，正常编辑不逐次计数；当前0/3、同根因失败0/2保持。
++
++审查者独立复跑57项后端/39项前端/构建/回环、逐字段核对真实1040值、旧快照兼容及原生证据，均通过；未使用最后审查job。其报告/证据/交付索引哈希及恢复记录经协调者核验，业务工作区未改动。开发修复后须固化r4、保留r3及第0轮“需修改”历史，再送同一评审窗口复核原关闭条件和新增差异。
+ 
+ 共用账本job7 `d9115075476f425f8d62bab866b449c7` 于UTC 2026-10-06 08:30:02—03执行腾讯/中证各1次成功，共158,887字节；累计7job/8次/158,887字节，最后1job留独立审查，总上限8job/12次/64 MiB。新增开发job已消费，不再重复采集。原P01 28次、腾讯候选1次/71,252字节、诊断2/2及外部自述尝试分别保留。不开新诊断、不改代理/TLS、不重试东财，不因新根或新轮次清零预算。
+ 
+-r2材料已由原coding窗口补齐，协调者核验交付文件哈希、86文件源码ZIP/模式及证据ZIP完整性，结果在 `/private/tmp/thewolf-tencent-switch-coordination-6eyra2ob/r2-delivery-check.json`。旧快照/报告保持，r3另生成固定材料，不能将旧验证套用到新差异。Git保持未暂存/未提交，status仅由本协调者写入。
++r2、r3固定材料的协调核验在 `/private/tmp/thewolf-tencent-switch-coordination-6eyra2ob` 的 `r2-delivery-check.json`、`r3-source-check.json`、`r3-delivery-check.json`。旧快照/报告保持，r3已完整固化，后续status更新单列，不重打固定快照。Git保持未暂存/未提交，status仅由本协调者写入。
+ 
+ 不为M01继续补五年、2021/2023日历或估值；历史与估值缺口沿用[来源结论](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)。开发使用新的隔离根；正式日常启用指数采集另行明确，不将P01样本导入正式根。
+ 
+@@ -48,6 +52,22 @@
+ 
+ 
+ ## 历史记录
++
++### R01修复中断后恢复 · 2026-10-06
++
++r4前次回合因用量限制failed，43项前端及构建、修复前失败/修复后通过证据已保留，原生验证和恢复/固定材料未齐。用户明确“任务被中断了，继续”；协调者检查同一coding和review窗口、Git及r4临时根后，成功发送续作指令，观察到原coding新回合 `01a11179-687d-7ad1-b8f6-4499e281767e` 正常活动。不新建窗口/换模型、不重跑金融请求、不清零修复计数；R01保持开放至独立复核。
++
++### 首次独立审查需修改 · 2026-10-06
++
++审查窗口 `01a11071-2602-77f1-a45c-ba32ec471bbc` 完成第0轮，唯一发现M01-R01/P2；详见[首次审查报告](test-reports/TASK-20261005-01-review.md)。报告SHA `b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5`，审查证据ZIP SHA `f8ee7f671ccc702f34e0f74b033fa8e297ffd32e4894f366875845a8968686f5`；协调者核验匹配/CRC及复现路径，支持范围内修复。
++
++审查未改业务代码/status，未新增金融请求，代理/临时副本/子服务已恢复。腾讯真实数据、旧源兼容和开发M01-V01关闭依据保持；新的PDF卸载回归单列，不能宣称全任务独立审查通过。按自动模式复用原coding修复，下一次实质交回复审计1/3，旧报告与归档保持。
++
++### r3腾讯换源开发交付与首次送审 · 2026-10-06
++
++原coding窗口交回[r3完整报告](test-reports/TASK-20261005-01-r3-tencent.md)。协调者核验交付索引/90文件源码哈希与模式/证据ZIP、真实两源账本、原生成功及520窄窗证据、恢复记录；关闭M01-V01开发验证缺口。原6次失败及r0/r1/r2原判定保持，这不是独立审查通过。job7仅两次GET，当前7job/8次/158887字节，最后1job继续保留。
++
++按已开启自动模式及本人开发/换源授权，新建全新独立评审窗口 `01a11071-2602-77f1-a45c-ba32ec471bbc`（local，沪深300价格首版需求独立评审），工具成功返回真实ID并设置约定标题；请求配置gpt-6.1-sol/xhigh，运行时未知。发送固定r3快照、累计范围/增补、验收/停止条件、隔离恢复及预留审查预算，要求只写审查报告、不修改业务代码或status。首次审查0轮，尚无通过结论；Git未暂存/提交。
+ 
+ ### 腾讯换源与继续开发授权 · 2026-10-06
+ 
+--- /dev/null
++++ r4/docs/test-reports/TASK-20261005-01-r3-tencent.md
+@@ -0,0 +1,94 @@
++# TASK-20261005-01 · r3腾讯换源开发交接
++
++**2026-10-06开发交付状态：待审就绪，可进入独立审查。** 新空隔离根唯一获准job7真实取得腾讯与中证原件，260日/1040个OHLC精确相等后事务发布；原生首/末/跨年证据、成功后离线重启、旧东财固定快照兼容及恢复核验通过。M01-V01的开发侧解除证据已齐，交由协调者核验并更新[当前状态](../status.md)，本文不自行关闭问题或宣布独立审查通过。原r0/r1/r2失败记录与判定保持。
++
++本报告为本轮唯一开发交接入口，依据[任务书r3增补](../tasks/TASK-20261005-01-csi300-price-slice.md#5-实施步骤与隔离约束)、[设计§5.6](../Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)、[协作规则](../../AGENTS.md)、[代码规范](../Coding-Standards.md)、[固定交付流程](../Task-Workflow.md#7-开发与修复的固定交付)及[README验证入口](../../README.md#验证入口)。腾讯准入依据见[候选报告](PLAN-P01-20261006-tencent-precision.md)，旧补证见[r1](TASK-20261005-01-r1-supplement.md)、[r2](TASK-20261005-01-r2-supplement.md)，历史东财断连依据见[诊断报告](TASK-20261005-01-network-diagnosis.md)。
++
++## 1. 版本、材料和交接范围
++
++| 字段 | 本轮值 |
++|---|---|
++| 任务/阶段/模式 | TASK-20261005-01；首次开发的r3获准换源增补；已授权自动任务书模式 |
++| 开发窗口 | `01a10a98-c976-75d1-9315-ec9a7af16235`，继续同一coding窗口，无新Agent/聊天 |
++| 模型与档位 | 请求配置 `gpt-6.1-sol/high`；运行时型号/档位未独立核实 |
++| 初始真实Git基线 | `ff614e4e2605292a9a151ea38a752677f10cd7e7`；HEAD与空索引保持 |
++| 上次所审SHA | 不适用：尚未启动首次独立审查 |
++| 本轮比较版本 | `TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0` |
++| 本次固定源码快照 | `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279`，**内容清单身份，不是Git提交SHA** |
++| 待审SHA/父提交 | 不适用：自动模式未暂存或提交，不以HEAD冒充待审代码提交 |
++| 源码包SHA-256 | `7803c72fc4a8c3053a8e794346a0a6ece43de0c5892cd2f08d90c01d49709090` |
++| 修复计数/停止判断 | 独立复审修复0/3，同根因已定位代码修复失败0/2；未触发停止条件。旧网络失败未清零，也不转算成代码修复轮次 |
++| 接收者/发送状态 | 原协调者核验材料后按自动模式启动独立评审；本窗口仅交回本报告，未跨聊天发送 |
++
++固定材料：[90文件清单](artifacts/TASK-20261005-01-r3-manifest.json)、[源码ZIP](artifacts/TASK-20261005-01-r3-source.zip)、[r2→r3全部差异](artifacts/TASK-20261005-01-r2-to-r3.patch)、[真实HEAD→r3业务差异](artifacts/TASK-20261005-01-head-to-r3-business.patch)、[本轮证据ZIP](artifacts/TASK-20261005-01-r3-evidence.zip)、[交付索引及文件哈希](artifacts/TASK-20261005-01-r3-delivery.json)。报告自身与证据ZIP的最终哈希集中在交付索引，避免自引用。
++
++源码ZIP在 `workspace/` 保留源码、测试、锁定依赖声明及适用文档，文件模式与逐文件SHA均经核对；不存在凭据、真实数据库、金融原响应、缓存或完整运行环境。清单保留初始开发基线以及r0/r1/r2来源指纹；无删除/重命名。HEAD业务差异含README此前已有规划增量，不能把其全部归为r3新改动。协调者更新的status、设计、来源、任务及诊断文档属于只读依赖，不由coding回写；本文、上一轮报告与固定材料单列保存。
++
++## 2. 实际改动与约定保持
++
++- 腾讯成为新更新主源，中证继续逐值校核。获取CLI及父获取接口只准腾讯/中证，东财在记账或启动子进程前被拒绝，无备用单源或其他源降级。任务阶段增加 `fetching_tencent`，旧东财阶段保留用于读取旧任务状态。
++- 来源契约新版本为 `csi300-tencent-exact-ohlc-v2`。旧 `csi300-exact-ohlc-v1` 保留原东财URL、字段、清单和身份规则，只用于旧固定原件重建/只读核验；生产新发布拒绝旧双源，未知版本明确失败，没有迁移或覆盖旧对象。
++- 腾讯只解析指定 `kline_dayqfq=` 的JSON或同结构纯JSON，不执行JavaScript；拒绝其他变量、执行性后缀、重复JSON键、错误指数身份、复权分支、非法日期及点位。`qfq`参数仅保留已查明SDK调用形式，准入价格指数的 `day`，`prec/version` 不作为已确认金融定义。
++- 日期在原数组中先核验合法、唯一、递增；显式排除窗口前380行，保留完整640行原件和原数组下标。窗口内缺日、额外日期、晚于冻结截止日及非零第三位精度失败；尾部连续缺日也先检查重叠值冲突，再判未就绪。不缩小260日窗口、不纳入上海当日、不舍入掩盖差异。
++- API保持快照schema、路径、鉴权与原子发布；读接口按固定来源契约重建校验。前端按契约版本检查双源顺序，证据和数据说明显示实际腾讯/中证，旧视图继续显示东方财富/中证；不把旧证据重标腾讯。预算守卫同步为8job/12次/64MiB，沿用原账本。
++- 新增腾讯反例/兼容测试并调整现有合成夹具；离线重放入口要求腾讯候选根及P01中证根，原获取时间保留。002245新浪采集、旧日常根、Rust源码、样式和依赖版本没有本轮改动。
++
++本轮相对开始修改11个既有代码/测试/README文件，新增 `python/tests/test_index_tencent.py`；status有协调者并行更新，未由coding修改。任务实现本来处于未提交工作区，原有文档改动与r0/r1/r2归档按开始指纹保全。
++
++## 3. 真实job7与固定证据
++
++开始根 `/private/tmp/thewolf-m01-r3-35isbawr/live-empty` 无指数库或种子；原生页面显示“尚无本地指数快照”，只点击一次“检查更新”。候选原件未导入此根。
++
++| 项目 | 实测 |
++|---|---|
++| job ID | `d9115075476f425f8d62bab866b449c7` |
++| 任务开始/成功检查（UTC） | `2026-10-06T08:30:02.729570+00:00` / `2026-10-06T08:30:03.736159+00:00` |
++| 腾讯原件获取开始/完成（UTC） | `08:30:02.734379` / `08:30:03.297440`，均2026-10-06 |
++| 腾讯原件 | 71,231字节；SHA-256 `6242d8b6847926987d2e693a9fbb712fcbb39d6db76e7d801647e18593a89237` |
++| 中证原件获取开始/完成（UTC） | `08:30:03.326722` / `08:30:03.736159`，均2026-10-06 |
++| 中证原件 | 87,656字节；SHA-256 `40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43`；本次重新GET所得，与P01内容同哈希但观察时间独立 |
++| 发布快照/观察 | `f5719eae30f38546cef755634ec147c00e2f01a6f4b505b5cb7209478920ce09` / `66b137e0f0f9e3b24e0f23dcf20de01085dbd3c67bc8b8ea94493b751c1eed0b` |
++| 窗口与结果 | 2025-09-04—2026-09-30，260日×4值精确相等；`completed/business_changed`，摘要4357.62点/+0.29% |
++| SQLite只读检查 | 完整性ok；snapshots/observations/current_snapshot/committed_jobs各1条 |
++
++腾讯原响应640行，第一窗口行下标380、末行639，完整原件哈希核验通过。原生首日、2025-12-31、2026-01-05、末日均打开两源依据，定位分别为腾讯 `[380]/[458]/[459]/[639]`，中证 `[0]/[78]/[79]/[259]`；原值、标准值、来源、获取时间、未知发布时间及固定快照一致。AX和截图见证据ZIP的 `ui-first/dec31/jan5/last-evidence*`，详细数值与回执见 `real-saved-check.json`。
++
++日K线默认60日、切换全部260日及Home/左右/Tab/Enter真实操作通过。一次跨年操作因点击图表重新选择了位置，随后从Home固定起点重做79次右移，正确核对2026-01-05；最终证据记录正确目标，不把初次误选当作通过。
++
++成功后关闭桌面，在仅QA子进程的不可用代理 `127.0.0.1:9` 下重启，两个写入开关关闭；保存K线、摘要与两源证据可读，固定快照/观察保持。正常环境不受该临时代理影响，共享账本字节不变，未新增来源请求，见 `ui-offline-*`、`native-offline.log`、`network-budget.json`。960×720及520×560实际查看：来源名、四值、哈希/URL及未解释字段可读并换行，没有观察到整页横向溢出，见 `ui-520-*`。1280宽及其余未变交互保留r0/r1适用证据，本轮未声称重新执行全部旧UI矩阵。
++
++共用账本 `/private/tmp/thewolf-m01-implementation-3kyht073/evidence/network-ledger.jsonl` 原6job/6次/0正文前缀保持，本轮追加腾讯/中证各1次，无重定向/重试/新诊断、不改变TLS或正常获取代理。累计**7job/8次/158,887字节**；上限8job/12次/64MiB，剩余**1job/4次/66,949,977字节，最后job专供独立审查**，开发不得再用。原P01 28次、腾讯候选1次/71,252字节、诊断2/2及外部自述东财约18次/中证约4次等继续分别保留，不用候选成功顶替本任务成功、不重置失败或未核实额外尝试。脱敏异常观察器仅被动观察，本次两源成功，无新异常链；未重新诊断旧东财断连。
++
++## 4. 验证命令、结果与覆盖
++
++所测内容对应上述r3固定快照。Python使用项目现有 `.venv`，前端使用已有锁定依赖；未新增/升级依赖。隔离根为 `/private/tmp/thewolf-m01-r3-35isbawr`，无正式根访问。除原生操作外均为执行者自检，**不是独立审查**。
++
++| 入口/工作目录/命令 | 结果及证据ZIP内文件 |
++|---|---|
++| V-PY，仓库根：`PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest discover -s python/tests -v` | 57项通过，`v-py.log`；新增5项腾讯包装/日期/裁剪/来源白名单及旧契约兼容，含更新失败、原子发布中断、子进程硬截止/父EOF、权限和旧002245回归 |
++| V-FE，`apps/desktop`：`node --test scripts/index_view.test.cjs scripts/evidence_read.test.mjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs` | 39项通过，`v-fe.log`；实际组件回调检查，新增契约版本及两源显示3项；旧PDF迟到响应、更新恢复、入口及几何检查保持 |
++| V-FE构建，`apps/desktop`：`npm run build` | 类型检查及构建通过，`v-build.log` |
++| V-API/V-LIFE，仓库根：`PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_service_smoke.py` | 实际回环服务当前/固定/证据/旧切片及401/403/422/404检查通过，无来源请求；父管道EOF后服务退出、端口释放，`v-api-life.log` |
++| 保存原件离线重放，仓库根：`PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_replay_smoke.py --p01-root /private/tmp/thewolf-p01-csi300-qkuqgt8q --tencent-root /private/tmp/thewolf-tencent-precision-20261006-4h039tms --data-root /private/tmp/thewolf-m01-r3-35isbawr/replay` | 候选/P01原件、日历及回执哈希通过，260/1040精确相等，首/末/跨年定位通过，`offline-replay.log`。此项明确不是A04真实更新证据 |
++| 真实保存与旧库兼容，仓库根：`PYTHONPATH=python/src python/.venv/bin/python <解压证据目录>/check_real_saved.py` | 禁止socket联网后读真实job7和获准r0隔离原件，在副本追加腾讯发布；旧固定快照 `4cb4a6ad0be6b869c70d2ca1dcd9f7a950e06fedff22ca0b0f9f3e32ec5ea220`、旧依据及旧对象保持，原r0测试根也保持，`real-saved-check.json` |
++| V-UI，独立Vite/临时QA包5174/8001及项目 `run_qa.py --frontend-port 5174 --service-port 8001 --data-root <live-empty> --window-width 520 --window-height 560` | 原生空根、点击更新、成功、代表日证据、离线重启及窄窗通过；`native*.log`、`ui-*.png/*-ax.txt`。窄窗入口编译后复用临时可识别QA包；第一次包启动早于Vite呈空页，关闭后在前端就绪时重启，最终页面核实通过 |
++| 固定版本检查，仓库根：`python3 <解压证据目录>/verify_snapshot.py docs/test-reports/artifacts` | 90文件源码ZIP哈希/模式和CRC通过，`snapshot-verification.json` |
++| V-DOC，仓库根：`python3 <解压证据目录>/check_docs.py` | README/本报告本地链接、锚点、围栏/空白及Git未暂存/暂存差异检查通过，结果见 `vdoc-result.json` |
++
++最初一处新增反例把周末额外行插入到错误排序位置，因此先触发“未递增”而不是预期“内部缺日”；调整合成插入位置后全套57项通过。该修正针对测试夹具，未改变业务契约或降低校验。
++
++A01—A03、A06—A08及A11受影响路径由本轮全套/专项验证并结合未变r0/r1证据覆盖；A04原真实联网缺口由job7与原生固定依据补齐；A05在真实成功版上核验状态/指针/摘要并保留确定性的无变化、仅证据变化和价格变化反例，没有为制造无变化发第二个真实job；A09新增来源文字实际960/520查看，旧完整加载/超时/损坏/切页矩阵保留r1；A10新增成功后真实离线重启与生命周期核验；A12恢复及固定材料齐备。
++
++未执行：独立审查和用户验收尚未进行；不改Rust源码所以未新增Rust业务测试，但窄窗QA现有配置编译及实际生命周期已核验；本任务无数据库迁移，未做正式迁移；旧真实PDF在r1已核实且本轮其组件/原件未变，因此未再打开正式根或重复全矩阵。五年、估值、持续更新长期稳定性及PIT均不属于本轮，不据单次成功宣称通过。
++
++## 5. 恢复、保留与剩余事项
++
++开始基线见证据ZIP `baseline.json`：HEAD/索引、90文件前身指纹、六端口、八项脱敏代理环境哈希及共用账本；QA专用WebKit/Caches/Preferences/Saved State原不存在，见 `app-state-before.json`。预计临时影响为QA窗口、前后端/获取进程、子进程环境、隔离数据、观察器及QA缓存，不改变全局配置或日常根。
++
++恢复实际核验通过：六端口5173/8000/5174/8001/5184/8014全部无监听；确属本轮的原生、uvicorn、获取、Vite进程退出；观察器/sitecustomize、临时QA包及其新建WebKit/Caches清理，Preferences/Saved State保持原不存在；正常shell代理八项指纹与基线相同，临时不可用代理仅随QA子进程结束。正式配置、日常数据指向、依赖和既有成果保持；HEAD、索引、r0/r1/r2报告及归档哈希保持。详见 `restoration.json`、`process-cleanup.json`、`app-state-restoration.json`、`check_restoration.py` 和 `cleanup_qa.py`。status在测试期间由协调者独立更新，仅单列保留，不回退其合法变化。
++
++隔离成功库、离线重放、兼容副本和原金融原件留在上述测试根，属于无服务、无应用引用的证据，不当作活跃验收环境或导入正式数据。证据ZIP保留可重建脚本、脱敏回执/汇总、日志和截图；不纳管完整金融响应/库。重建真实原件检查需同一测试根和获准P01/r0原件，根已存在时不可直接重跑会创建同名副本的脚本；在新空隔离根准备相同材料，按脚本常量定位原件，缺材料如实报告。临时原件不承诺永久或跨机可用，固定代码及关键摘要证据已归档。
++
++剩余临时影响：**无**。Git：未暂存、未提交、未amend/reset/push/部署；已有规划文档和任务增量保持，状态由协调者维护。M01-V02/V03沿用协调者关闭结论；M01-V01由本次开发证据支持解除，最终状态仍以协调者核验后的status为准。O01/O02/O04及范围外长期能力未自动关闭。
++
++下一步可一句话启动：**“按《TASK-20261005-01 · r3腾讯换源开发交接》对r3固定快照执行首次独立审查。”** 协调者先核对交付索引/清单及冻结业务文件，再按既有自动模式建立指定评审窗口；审查者在隔离副本核验r3与真实基线、r2差异和原关闭条件，沿用共有账本，最后1个job仅按已授权审查范围使用，不重试/重置。此报告不是新建窗口、跨聊天发送、Git提交、正式启用或发布操作的实际完成记录。
+--- /dev/null
++++ r4/docs/test-reports/TASK-20261005-01-review.md
+@@ -0,0 +1,104 @@
++# TASK-20261005-01 · 首次独立审查（第0轮）
++
++**结论：需要修改。** r3材料完整，可完成首次独立审查；腾讯/中证价格、固定证据、旧契约兼容、权限及发布恢复的本轮检查通过。发现 **M01-R01 / P2：旧资料页卸载后，迟到PDF仍创建且遗留Blob URL**，属于本轮新增导航引入的生命周期回归，修复并复核关闭条件前不能宣布独立审查通过。此结论不等于用户验收或发布结论。
++
++## 1. 身份、版本与实际范围
++
++| 字段 | 实际信息 |
++|---|---|
++| 任务 / 模式 / 本轮 | TASK-20261005-01《沪深300价格首版》；自动任务书模式；首次独立审查第0轮 |
++| 审查者及方式 | 新建独立评审上下文，窗口 `01a11071-2602-77f1-a45c-ba32ec471bbc`；未参与实现；独立源码阅读、固定差异核对、隔离复跑及补充探针 |
++| 模型 / 推理配置 | 创建请求为 `gpt-6.1-sol/xhigh`；本上下文没有可独立核实的运行时型号/档位标识，未冒称核实 |
++| 初始真实Git基线 | `ff614e4e2605292a9a151ea38a752677f10cd7e7`，已核实存在且HEAD保持；不作为已审实现版本 |
++| 本次所审固定快照 | `TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279`；90文件；内容身份，**不是Git提交** |
++| 上一开发快照 | `TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0`；并非已独立审查版本 |
++| 待审SHA / 父提交 | 不适用：自动模式未暂存、未提交 |
++| 源码ZIP SHA-256 | `7803c72fc4a8c3053a8e794346a0a6ece43de0c5892cd2f08d90c01d49709090` |
++| 开发证据ZIP SHA-256 | `b9c60a5986d148d1328fa2c49fb6e781f89c0a603afee59ab29bc1afd2a4d6b2` |
++| 审查证据 | [独立证据ZIP](artifacts/TASK-20261005-01-review-evidence.zip)，文件哈希见[审查交付索引](artifacts/TASK-20261005-01-review-delivery.json)；报告哈希亦单列于索引 |
++
++启动入口为[r3开发交接](TASK-20261005-01-r3-tencent.md)。已按顺序读取当前AGENTS、status当前区、交接、任务书及r3增补、设计§5.6、代码规范、Task-Workflow§7.2/8/9/10和README验证入口；追溯r0/r1报告及适用证据。现行status仅用于授权/协调进展；源码ZIP内status是冻结时版本，不把两者混成同一版本，也未修改status。
++
++审查覆盖整个M01累计实现：相对真实初始基线的23份业务/测试/脚本文件及README相关实现入口；另核对r2→r3的20文件全部差异（包括只读协调材料）。范围包括指数身份/日历/Decimal、解析裁剪、独立存储和观察顺序、子进程限制、API授权和路径、日K线与异步证据、002245实际消费者、日常与QA入口。既有规划文档增量按归属处理，不将其全部算作本次开发新增；未扩大五年、估值、当天准入、正式启用或发布。
++
++## 2. 材料与差异核验
++
++在新目录 `/private/tmp/thewolf-m01-review-z10a_uih/workspace` 解压固定源码，未在业务工作区运行测试或修改代码。
++
++- 交付索引的6份材料逐项字节数/SHA匹配；90文件清单、ZIP文件集合、逐文件SHA和文件模式一致，ZIP内清单与单列清单相同；源码及证据ZIP的CRC通过。无删除/重命名。
++- 独立从r2 ZIP和真实Git基线重新生成两份unified diff，分别与交付的r2→r3和HEAD→r3业务patch逐字节一致。测试后再次核对90文件源码仍匹配固定清单。
++- 未将源码包中的金融原响应、真实数据库或运行环境作为隐含依赖；需要真实输入的复核显式使用获准临时证据根的副本。源码导入固定为隔离副本的 `python/src`，仅复用现有Python解释器及锁定前端依赖，不安装或升级依赖。
++
++证据：`material-check.json`、`check-differences.py`、`difference-check.json`。r0/r1/r2历史报告与材料保持，不改写原失败或审查历史。
++
++## 3. 实际验证、结论与边界
++
++命令的源码均为上述固定r3；Python解释器为原仓库现有 `python/.venv/bin/python`，Node/npm及前端依赖沿用原锁定环境。表中V-PY/V-API工作目录为隔离 `workspace`；V-FE为其中 `apps/desktop`。详细输出归档于独立证据ZIP。
++
++| 检查 | 实际命令 / 方式 | 结果与边界 |
++|---|---|---|
++| V-PY | `PYTHONPATH=python/src:python/tests <原仓库>/python/.venv/bin/python -m unittest discover -s python/tests -v` | **57项通过**，`v-py.log`；包括正常/反例、旧002245、四个真实子进程发布断点、提交恢复、硬截止及父EOF、预算和权限。是合成/隔离输入，不替代真实来源成功 |
++| V-FE专项 | `node --test scripts/index_view.test.cjs scripts/evidence_read.test.mjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs` | **39项通过**，`v-fe.log`；组件回调、几何/范围、旧PDF选择代次、更新不确定结果及日常入口；React调度/传输替身未覆盖R01卸载边界 |
++| V-FE构建 | `npm run build` | tsc/Vite通过，`v-build.log`；不作为视觉验收 |
++| V-API / V-LIFE | `PYTHONPATH=python/src:python/tests <原仓库>/python/.venv/bin/python python/tests/index_service_smoke.py` | 首次沙箱禁止bind，未进入业务断言；获准本机socket权限后**通过**。当前/固定/证据/旧切片200、401/403/422/404、关闭写开关、非法输入及父EOF退出/端口释放均核实，未请求金融来源；两次日志分别保留 |
++| 真实保存数据及兼容 | `PYTHONPATH=python/src <原仓库>/python/.venv/bin/python ../evidence/check-real-independent.py` | **通过**。禁止socket联网；在新副本用生产读取路径核验job7，再独立直接解析原字段对照1040值和定位；旧r0真实库副本追加腾讯发布后旧固定视图/证据/对象保持，原输入目录指纹保持。见`real-independent.json` |
++| R01补充探针 | `node <审查证据>/probe-pdf-unmount.cjs` | **复现缺陷**。执行未改动的LegacySliceView及其所有effect清理，延迟PDF body至卸载后完成；记录1个新建真实Blob URL、生产回收0个，且URL仍可解析。探针最后主动释放自己创建的URL；见`probe-pdf-unmount.json` |
++| V-DOC / 恢复 | `python3 <审查证据>/check-review-docs.py`；`python3 <审查证据>/restore.py` | 报告本地链接/锚点/围栏/空白与Git差异检查通过；测试状态恢复实核通过，见§5 |
++
++真实job7来源原件与开发证据的独立核验结果：
++
++- 腾讯71,231字节，SHA `6242d8b6847926987d2e693a9fbb712fcbb39d6db76e7d801647e18593a89237`；中证87,656字节，SHA `40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43`。两源观察时间均为2026-10-06 UTC，账本含同一job的各1次成功GET。
++- 腾讯完整640行，W为2025-09-04—2026-09-30/260日；窗口对应原下标380—639，中证0—259。直接按日期、开/收/高/低映射逐值核对，1040个OHLC与API清单相等；摘要4357.62点/+0.29%由相邻两日收盘重新计算相符。
++- 新固定快照 `f5719eae30f38546cef755634ec147c00e2f01a6f4b505b5cb7209478920ce09` 与首次观察 `66b137e0f0f9e3b24e0f23dcf20de01085dbd3c67bc8b8ea94493b751c1eed0b`匹配。旧东财快照 `4cb4a6ad0be6b869c70d2ca1dcd9f7a950e06fedff22ca0b0f9f3e32ec5ea220` 的原ID、来源名/URL、四值、观察及证据保持；未知契约拒绝，旧源不具新增出站权限。
++
++源码审查及适用反例支持：腾讯只允许指定赋值JSON或同结构JSON、拒绝脚本后缀和重复键、固定qt身份及day分支；裁剪前校验日期合法/唯一/顺序，完整原件和下标保留。窗口内额外/内部缺日/精度或值冲突失败；合法尾缺在重叠值核对后才判未就绪。JSON小数进入Decimal，不舍入掩盖来源差异。两源单次获取串行，45秒硬截止、identity/8MiB限额、无重试/重定向；原代理/TLS保持。鉴权先于本地读取/更新，父根互斥、子根/对象/旁文件符号链接拒绝，固定证据检验快照成员及哈希；对象先落盘，DB事务发布及job提交恢复正常，GET不写入或联网。
++
++视觉及原生证据的使用范围：实际查看r3归档成功页、520窄窗及2026-01-05依据截图，并核对首/末/2025-12-31/2026-01-05、离线重启AX与固定ID/原值；来源、单位、定位、哈希及URL与独立原件检查相符。沿用r0/r1未受换源影响的960/1280布局、加载/读取超时、不确定POST、连续切页、两份真实PDF渲染及旧更新恢复证据。这些是**开发者原生操作证据，经本审查核验**；本审查未另启动原生QA，不称为审查者再次实际操作通过。R01恰说明“迟到PDF没显示”不能证明其Blob资源已回收。
++
++本轮没有新增金融网络请求，**最后1个审查job未使用**。现有job7固定证据、原件复核和隔离反例足以判断上述链路；不为重复成功再请求上游。共享账本保持7job/8次/158,887字节，总上限8job/12次/64MiB；未清零历史失败，候选/P01/诊断及外部自述请求仍分别保留。
++
++未重新执行：Rust单测/分发测试（源码未变）、完整原生矩阵（按上述受影响范围核验并沿用）、正式库读取/迁移、长期持续更新、五年/估值/PIT。用户验收尚未取得；不将这些边界转写为通过，也不增加本轮范围外要求。
++
++## 4. 发现及关闭条件
++
++### M01-R01 · P2 · 卸载后的迟到PDF遗留Blob URL
++
++**分类：真实缺陷，阻断本次通过。来源：累计首版新增导航/组件抽取引入的回归，首次审查发现；并非腾讯换源引入。**
++
++位置：[LegacySliceView.tsx](../../apps/desktop/src/LegacySliceView.tsx)第158、166—177行；[App.tsx](../../apps/desktop/src/App.tsx)第28行切页卸载消费者。
++
++依据：任务书§4.6及A09/A11要求异步响应、切页和旧PDF行为保持；设计§5.6要求保留原PDF过时响应保护；代码规范§12及AGENTS的生命周期/资源清理约束。现有第50行注释也明确约定过期响应不创建对象URL。
++
++触发：002245资料页点击读取PDF，`response.blob()`仍未完成时切到市场总览；旧组件卸载，然后旧PDF body完成。
++
++预期：卸载使该请求失效；迟到结果不留下Blob URL。已生成URL在关闭/切换/卸载时仍被回收。
++
++实际及根因：卸载只运行第158行清理，闭包中的`pdfUrl`此时仍为undefined，且没有使`pdfGeneration`失效。第167行`generation === pdfGeneration.current`继续为true，于是`readEvidencePdf`创建URL；随后对已卸载组件的setState不会再产生用于回收该新URL的effect。探针执行所有清理后再完成body，生产逻辑新建1个URL、回收0个，真实URL仍可读取。探针最后自行释放只是审查环境恢复，不是产品已修复。
++
++影响：迟到PDF不会显示在新页面，但Blob及其字节在同一个桌面WebView会话内继续被持有；重复“读取中切页”会累积，直到页面上下文结束。未测量原生内存增量，不声称数据错版或堆大小数值。现有PDF专项仅测试人工改变选择条件，原生旧证据仅证明没显示，因此未覆盖此资源缺陷。
++
++证据：`probe-pdf-unmount.cjs`、`probe-pdf-unmount.json`；源码SHA `fa5f9ab6d2855794f084eb000ae007957b3d3d088aa579877692759de1731e4d`。该探针使用真实生产组件/回调和标准Blob URL，隔离替代React调度和传输；代码路径本身可证明问题，未冒称原生heap测量。
++
++负责人/下一步：原coding窗口先核实并最小修复组件卸载的PDF失效/回收路径；不得靠删除有效测试、仅隐藏页面或改PDF来源规避。无需修改金融契约、扩大Rust外链权限或消耗金融请求预算。
++
++关闭条件：
++
++1. 确定性回归先证明当前r3在“body读取中卸载、随后完成”失败，修复版不遗留新URL；覆盖已有PDF在卸载时回收、正常读取/关闭/选择切换仍正确。
++2. 隔离页面切换复核：迟到旧PDF不在重入页显示，正常两PDF可读取/关闭；新总览迟到证据、旧更新不确定结果路径保持。
++3. 受影响前端专项与构建通过；按本任务自动模式交回新固定快照、r3→修复版及累计差异、源码/报告/证据版本和恢复核验；复审确认以上条件。
++
++本轮新增R01；没有关闭或重开既有独立审查问题（这是第0轮）。M01-V01的开发侧补证由job7和独立原件核验支持，V02/V03已补证的原生显示/实际PDF证据在相应未受影响范围继续有效，不改写其历史结论；新增R01需要单列处理。无另列必要验证缺口、未证实关键疑点或非阻断建议。O01/O02/O04及范围外长期能力仍保持原边界，由协调者维护当前状态。
++
++## 5. 测试恢复与固定交接
++
++开始基线已在测试前记录：HEAD/索引和既有文件指纹、代理/更新开关/数据根环境的脱敏哈希、进程/监听。只启动隔离单元测试及临时回环服务，不启动原生应用/浏览器，不改变全局配置、窗口或应用持久状态，也不操作正式 `.local-data`。
++
++恢复实际核验：回环子服务父EOF后退出、动态端口释放；无本审查uvicorn/index_fetch/Vite/桌面进程残留，5173/8000/5174/8001/5184/8014均回到开始的无监听。代理/数据根/开关环境和共享账本字节保持；原工作区所有开始文件指纹、HEAD及索引保持，报告/必要审查证据是本窗口唯一新写入。隔离真实/旧库副本、构建产物、pycache及node_modules引用已清理；补充探针创建的真实Blob URL由探针主动释放。只保留无进程引用的固定源码及审查脚本/日志。**未恢复项：无。**
++
++恢复证据为`baseline-summary.json`、`restoration.json`及`restore.py`；不将含系统进程详情的原始基线纳管。报告和证据文档检查结果为`vdoc-result.json`。审查临时目录不承诺永久/跨机存在，必要脚本和摘要已固定归档；重建时解压r3源码到新目录、核对清单、复用锁定环境，按README命令运行。补充脚本中的本机ROOT/源码路径须改为新目录；真实原件检查需哈希匹配的获准输入副本，缺失时如实记录，不能伪造金融响应。
++
++计数：首次独立审查第0轮；修复/补证复审当前0/3，同根因有依据修复失败0/2；未触发停止条件。R01若交回实质修复，下一次复审计第1轮，沿用原计数，不把开发r0/r1/r2/r3当成独立复审轮次。
++
++下一步可直接使用：**“按《TASK-20261005-01 · 首次独立审查（第0轮）》核实并修复M01-R01，保持原范围，交回固定修复快照和关闭条件证据。”** 由原协调者依据既有自动模式发送给原coding窗口；本审查窗口不自行改码、创建会话或跨窗口发送消息。新快照必须复核差异、R01关闭条件及受影响消费者，不需重复未受影响金融联网。
++
++接收者：原协调者。实际发送状态：本窗口报告交回，**未跨窗口发送**；status由协调者唯一维护。Git：未暂存、未提交、未amend/reset/push/发布；尚不能进入“独立审查通过，Git待提交”的成功终点。

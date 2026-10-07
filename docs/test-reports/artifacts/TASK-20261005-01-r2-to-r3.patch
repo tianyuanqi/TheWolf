@@ -1,0 +1,1152 @@
+--- r2/README.md
++++ r3/README.md
+@@ -145,18 +145,19 @@
+ 从仓库根执行专项检查：
+ 
+ ```bash
+-PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_index -v
++PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_index test_index_tencent -v
+ PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_service_smoke.py
+ ```
+ 
+ 第一条使用合成双源反例及真实中断子进程；第二条使用隔离合成库与真实回环服务，检查指数当前/固定视图、证据、旧切片和权限，并核验父管道退出及端口释放。均不访问金融来源、不操作正式库。前端在 `apps/desktop` 执行 `node --test scripts/index_view.test.cjs scripts/evidence_read.test.mjs scripts/update_recovery.test.cjs scripts/start_daily.test.mjs`，覆盖实际组件回调、绘图范围、迟到证据、更新结果及旧行为；React调度/传输替身不能代替原生界面验收。
+ 
+-P01原件离线重放使用下列命令；替换为本机真实P01证据根与新空隔离根。脚本校验固定两源/日历哈希及原始获取记录，保留原时间，不联网；材料缺失时失败，不补造原件或时间。此检查不代表新鲜手动更新成功。
++腾讯候选及P01中证原件离线重放使用下列命令；替换为本机真实证据根与新空隔离根。脚本校验固定两源/日历哈希及原始获取记录，保留原时间，不联网；材料缺失时失败，不补造原件或时间。此检查不代表新鲜手动更新成功。新发布只使用腾讯day分支和中证；旧东财契约快照及证据按原策略只读核验，不迁移或重写。
+ 
+ ```bash
+ PYTHONPATH=python/src:python/tests python/.venv/bin/python python/tests/index_replay_smoke.py \
+   --p01-root /absolute/path/to/p01-evidence \
++  --tencent-root /absolute/path/to/tencent-candidate-evidence \
+   --data-root /absolute/path/to/new-empty-isolated-root
+ ```
+ 
+-原生UI沿用上方QA入口，可用成对 `--window-width 520 --window-height 560` 或 `1280/720` 覆盖本次临时窗口尺寸；不改正式Tauri配置。真实更新验证必须遵守任务书2026-10-06追加授权后的合计7个job/12次尝试/64 MiB预算，实际授权与剩余额度见[status](docs/status.md)；通过本次QA进程环境 `WOLF_INDEX_BUDGET_LEDGER=/absolute/path/to/shared-network-ledger.jsonl` 共用账本，换窗口继续原计数。该环境值仅供受控验证；每源单次请求、无重定向/重试、8 MiB正文上限、45秒硬截止及5/15秒连接/读取超时，保留代理/TLS。新鲜来源不可用时记录阻塞，不把离线重放改判A04成功。
++原生UI沿用上方QA入口，可用成对 `--window-width 520 --window-height 560` 或 `1280/720` 覆盖本次临时窗口尺寸；不改正式Tauri配置。真实更新验证必须遵守任务书2026-10-06腾讯换源增补后的合计8个job/12次尝试/64 MiB预算，实际授权与剩余额度见[status](docs/status.md)；通过本次QA进程环境 `WOLF_INDEX_BUDGET_LEDGER=/absolute/path/to/shared-network-ledger.jsonl` 共用账本，换窗口继续原计数。该环境值仅供受控验证；每源单次请求、无重定向/重试、8 MiB正文上限、45秒硬截止及5/15秒连接/读取超时，保留代理/TLS。新鲜来源不可用时记录阻塞，不把离线重放改判A04成功。
+--- r2/apps/desktop/scripts/index_view.test.cjs
++++ r3/apps/desktop/scripts/index_view.test.cjs
+@@ -26,7 +26,7 @@
+   const bars = Array.from({ length: 260 }, (_, i) => bar(new Date(Date.UTC(2025, 0, i + 1)).toISOString().slice(0,10)));
+   return { schema_version: 'csi300-price-snapshot-v1', snapshot_id: id.repeat(64), observation_id: 'd'.repeat(64),
+     instrument: { id: 'csi:000300:price', code: '000300', name: '沪深300' }, unit: '点', timezone: 'Asia/Shanghai', pit_grade: 'latest_only',
+-    bars, calendar_dates: bars.map(item => item.trade_date),
++    source_contract: {version: 'csi300-exact-ohlc-v1'}, bars, calendar_dates: bars.map(item => item.trade_date),
+     window: { start: bars[0].trade_date, end: bars.at(-1).trade_date, expected_count: 260, actual_count: 260 },
+     summary: { trade_date: bars.at(-1).trade_date, close: '105.00', daily_change_pct: '0.00', reason: null },
+     evidence: [{ object_id: 'a'.repeat(64), source: 'eastmoney', url: 'https://east.invalid' }, { object_id: 'b'.repeat(64), source: 'csindex', url: 'https://csi.invalid' }] };
+@@ -84,6 +84,43 @@
+   assert.throws(()=>parseIndexStatus({enabled:true,stage:'mystery'}));
+   assert.throws(()=>parseIndexEvidence({snapshot_id:'e'.repeat(64)},item,'a'.repeat(64)));
+ });
++
++test('来源契约按版本校验，不将旧东财证据重标腾讯',()=>{
++  const {parseIndexView,parseIndexStatus}=load('indexTypes');
++  const old=view();const next=structuredClone(old);
++  next.source_contract.version='csi300-tencent-exact-ohlc-v2';next.evidence[0].source='tencent';
++  assert.equal(parseIndexView(next).evidence[0].source,'tencent');
++  assert.equal(parseIndexView(old).evidence[0].source,'eastmoney');
++  for(const mutate of [x=>x.source_contract.version='unknown',x=>delete x.source_contract,
++      x=>x.evidence[0].source='eastmoney',x=>x.evidence.reverse()]){
++    const invalid=structuredClone(next);mutate(invalid);assert.throws(()=>parseIndexView(invalid));
++  }
++  assert.equal(parseIndexStatus({enabled:true,stage:'fetching_tencent'}).stage,'fetching_tencent');
++});
++
++for(const source of ['eastmoney','tencent']){
++  test(`实际总览显示固定 ${source} 来源与原字段定位`,async()=>{
++    const item=view();if(source==='tencent'){item.source_contract.version='csi300-tencent-exact-ohlc-v2';item.evidence[0].source=source;}
++    const h=await harness('MarketOverview',{token:'synthetic',restart:async()=>{}},async url=>{
++      if(url.endsWith('/update'))return {json:async()=>({enabled:true,stage:'idle'})};
++      if(url.includes('/evidence/')){
++        const member=item.evidence.find(entry=>url.endsWith(entry.object_id));
++        return {json:async()=>({...member,snapshot_id:item.snapshot_id,observation_id:item.observation_id,
++          retrieval:{started_at:'2026-10-06T01:00:00Z',completed_at:'2026-10-06T01:00:01Z',published_at:null},
++          rows:item.bars.map(row=>({...row,locator:'$.data.sh000300.day[380]',raw_values:row})),
++          verification:'合成精确核对',unused_fields:['prec','version'],text_preview:'合成',preview_truncated:false})};
++      }
++      return {json:async()=>item};
++    });
++    try{
++      const chart=h.nodes().find(node=>typeof node.type==='function'&&node.type.name==='DailyCandlestick');
++      await chart.props.onEvidence(item.bars[0].trade_date);await h.settle();
++      assert.match(h.text(),source==='tencent'?/腾讯/:/东方财富/);
++      assert.match(h.text(),/中证官方/);assert.match(h.text(),/\$\.data\.sh000300\.day\[380\]/);
++      assert.match(h.text(),/prec（未解释元数据）/);
++    }finally{h.close();}
++  });
++}
+ 
+ test('实际图表首尾键盘、范围无交集、缺口空位及输入错误保留范围',async()=>{
+   const bars=[bar('2026-09-28'),bar('2026-09-30','95.00')];const expected=['2026-09-28','2026-09-29','2026-09-30'];let chosen;
+--- r2/apps/desktop/src/MarketOverview.tsx
++++ r3/apps/desktop/src/MarketOverview.tsx
+@@ -5,8 +5,12 @@
+ import type { IndexEvidence, IndexStatus, IndexView } from "./indexTypes";
+ 
+ const PATH = "/api/indices/000300";
+-const active = (status?: IndexStatus) => ["preparing", "fetching_eastmoney", "fetching_csindex", "validating", "publishing"].includes(status?.stage ?? "");
+-const labels: Record<string, string> = { preparing: "准备目标窗口", fetching_eastmoney: "获取东财日线", fetching_csindex: "获取中证对照", validating: "双源精确校验", publishing: "发布固定快照" };
++const active = (status?: IndexStatus) => ["preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing"].includes(status?.stage ?? "");
++const labels: Record<string, string> = { preparing: "准备目标窗口", fetching_eastmoney: "旧任务：获取东财日线", fetching_tencent: "获取腾讯日线", fetching_csindex: "获取中证对照", validating: "双源精确校验", publishing: "发布固定快照" };
++const sourceNames: Record<string, string> = { eastmoney: "东方财富", tencent: "腾讯", csindex: "中证官方" };
++const unusedNames: Record<string, string> = { volume: "成交量", amount: "成交额", prec: "prec（未解释元数据）", version: "version（未解释元数据）" };
++const sourceName = (source: string) => sourceNames[source] ?? source;
++const unusedName = (field: string) => unusedNames[field] ?? field;
+ const timeText = (stamp?: string | null) => stamp ? new Date(stamp).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "尚未检查成功";
+ 
+ /** 真实本地指数视图；每次替换整份固定快照，失败保留可读旧版。 */
+@@ -145,15 +149,15 @@
+         {evidenceLoading && <p role="status">读取固定原件…</p>}{evidenceError && <p role="alert" className="warning">{evidenceError}</p>}
+         {evidence?.map(original => { const row = original.rows.find(item => item.trade_date === evidenceDay);
+           return <article key={original.object_id}>
+-            <h3>{original.source === "eastmoney" ? "东方财富" : "中证官方"}</h3>
++            <h3>{sourceName(original.source)}</h3>
+             {row && <><p>定位：{row.locator}</p><p>原值：开 {row.raw_values.open} · 高 {row.raw_values.high} · 低 {row.raw_values.low} · 收 {row.raw_values.close}</p>
+               <p>标准值：开 {row.open} · 高 {row.high} · 低 {row.low} · 收 {row.close} 点</p></>}
+             <p>{original.verification}</p><p>SHA-256：{original.object_id}</p><p>获取完成：{timeText(original.retrieval.completed_at)} · 发布时间：未知</p>
+-            <p>规范URL：{original.url}</p><p>未使用：成交量、成交额、changePct、peg</p>
++            <p>规范URL：{original.url}</p><p>未使用：{original.unused_fields.map(unusedName).join("、")}</p>
+             <details><summary>安全文本预览{original.preview_truncated ? "（前4096字节）" : ""}</summary><pre>{original.text_preview}</pre></details>
+           </article>; })}
+       </section>}
+-      <section className="card"><h2>数据说明</h2><p>当前获取的历史版本，非当时可知回放。东方财富与中证260日×4个OHLC精确校验。</p>
++      <section className="card"><h2>数据说明</h2><p>当前获取的历史版本，非当时可知回放。{view.evidence.map(item => sourceName(item.source)).join("与")}260日×4个OHLC精确校验。</p>
+         <p className="note">首版当前视图260日，旧快照和原件保留。双源完整窗口校验通过才发布；未就绪、失败或中断保留旧版。</p>
+         <p className="note">快照：{view.snapshot_id} · 观察：{view.observation_id}</p></section>
+     </>}
+--- r2/apps/desktop/src/indexTypes.ts
++++ r3/apps/desktop/src/indexTypes.ts
+@@ -5,6 +5,7 @@
+   calendar_dates: string[]; bars: IndexBar[];
+   window: { start: string; end: string; expected_count: number; actual_count: number };
+   summary: { trade_date: string; close: string; daily_change_pct: string | null; reason: string | null };
++  source_contract: { version: string };
+   evidence: { source: string; object_id: string; url: string }[] };
+ export type IndexStatus = { enabled: boolean; stage: string; job_id?: string | null; result?: string | null;
+   message?: string | null; last_success_at?: string | null; started_at?: string | null; snapshot_id?: string | null };
+@@ -31,10 +32,12 @@
+       || !(value.summary.daily_change_pct === null || (typeof value.summary.daily_change_pct === "string"
+           && /^-?\d+\.\d{2}$/.test(value.summary.daily_change_pct)))
+       || !Array.isArray(value.evidence) || value.evidence.length !== 2
++      || !object(value.source_contract) || !["csi300-exact-ohlc-v1", "csi300-tencent-exact-ohlc-v2"].includes(String(value.source_contract.version))
+       || !value.evidence.every(item => object(item) && id(item.object_id) && typeof item.url === "string"
+-        && ["eastmoney", "csindex"].includes(String(item.source)))) throw new Error("指数视图契约不符");
++        && ["eastmoney", "tencent", "csindex"].includes(String(item.source)))) throw new Error("指数视图契约不符");
+   const evidenceItems = value.evidence as Record<string, unknown>[];
+-  if (evidenceItems[0].source !== "eastmoney" || evidenceItems[1].source !== "csindex"
++  const primary = value.source_contract.version === "csi300-exact-ohlc-v1" ? "eastmoney" : "tencent";
++  if (evidenceItems[0].source !== primary || evidenceItems[1].source !== "csindex"
+       || evidenceItems[0].object_id === evidenceItems[1].object_id) throw new Error("指数双源身份不符");
+   let previous = "";
+   for (const [index, bar] of value.bars.entries()) {
+@@ -75,7 +78,7 @@
+ /** 核对任务状态，未知阶段不能被推定为成功终态。 */
+ export function parseIndexStatus(value: unknown): IndexStatus {
+   if (!object(value) || typeof value.enabled !== "boolean" || typeof value.stage !== "string"
+-      || !["idle", "preparing", "fetching_eastmoney", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"].includes(value.stage)
++      || !["idle", "preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"].includes(value.stage)
+       || (value.job_id != null && typeof value.job_id !== "string")
+       || (value.message != null && typeof value.message !== "string")
+       || (value.result != null && !["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"].includes(String(value.result)))
+--- r2/docs/Data-Sources-V0.1.md
++++ r3/docs/Data-Sources-V0.1.md
+@@ -234,3 +234,21 @@
+ | 版本与稳定性 | 固定原件哈希匹配、两次离线解析结果一致；请求28次，正文约1.61 MB，未突破方案预算 | 一次取样不能证明持续更新、修订史或严格PIT；无正式库导入、无应用/页面变更 |
+ 
+ 本轮免费候选已有可支持价格切片的实际证据，无需据估值/历史缺口立即转向付费。O02保持开放；来源方法、完整历史及持续更新分别在相关步骤验证，不以此表宣布首批市场看板完成。
++
++
++## 10. 新浪沪深300精度离线复核（2026-10-06）
++
++用户同意先核查新浪差异后再判断能否继续使用。固定P01原件离线复核见[精度报告](test-reports/PLAN-P01-20261006-sina-precision.md)，未联网或改变产品来源。§9和原P01报告保留其原时点结论。
++
++260日1040个四值中，934个非半分点边界值转换两位后全部与中证一致；106个边界值中，中证50个向上、56个向下。统一ROUND_HALF_UP、HALF_EVEN、HALF_DOWN分别仍有56、52、50个差异，无法用这三种固定规则全量精确还原。重复原件解码、同算法Node交叉运行及Decimal对账一致；样本最大差仍为0.005点，没有发现超出该范围的差异。
++
++两个来源分别从更高精度舍入是可解释现象的假设，尚无来源方法依据；不把拟合或小差异当作已批准容差，也不认定新浪存在明确错价。新浪保留候选，当前两位精度/双源精确一致的M01契约下尚未准入。后续采用需先明确来源方法、不同精度校核及标准值取值角色，必要契约调整另行决定；本轮不切换来源，不关闭持续更新及A04等联网缺口。详细统计、实例、限制与输入版本仅在报告维护。
++
++
++## 11. 腾讯沪深300精度受控取样（2026-10-06）
++
++按用户要求新增一次腾讯候选取样，详见[精度报告](test-reports/PLAN-P01-20261006-tencent-precision.md)。请求成功，返回71,252字节；实际day分支640日，按既有日历筛选2025-09-04—2026-09-30的260日后，1040个OHLC与中证C01全部精确一致，最大差0.00点，无超过两位非零精度、缺日或重复，不使用舍入/容差。中证使用保存原件，本轮未重新联网。
++
++结论限于该窗口：腾讯满足这次近期OHLC精度比较要求，可作为候选；不能据一次请求认定长期稳定、五年覆盖或实时双源闭环通过。请求带SDK的qfq参数，但实际仅有day，无qfqday；未来不同分支不得静默兼容。接口返回早于请求起点的380行，接入须显式按目标日历裁剪。成交量、估值和区间外价格未验证。
++
++2026-10-06用户随后明确要求切换腾讯并继续任务：当前实施契约改为腾讯主采集/中证校核，细则见[设计§5.6](Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)，执行增补见[M01任务书](tasks/TASK-20261005-01-csi300-price-slice.md)。实现及新空根实时验收状态只见status，不把候选精度通过当作产品换源已经完成。新浪§10及原P01报告保留；旧东财快照保留原来源和只读证据。
+--- r2/docs/Market-Dashboard-Design-V0.1.md
++++ r3/docs/Market-Dashboard-Design-V0.1.md
+@@ -184,16 +184,17 @@
+ 
+ ### 5.6 沪深300首版P02实施设计（2026-10-05）
+ 
+-对应PLAN-M01；需求来自§5.5与[PRD §5.3](PRD-V0.1.md#53-历史频率与保留)，来源证据来自[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)。本节是首版的具体实现依据，任务拆解见[TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)。它不批准其余市场、整批导航或生产库操作。
++对应PLAN-M01；需求来自§5.5与[PRD §5.3](PRD-V0.1.md#53-历史频率与保留)，来源证据来自[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)及[腾讯精度报告](test-reports/PLAN-P01-20261006-tencent-precision.md)。2026-10-06用户明确要求切换腾讯并继续本任务，以下采用腾讯主采集、中证校核。本节是首版的具体实现依据，任务拆解见[TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)。它不批准其余市场、整批导航或生产库操作。
+ 
+ #### 日期、字段与来源
+ 
+ - **用户确认的首版边界**：只纳入上海日期之前的最近交易日，当日日线以后再验证。每日任务开始时冻结时钟、日历版本、截止日E及向前260个交易日W，不因请求迟到或跨午夜改变目标；周末与休市不算缺数。日历不足或未覆盖当前年份时，返回 `calendar_uncovered`，不使用工作日猜测。原002245日历与60日窗口不变。
+ - 新指数日历按首轮报告已经读取的2025上交所年度通知和2026沪深通知建立版本，明确2025未另取深交所原通知；依据原件与哈希须可核对。冻结在2026-10-05的验收样例应为2025-09-04—2026-09-30共260日。2027规则未验证时停止新增采集，已有离线数据可读；不为M01补2021/2023日历。
+-- 对象身份为 `csi:000300:price`，名称沪深300，编制方中证，频率daily、时区Asia/Shanghai、单位“点”、价格指数。不是证券000300、ETF、全收益或净收益指数；无人民币价格字段、股数单位、个股复权参数或虚构公告。
++- 对象身份为 `csi:000300:price`，名称沪深300，编制方中证，频率daily、时区Asia/Shanghai、单位“点”、价格指数。不是证券000300、ETF、全收益或净收益指数；无人民币价格字段、股数单位或虚构公告；腾讯请求中的SDK兼容参数qfq不改变价格指数身份，实际只准入day分支。
+ - 标准行：`trade_date`、`open/high/low/close`（十进制定点字符串，两位小数）、`evidence_refs`。Python用Decimal解析和计算，拒绝NaN、无穷、非正值、重复日期、非法OHLC以及超过两位的非零精度；不先四舍五入再对账。允许等值尾零。JSON解析保留原始十进制精度，不经二进制浮点计算业务值。
+-- 主源使用已实测东财 `https://push2his.eastmoney.com/api/qt/stock/kline/get`，`secid=1.000300`、`klt=101`、`fqt=0`、`fields1=f1,f2,f3,f4,f5`、`fields2=f51,f52,f53,f54,f55,f56,f57,f58`、`beg/end=W首尾`。原始行顺序是日期、开、收、高、低；必须显式映射，不能把收盘错当最高。核对code、market、name、decimal及成功状态。
+-- 对照源使用已实测中证 `https://www.csindex.com.cn/csindex-home/perf/index-perf`，`indexCode=000300`、`startDate/endDate=W首尾`；核对成功状态、代码、名称及tradeDate/open/high/low/close。两源日期均须与W一致，260×4个值以Decimal精确相等才发布；任一源失败不能单源降级或用新浪拼接。收益类型和身份依据沿用报告中官方指数资料。
++- 主源改为腾讯 `https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get`，固定 `_var=kline_dayqfq`、`param=sh000300,day,W首日,W末日,640,qfq`、`r=0.8205512681390605`；日期使用YYYY-MM-DD。不执行SDK逐年循环或起点发现。仅接受指定赋值变量中的JSON或明确纳入测试的同结构JSON，不执行脚本；检查code=0、sh000300及qt中的名称/代码，严格取 `data.sh000300.day`，不fallback到qfqday/hfqday。行序为日期、开、收、高、低，保留原始数组下标定位。qfq是本次已实测请求参数，不据此宣称指数前复权。
++- 腾讯实际可能忽略起点返回最多640日：完整原件保存，核对响应日期合法/唯一/有序，再显式按W首尾筛选；可排除早于W首日的历史行，晚于冻结截止日的记录拒绝，不从中补值或发布。当日/未来日反例保持拒绝。窗口内额外日期、内部缺日及不一致仍失败，只有合法连续尾缺可未就绪；筛选不能掩盖重复日期/身份或结构错误。字段prec不是精度声明，实际OHLC直接按Decimal两位约束校验。
++- 对照源使用已实测中证 `https://www.csindex.com.cn/csindex-home/perf/index-perf`，`indexCode=000300`、`startDate/endDate=W首尾`；核对成功状态、代码、名称及tradeDate/open/high/low/close。腾讯筛选后与中证的日期均须与W一致，260×4个值以Decimal精确相等才发布；任一源失败不能单源降级或用新浪拼接。收益类型和身份依据沿用报告中官方指数资料。
+ - 成交量、成交额、PE、PB、股息率不进入本轮标准行或摘要；原响应可保留未采用字段，证据面板明确“未使用”。两源一致是本轮准入规则，不承诺供应商永不修订或整个长期历史完整。
+ - 摘要日涨跌幅由服务端按 `(本日收盘/前一预期交易日收盘−1)×100` 计算，最后用ROUND_HALF_UP保留两位；保留公式版本和两个输入引用。首行没有前收时为null并说明原因，不回退到任意更早一日，不采用来源不明的changePct字段。显示百分比和正负号，零统一显示0.00%。
+ 
+@@ -202,6 +203,7 @@
+ 沿用React/Tauri、FastAPI与SQLite/内容寻址文件，不引入新数据库或依赖。现有 `snapshot.py` 限定002245、CNY、最多60日和必需PDF，因此新增指数专用契约及存储模块，不能伪装输入来调用旧发布函数。仅复用已经证明适用的文件锁/原子写入模式；不为通用化重构旧切片。
+ 
+ - 固定子根为配置的 `WOLF_SLICE_DATA_ROOT/indices/csi000300`，其中保存独立SQLite元数据、objects原件/清单和更新状态；不打开、迁移或修改父根的旧SQLite。写入时锁定父数据根，复用现有 `writer_lock` 与002245串行协调；读请求不创建根、数据库、对象或锁文件。检查子根及路径各层符号链接，拒绝逃逸至其他目录。
++- 来源策略升级为明确的腾讯/中证新版本；仅新更新使用腾讯，东财不再作为可出站的主源或fallback。已保存旧东财/中证快照及观察按原契约只读验证和展示，保持固定ID/原件/URL/来源名，不重写或迁移。当前快照即使仍是旧版本也可读取，下一次完整新发布才移动指针；未知契约拒绝，不以任意来源放宽类型。前端及API按快照契约区分旧/新来源，旧抓取状态仅为恢复/显示兼容，不触发东财请求。
+ - 一份快照对应本轮完整260日视图；后续窗口滚动只换当前指针，**全部旧快照、原件和观察记录保留**。首版图表展示当前快照范围，旧固定链接仍可读取更早窗口；跨快照合并长历史及专门历史浏览入口在M02完成。不得将“当前窗口260日”实现为删除260日以前的数据。
+ - 快照清单记录schema/规范化/来源策略版本、身份/单位、W/E/日历依据、日线、原件哈希和每行定位。内容对象SHA-256与获取观察分离；每源观察保留规范URL/参数、开始/完成UTC时间、响应哈希，来源发布时间未知时为null。`pit_grade=latest_only`，界面说明“当前获取的历史版本，非当时可知回放”；不得把交易日或下载时间当作发布时间。
+ - 先持久化全部原件及清单并校验哈希，再在一个SQLite事务中写快照索引、观察记录、当前指针及已提交job标识。读取固定ID时核对成员关系、哈希、契约和覆盖；哈希损坏必须报错，不静默回到另一快照。
+@@ -222,7 +224,7 @@
+ 
+ 视图响应包含schema_version、snapshot_id、observation_id、instrument、unit、timezone、pit_grade、window（首尾、expected_count、actual_count）、bars、summary（最新日期/close/daily_change_pct及原因/引用）、completion_basis、source_contract、evidence索引与获取时间。当前视图与固定视图中用于证据展示的observation_id/获取时间均绑定该快照首次成功发布的观察；之后无变化复查的时间单列于更新状态，不回写旧证据。图表、摘要和证据均固定到同一响应的snapshot_id，避免更新中混用版本；旧数据一直可读。
+ 
+-更新阶段为idle/preparing/fetching_eastmoney/fetching_csindex/validating/publishing/completed/failed/interrupted。成功结果区分business_changed（新增或修订）、evidence_changed（数值不变仅依据变化）、unchanged。两源结构合法但仅缺目标窗口末尾连续日期时为source_not_ready；中间缺日、额外日期、身份/精度/OHLC错误或双源不一致为failed并给出具体日期/原因。不自动缩短W、不把旧截止日称为最新完整数据。断网/超时同样保留旧版。source_not_ready对应completed阶段但不是成功发布；最近尝试时间每次更新，最近成功检查时间仅在完整对账通过（包括unchanged）后更新。
++更新阶段为idle/preparing/fetching_tencent/fetching_csindex/validating/publishing/completed/failed/interrupted。成功结果区分business_changed（新增或修订）、evidence_changed（数值不变仅依据变化）、unchanged。两源结构合法但仅缺目标窗口末尾连续日期时为source_not_ready；中间缺日、额外日期、身份/精度/OHLC错误或双源不一致为failed并给出具体日期/原因。不自动缩短W、不把旧截止日称为最新完整数据。断网/超时同样保留旧版。source_not_ready对应completed阶段但不是成功发布；最近尝试时间每次更新，最近成功检查时间仅在完整对账通过（包括unchanged）后更新。
+ 
+ 产品每次手动更新每源最多一次请求，串行、无后台重试；按钮失败后允许用户再试，同主机出站至少间隔5秒。首轮P01的“10次重试”是验证探针约定，不自动套成产品后台重试。连接5秒、读取空闲15秒、单请求45秒硬上限；每源正文8 MiB，流式及解压后都限额，禁止隐式SDK额外出站和未登记重定向。保留原代理/TLS配置；403/验证码/限流明确报错。父进程退出必须终止本次采集子进程，沿用已验证的父管道与硬超时回收模式。
+ 
+--- r2/docs/status.md
++++ r3/docs/status.md
+@@ -8,14 +8,14 @@
+ 
+ | 项目 | 当前有效信息 |
+ |---|---|
+-| 当前工作 | **当前状态：阻塞，尚不能进入独立审查。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)已完成首轮实现及r1本地补证；剩余M01-V01：新空根真实双源获取、校核与发布A04未通过。首版按260日、上海日期之前最近交易日推进，五年与当日完成判据后置 |
++| 当前工作 | **当前状态：r3实现及验证进行中，尚未进入独立审查。** [TASK-20261005-01](tasks/TASK-20261005-01-csi300-price-slice.md)换源代码已实现并通过初步离线/回环检查；新空根job7腾讯/中证均真实成功且完成发布，原生证据/离线重启/清理及固定交付待齐，M01-V01暂不关闭。原job6失败记录保留。原coding窗口已恢复并补齐r2材料，经协调者核对归档通过。新浪离线复核仍有边界差异；最新获准腾讯取样已完成，260日1040个OHLC与中证保存原件全相等，见[报告](test-reports/PLAN-P01-20261006-tencent-precision.md)，用户随后已明确授权切换腾讯并继续任务，r3换源指令已成功发送原coding窗口，现继续成功更新后的补证和收尾；首版仍260日、上海当日排除，五年后置 |
+ | 产品方向 | 需求以[PRD](PRD-V0.1.md)为准；先市场与指标看板，再论点闭环，顺序见[路线图](Implementation-Plan-V0.1.md)。其余整批设计未整体获批 |
+ | 已完成能力 | 既有002245切片于2026-10-03用户验收通过，ODATA01/OUI01保持关闭。新沪深300契约、存储、API、总览日K线及证据查看已实现并有本地自测；真实联网闭环、独立审查及用户验收尚未完成 |
+-| 版本 | 真实初始HEAD `ff614e4e2605292a9a151ea38a752677f10cd7e7`，已有文档增量保留；当前固定快照 `TASK-20261005-01+r1+111422d71d067d764c6b3bf52a48baa5005b2f5c81e2198ea63481564ecb2173`，见[r1报告](test-reports/TASK-20261005-01-r1-supplement.md)。r1业务/测试代码相对r0无变化；自动模式未暂存、未提交 |
+-| 授权边界 | 用户先明确“开启自动任务书模式”，随后在本原窗口于2026-10-05明确“确认开发”，对应唯一待启动任务TASK-20261005-01。依据Task-Workflow§9.4授权创建指定开发/独立评审窗口、协调材料、范围内实现/隔离测试/必要修复与复审；不含正式库操作、Git提交或发布。2026-10-06用户另明确同意2次连接诊断及1个开发补证job，见下方诊断授权记录 |
+-| 自动任务书模式 | **开启**。原开发窗口 `01a10a98-c976-75d1-9315-ec9a7af16235`（local，沪深300价格首版需求coding）已交付r1，工具接受 `gpt-6.1-sol/high`，运行时配置无法独立核实。因A04阻塞未创建独立评审。复审修复0/3，已定位同根因代码修复失败0/2；成功终点仍为“独立审查通过，Git待提交”。status由本协调者唯一维护 |
++| 版本 | 真实HEAD仍为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`；r1正式固定材料见[r1报告](test-reports/TASK-20261005-01-r1-supplement.md)。当前另有r2源码快照 `TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0`，业务增量仅预算守卫7job及对应测试/文档；[r2完整报告](test-reports/TASK-20261005-01-r2-supplement.md)及证据ZIP/交付索引已核验，原A04仍未通过；后续r3须新固定快照。未暂存/提交 |
++| 授权边界 | 用户先明确“开启自动任务书模式”，随后在本原窗口于2026-10-05明确“确认开发”，对应唯一待启动任务TASK-20261005-01。依据Task-Workflow§9.4授权创建指定开发/独立评审窗口、协调材料、范围内实现/隔离测试/必要修复与复审；不含正式库操作、Git提交或发布。2026-10-06用户另明确同意2次连接诊断及1个开发补证job，见下方诊断授权记录；随后同意先离线检查新浪精度差异；最新明确“再试一下腾讯的数据源精度”，授权候选精度取样，本轮限定1次HTTPS GET/8 MiB，无重试/重定向，保持代理/TLS，已完成；最新明确“那把数据源切换为腾讯，再进行任务”，授权以腾讯替换沪深300主采集、保留中证校核并继续原任务，必要新增1个开发job的边界见任务书r3增补；不重启全部流程 |
++| 自动任务书模式 | **开启**。原coding窗口 `01a10a98-c976-75d1-9315-ec9a7af16235`（local，沪深300价格首版需求coding）请求配置 `gpt-6.1-sol/high`，运行时配置未独立核实；原窗口已恢复且r2收尾完成，继续承接获准腾讯换源r3，不重复job6。因A04阻塞未创建评审。复审修复0/3，已定位同根因代码修复失败0/2；status由本协调者唯一维护 |
+ | 日常运行 | 固定正式根、启动不采集、点击才更新且不导入测试结果的约定保持。本任务仅运行隔离QA并只读复制获准静态备份，未操作当前正式slice根；r1测试进程、故障注入及QA缓存已清理，六个相关端口无监听，代理配置保持，详见r1恢复证据 |
+-| 执行与验证 | r0的49项Python、36项前端专项、构建、固定原件重放及本地回环/生命周期自测保持；r1补齐原生加载、超时恢复、迟到响应/连续切页和两真实PDF回归，M01-V02/V03关闭。协调者核对归档哈希、84份文件、相关AX/截图及恢复记录；此为交付核验，不是独立代码审查。已发生5个真实job/5次尝试/0字节；新增授权后总job上限7、来源GET尝试上限12和64 MiB不变，余1个开发补证job及1个独立审查job；连接诊断另限2次、不下载行情 |
++| 执行与验证 | r0/r1原有效自测保持，V02/V03已关闭；r3开发者报告57项后端、39项前端及构建/回环/生命周期检查通过，最终材料待核。共享账本已核对job7腾讯71,231字节、中证87,656字节均成功；累计7job/8次/158,887字节，上限8job/12次/64 MiB，新增开发job已用完，最后1个仍保留审查；腾讯候选1次/71,252字节另列，不能替代开发job。单列连接诊断2/2通过但job6失败，实际ClashX路由均DIRECT，不能只凭ProxyError判断断开阶段。外部AI报告另自述约18次东财、4次中证及对照访问，未有逐次原始账本核实，不忽略额外尝试或据此重置预算 |
+ 
+ 首版需求采用260日并暂不含上海当日；工作区已有本任务代码增量，当前不作为已验收版本。五年、其他市场与估值保留后续目标；150 GB软上限、时间正确性、引用保护和测试隔离约束继续有效。
+ 
+@@ -24,8 +24,8 @@
+ | ID | 当前问题与影响 | 负责人/下一步 | 关闭条件 |
+ |---|---|---|---|
+ | O01 | 沪深300P02首版设计和M01任务书已形成，日期边界已确认；首版已获本人开发确认，其余候选/整批设计仍未全部收敛 | 开发者按[设计§5.6](Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)实现并验收，协调者依自动模式核验和送审，其余模块按后续步骤细化 | 相应模块约定足够支持实施并有明确开发指令；首个任务书形成不关闭整批O01 |
+-| O02 | 沪深300近期价格主线已有准入证据，但新浪精度、历史日历/五年覆盖、东财历史访问、估值口径/日期、持续更新及PIT仍有缺口，详见[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)及报告；既有其他来源风险保留 | 价格按已验证东财/中证路径形成M01契约，持续更新在开发后实测；五年与旧年份抽查缺口不阻塞当前260日M01；历史与估值在对应后续分组按报告证据继续验证，不重置未耗尽请求计数。负责人为对应步骤执行者 | 相应字段/期间/方法和版本证据满足所声明能力；每个缺口有可核验处置，有限样本不关闭全范围O02 |
+-| M01-V01 | A04新空根真实闭环未通过，A05新鲜成功更新的原生结果亦受限；5次东财请求失败、0正文，中证未请求；异常链为连接代理时远端关闭，具体责任端未知，见[r1§2](test-reports/TASK-20261005-01-r1-supplement.md#2-第5个真实job与累计预算) | 协调者安排连接条件定位/恢复，再安排有限A04补证；开发/审查执行者负责证据。2026-10-06用户批准各来源1次连接诊断，恢复后追加1个开发补证job，另保留1个审查job；不改来源/全局代理/TLS、不清零历史。2次诊断已完成：两源CONNECT 200及TLS校验通过，同期ClashX日志均DIRECT；原coding窗口据此执行获准的一次新空根A04补证，失败即停止 | 新空隔离根真实两源获取、校核、发布及原生成功更新证据齐全；离线重放不能替代。恢复条件或预算安排未解决前不能送审 |
++| O02 | 沪深300近期价格主线已有准入证据，但新浪边界舍入方法与准入契约、历史日历/五年覆盖、东财历史访问、估值口径/日期、持续更新及PIT仍有缺口，详见[来源§9](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)及[新浪复核§10](Data-Sources-V0.1.md#10-新浪沪深300精度离线复核2026-10-06)；既有其他来源风险保留 | M01实施契约已获准改为腾讯/中证；新浪复核已完成，腾讯同窗精度取样通过，见[来源§11](Data-Sources-V0.1.md#11-腾讯沪深300精度受控取样2026-10-06)。原coding窗口按r3完成来源适配、旧快照兼容及必要受控验证；新浪边界方法缺口保留；五年与旧年份抽查缺口不阻塞当前260日M01；历史与估值在对应后续分组按报告证据继续验证，不重置未耗尽请求计数。负责人为对应步骤执行者 | 相应字段/期间/方法和版本证据满足所声明能力；每个缺口有可核验处置，有限样本不关闭全范围O02 |
++| M01-V01 | r3新空根job7两源已成功且开发者报告发布成功，A04/A05其余证据及固定交付待核，暂不关闭。此前6次东财0正文失败保留。最新job6路由DIRECT；断开具体环节/责任端未知，“出口IP封禁”仅为外部待证假设，见[诊断记录](test-reports/TASK-20261005-01-network-diagnosis.md) | 用户已授权改用腾讯并继续。原coding窗口已实现并用完新增1个开发job，两源可访问已得到本次证据；继续原生代表日依据、离线重启和清理/固定材料，不改代理/TLS、不重试东财或诊断，不挪用最后审查job。r2材料缺口已解除，A04实际成功仍待补齐；当前无需用户额外操作 | 真实新空根双源获取、校核、发布和原生证据通过，固定材料齐全；跨出口/NO_PROXY/外部脚本重跑需具体方案及适用授权，参考文件本身不是授权 |
+ | O04 | Python随桌面分发打包仍未验证，不影响现有开发态本地使用 | 需要分发时明确实际依赖和打包验证范围 | 目标环境启动、健康、退出与重启验证通过 |
+ 
+ 待确认建议由O01管理：科创50/北证50、金银午盘基准价、布伦特现货、COMEX结算连续、在岸汇率时点、整批更新策略和分区总览；首个沪深300的手动更新已按设计§5.5确认；具体依据与代价只在设计维护，不把推荐写成已批准。论点阶段再细化最低登记标准、状态/失效判断、AI连接、个人规则值、复核周期与长期效果衡量。
+@@ -34,9 +34,13 @@
+ 
+ ## 下一步
+ 
+-用户已确认开发[TASK-20261005-01：沪深300价格首版](tasks/TASK-20261005-01-csi300-price-slice.md)。r1交付核验完成，M01-V02/V03关闭，V01保留。2026-10-06用户明确同意新增2次连接诊断及1个开发补证job：两次诊断均已在既有代理下完成，CONNECT 200、TLS 1.3及证书校验通过，同期目标日志均为DIRECT，未发行情GET。当前具备继续补证的新依据，由原coding窗口完成一次新空根A04及固定材料；不据此宣称旧故障根因确定或来源长期可用。总来源采集上限改为7个job，12次GET尝试/64 MiB不变；原5次失败保留，另1个job仍留给审查。材料齐备后才创建指定独立评审窗口，当前未创建。
+-
+-任务书人工交接/本地待审提交条款由Task-Workflow§7.2/9.4替换：固定真实基线及文件快照送审，不暂存或提交；status仅由本协调窗口写入。开发和审查报告在各自窗口返回，协调者读取并转发，无需额外跨窗口回复。业务范围、受控来源采集合计7个job/12次尝试/64 MiB（含本次获批增加的1个job），另2次仅CONNECT/TLS诊断、隔离及恢复要求保持。
++用户明确“那把数据源切换为腾讯，再进行任务”。本轮沿用TASK-20261005-01及本人原开发确认，自动任务书模式继续：腾讯主采集、中证精确校核，保持260日/当日排除及原验收。协调者已更新设计§5.6、来源§11和任务书r3增补，文档检查4份/107处链接通过；已通过工具成功向同一coding窗口发送r3执行指令；待审就绪后才创建指定独立评审。
++
++r3重点：腾讯day分支/身份/Decimal、640行响应裁剪与原下标证据、源契约版本、旧东财快照只读兼容、API/前端来源显示，以及新空根真实成功更新和离线重启。候选报告只是精度依据，不能代替A04；当前真实采集/发布已由开发者完成，完整原生与恢复证据及快照仍待核；不能预先写独立审查通过。
++
++共用账本job7 `d9115075476f425f8d62bab866b449c7` 于UTC 2026-10-06 08:30:02—03执行腾讯/中证各1次成功，共158,887字节；累计7job/8次/158,887字节，最后1job留独立审查，总上限8job/12次/64 MiB。新增开发job已消费，不再重复采集。原P01 28次、腾讯候选1次/71,252字节、诊断2/2及外部自述尝试分别保留。不开新诊断、不改代理/TLS、不重试东财，不因新根或新轮次清零预算。
++
++r2材料已由原coding窗口补齐，协调者核验交付文件哈希、86文件源码ZIP/模式及证据ZIP完整性，结果在 `/private/tmp/thewolf-tencent-switch-coordination-6eyra2ob/r2-delivery-check.json`。旧快照/报告保持，r3另生成固定材料，不能将旧验证套用到新差异。Git保持未暂存/未提交，status仅由本协调者写入。
+ 
+ 不为M01继续补五年、2021/2023日历或估值；历史与估值缺口沿用[来源结论](Data-Sources-V0.1.md#9-沪深300首轮实测能力结论2026-10-05)。开发使用新的隔离根；正式日常启用指数采集另行明确，不将P01样本导入正式根。
+ 
+@@ -44,6 +48,42 @@
+ 
+ 
+ ## 历史记录
++
++### 腾讯换源与继续开发授权 · 2026-10-06
++
++用户在候选260日精度全相等之后明确“那把数据源切换为腾讯，再进行任务”。本指令批准主采集源更换及原任务继续实施，保留中证逐值校核，不要求再次确认同一开发任务。协调者更新任务书r3增补、设计及来源摘要；范围不扩展五年、估值或正式启用。必要新空根验证限定新增1个开发job（每源1次），总8job/12次/64 MiB，最后1job留独立审查；原尝试和失败保留。
++
++恢复时只读原coding窗口，发现其已完成r2收尾；核对正式交付索引、86文件哈希/模式及ZIP完整性通过，解除材料缺口，但不改判r2的A04阻塞或历史报告。协调基线及核验保存于 `/private/tmp/thewolf-tencent-switch-coordination-6eyra2ob`。已向原coding窗口 `01a10a98-c976-75d1-9315-ec9a7af16235` 成功发送r3执行指令（工具返回同一threadId），复用原模型配置；不重复派发。r3快照取代工作版本但不覆盖r0/r1/r2归档；不提交或发布。
++
++
++### 腾讯候选精度取样 · 2026-10-06
++
++用户明确“再试一下腾讯的数据源精度”。协调者冻结与新浪同一260日窗口，先检查本地SDK调用结构，直接发出1次固定腾讯GET，8 MiB/45秒上限，不跟随重定向或重试。实际HTTP 200、71,252字节，候选1/1次数已用完；原M01的6job/6次、P01的28次、诊断2/2及外部自述尝试保持，不借候选账本重置旧预算。
++
++[报告](test-reports/PLAN-P01-20261006-tencent-precision.md)记录身份、day分支、日期筛选和1040字段全相等结果；来源§11保留能力边界。中证只使用P01保存原件，不证明其当前访问成功；来源换用尚未批准，A04与r2材料缺口仍开放。
++
++证据根 `/private/tmp/thewolf-tencent-precision-20261006-4h039tms`，包含开始文件/HEAD/索引/代理环境基线、请求账本/回执、原件、对照与文档检查。必要脚本/汇总归档见报告；本轮仅修改status及来源补充、新增报告/证据ZIP。V-DOC检查3份Markdown链接/锚点/空白/围栏和Git差异，核对允许变化文件、旧历史、HEAD/索引与代理摘要保持。会话、定时器及短进程已结束，无常驻服务或配置变化，无运行残留待恢复；未读写正式根、改业务代码、发起窗口、暂存或提交。
++
++
++### 新浪精度离线复核 · 2026-10-06
++
++用户同意“先检查新浪精度差异”，询问精度合格后是否可继续使用新浪。本轮只离线读取已保存P01三源原件和日历，未执行外部接口、测试采集、代码切换、数据库/正式根操作或依赖安装。原网络和诊断计数保持，参考文件中的网络建议也未执行。条件性讨论不当作来源已切换或放宽发布约束。
++
++[精度复核](test-reports/PLAN-P01-20261006-sina-precision.md)通过输入哈希/重复解析/日期及结构检查，并重现原差异；发现统一四舍五入仍有56个边界差异，其他被检验规则也不能全量还原。两源分别从更高精度舍入是可能解释，未取得来源方法依据，不宣称新浪错价，也不判当前准入通过。能力结论补充于Data Sources§10，原§9/P01及全部旧审查报告保持。未读取五年全量来扩张本轮目标，002245新浪既有通过结论不受影响。
++
++证据根 `/private/tmp/thewolf-sina-precision-20261006-egs9g9h0`，输入/解码器哈希、1040字段对照、双上下文重放及Node同算法交叉运行结果见报告；必要脚本/汇总以固定ZIP保留，不纳管原金融响应。开始HEAD为 `ff614e4e2605292a9a151ea38a752677f10cd7e7`，已有未提交增量按文件指纹保全。本轮仅修改来源补充及status、新增报告与证据ZIP；恢复核验确保其他文件、原件、HEAD/索引、代理环境不变，未启动常驻服务/应用，短进程及JS上下文已退出。V-DOC按README由证据根 `check_docs.py` 执行，检查本轮3份Markdown链接/锚点/围栏/空白、Git差异、历史保全及允许变化文件集合；结果见同目录 `vdoc-result.json`。未创建Agent/新窗口、未暂存/提交，原r2材料中断和A04问题不自动关闭。
++
++
++### job6失败、外部参考及r2中断保全 · 2026-10-06
++
++原coding窗口按用户新增授权同步7job预算守卫，并完成4项无网络针对性检查。新空根唯一真实job6 `beda26e25276410c91d2b2b3b3b370f1` 于北京时间01:26:33—34在东财阶段失败、0正文，中证未请求；原账本只追加本次attempt/finished且原历史保持。累计6job/6次/0正文；剩余1job/6次/64 MiB仍归审查；协调诊断2/2已消耗。实测ClashX记录job6同样DIRECT，错误名称不能证明VPN节点或具体失败阶段，相关更正见诊断记录，历史报告不改写。
++
++用户随后提供 `/Users/yuanqi/Documents/thewolf-net-debug/` 作参考。协调者只读主文和5个脚本，未执行建议命令。主文自述HTTP请求后断连及其他接口对照，但目录及其指向的临时目录没有原始逐次输出；“封出口IP”“100%失败”等不升级为确定结论。外部自述额外东财约18次、中证约4次及其他对照请求单列保留，准确数/重复性/正文未核实，不伪造本任务job、清零原账本或假装外部请求不存在。文件版本哈希和评估见[诊断§6](test-reports/TASK-20261005-01-network-diagnosis.md#6-用户提供的外部分析参考)。这不是替代来源、切换网络或额外出站的指令。
++
++原开发回合在清理后因用量限制failed；r2草稿仍有证据SHA占位符，证据ZIP、交付索引及V-DOC脚本/结果尚未交齐，不标作正式交付或审查就绪。已保存的恢复证据确认进程/QA缓存/观察脚本移除、代理环境保持；协调者另核验六端口无监听、HEAD及空索引保持。r2的86文件源码ZIP哈希/模式及CRC通过，冻结后协调者诊断文档更新属单列增量。核验记录在诊断根 `r2-interruption-check.json`。不更换执行模型绕开限制，不重发已消费job，未创建评审/提交/发布。
++
++本协调者本轮只修改status和诊断报告；本地代理只读检查及两次已授权目标连接均结束，套接字和定时器关闭；代理环境及基本配置文件哈希与诊断开始一致，没有自有监听服务。后续开发QA恢复另按其证据核验。V-DOC由 `/private/tmp/thewolf-m01-coordination-8josq55d/check_network_diagnosis_docs.py` 检查这两份文档的链接/锚点、围栏/空白、Git差异及HEAD/索引/旧历史，结果保存于同目录 `vdoc-result.json`；不把协调文档检查当作r2开发交付自检通过。
++
+ 
+ ### 两源连接条件恢复与直连路由证据 · 2026-10-06
+ 
+--- r2/docs/tasks/TASK-20261005-01-csi300-price-slice.md
++++ r3/docs/tasks/TASK-20261005-01-csi300-price-slice.md
+@@ -79,6 +79,14 @@
+ 
+ **2026-10-06有限追加授权补充**：用户批准东财/中证各1次仅CONNECT/TLS诊断，以及连接恢复后新增1个开发补证job（每源1次）；原最后1个job继续保留独立审查。来源采集总上限改为**7个job**，**12次来源尝试、64 MiB正文**不变；已有失败记录继续使用同一账本，不通过新账本清零。本段仅替换初始job总上限，其余来源、隔离、时限、恢复及验收约定保持；实际授权、诊断耗用、进展和剩余额度只在[status](../status.md)维护。有限开发job失败后立即停止，不自动重试、不重复连接诊断、不改全局代理或TLS。
+ 
++**2026-10-06腾讯换源实施增补（r3）**：用户在同一原窗口明确“那把数据源切换为腾讯，再进行任务”，承接既有开发确认及自动模式，不另建任务或重复请求开发确认。新发布主源改腾讯，继续中证精确校核；具体解析、日期裁剪与旧快照只读兼容以更新后的设计§5.6为准，实测依据为[腾讯报告](../test-reports/PLAN-P01-20261006-tencent-precision.md)。保持260日、当日排除、两位精度、无单源降级、原子发布、原件和旧版本保留；002245新浪路径不变。
++
++本次换源继续开发的必要验证限定为**新增1个开发job，每源1次GET**，最后1个job仍保留独立审查。共用M01账本总上限从7改为**8job**，原**12次尝试/64 MiB正文**不变；原6个失败job和所有尝试保持，候选腾讯测试另有1次/71,252字节，不能混作开发成功。此增补替换旧“仅东财/中证”和7job上限：新开发/审查只准腾讯上述固定端点及原中证端点，不再访问东财或新浪、不执行新连接诊断、不改代理/TLS。实际计数只在status；失败不自动追加job或重试。
++
++开发在原coding窗口续作r3：先核对完整r2归档，不改写旧报告/快照；同步适配器、版本化来源契约、采集白名单/阶段、前后端来源显示、旧版本读取、预算守卫及测试/README。腾讯带额外早期行的正确裁剪、原数组定位、错误身份/分支/执行性脚本、重复日期、窗口内缺日、晚于截止日、精度差异等纳入确定性反例；同时验证新发布前后旧快照、旧证据和旧002245路径保持。A01—A12不降低；A04必须用新空隔离根真正获取两源，原生页面查看首/末/跨年代表日两源证据，并完成成功后离线重启。不得把候选原件种入空根替代联网验收。
++
++r3生成相对r2及初始基线的固定快照/差异、完整验证及恢复证据，满足待审条件后由原协调者新建独立评审窗口；不提交Git、不操作正式根。必要验证失败仍按原阻塞交付规则交回，保留复审和同根因计数。
++
+ **运行方式**：工作目录仓库根；复用README V-UI的 `run_qa.py` 和新建的真实隔离目录，按实际空闲端口选择，进程环境仅对本次QA设置 `WOLF_ENABLE_INDEX_UPDATE=1`。不把开关写到用户shell或日常脚本。旧功能回归在隔离根准备旧002245固定样本，不依赖正式库；没有所需原件或权限如实报告。真实响应不纳管，必要测试使用清楚标注的合成夹具；纳管可重建的测试/验证脚本和脱敏报告。
+ 
+ ## 6. 验收与验证
+--- /dev/null
++++ r3/docs/test-reports/PLAN-P01-20261006-sina-precision.md
+@@ -0,0 +1,81 @@
++# PLAN-P01 新浪沪深300精度离线复核 · 2026-10-06
++
++**离线复核完成；新浪尚不能直接替代当前东财来源。** 已保存窗口的日期和OHLC结构通过；全部差异不超过0.005点，但没有一种所检验的固定舍入方式能将新浪三位数值全部还原为中证两位数值。没有据此认定新浪数据错误，也未将其改判为符合当前精确一致发布契约。当前授权和开发阻塞以[status](../status.md)为准。
++
++用户同意先检查新浪精度差异，并询问精度合格后能否继续使用新浪。本轮仅离线核验现有原件、整理证据；没有新增来源请求、修改业务代码/正式数据、放宽容差或启用来源切换。保留[原P01报告](PLAN-P01-20261005-csi300.md)和历次开发报告；本报告是新增分析，不是独立代码审查、联网验收或用户验收。
++
++## 1. 固定输入与解析
++
++窗口保持2025-09-04—2026-09-30，共260日；按原P01已核验日历比较1040个开、高、低、收值，不向前后补日期。
++
++| 原件 | SHA-256 | 字节数 |
++|---|---|---|
++| 新浪S01 | `bd0ff8a9e8e09da9a8efa3cbbf3696a4dbecbad560147469e3bb53e74761db29` | 100749 |
++| 中证C01 | `40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43` | 87656 |
++| 东财E01 | `846aa040400b173a179f359db4f4813646a4df17215fc7718ac440f2939e7282` | 19933 |
++
++原件来自 `/private/tmp/thewolf-p01-csi300-qkuqgt8q/raw/`，获取时刻与来源记录沿用原报告，不把本次分析时刻当作重新获取。运行前后均核对哈希。新浪响应只提取指定变量中的编码字符串，未执行响应附带内容；从现有AKShare本地常量提取固定解码器，SHA-256 `39a599c94dde4df1c2eb0882d4bff9560160cfd52ead0797cebb04b3122c2f52`。
++
++采用两个新MiniRacer上下文重复解码，再以Node运行同一解码器；6003行结果全部一致，且与P01保存解码结果一致。JS端直接JSON序列化后以Decimal读入，对账不经过Python float。Node与MiniRacer共用算法，这只能检验运行/序列化一致性，不能排除解码器共同缺陷或替代独立来源方法说明。
++
++目标窗口三源日期均完整、无重复；OHLC有限、为正且高低关系合法。新浪解码值全部位于0.001点网格，中证位于0.01点网格；这是样本观测，不是来源声明的永久发布精度。东财与中证1040值仍精确一致。
++
++## 2. 全量逐值结果
++
++未舍入时，102值精确一致，938值不同，最大绝对差0.005点，重现原报告结果。
++
++| 诊断用转换规则 | 转为两位后与中证一致 | 仍有差异 | 差异是否全在半分点边界 |
++|---|---:|---:|---|
++| 四舍五入 `ROUND_HALF_UP` | 984 | 56 | 是，影响50个日期 |
++| 五成双 `ROUND_HALF_EVEN` | 988 | 52 | 是，影响49个日期 |
++| 五舍六入 `ROUND_HALF_DOWN` | 990 | 50 | 是，影响44个日期 |
++
++这些方式仅为解释差异而离线检查，不选择“最接近”的方式作为上线规则，也不将中证数值反向喂给算法逐项选舍入方向。
++
++- **非边界934值**：新浪值转成两位后全部与中证一致。
++- **边界106值**：新浪值对0.01取余为0.005，覆盖91个交易日；中证50值在新浪上方、56值在下方。四字段分别为开33、高25、低25、收23，不能把问题归为单一字段。
++- 不存在本窗口超出0.005点的差异；这不能单凭有限样本推导全历史正确、未来不发生差异或来源方法已核实。
++
++| 真实原件例子 | 新浪 | 中证 | 两位四舍五入结果 |
++|---|---:|---:|---:|
++| 2025-09-05收盘 | 4460.325 | 4460.32 | 4460.33，与中证不同 |
++| 2025-09-15最高 | 4566.905 | 4566.91 | 4566.91，与中证相同 |
++
++本次使用Decimal且从原件重新解码后结果保持，因此差异不是先前Python float对账中间步骤造成的。没有取得新浪/中证原始更高精度计算值，不能进一步排除源端舍入、截断、计算版本或解码共同因素。
++
++## 3. 能解释什么，尚缺什么
++
++一种**可解释但尚未证实**的机制是：新浪与中证各自从更高精度的同一值分别保留三位和两位。三位表示丢失的信息，使边界不能唯一还原成两位。
++
++以下仅为人工构造数学例子，不是任何来源的真实隐藏数值：
++
++| 假设原值 | 直接保留三位 | 直接保留两位 |
++|---|---:|---:|
++| 100.1246 | 100.125 | 100.12 |
++| 100.1254 | 100.125 | 100.13 |
++
++两条都可遵守同一四舍五入规则，但三位结果相同、两位结果不同。因而不能从新浪单独的`100.125`判断中证应该是哪一个；将新浪再舍入一次可能产生二次舍入差异。该例经Decimal计算验证，只证明解释在数学上可能，不证明两供应方实际上采用了这种机制。
++
++当前所缺的是可追溯的精度/舍入方法依据及适用的对账契约。不能把“最大差很小”自动改成0.005容差放行，也不能凭另一源答案修正新浪后再宣称两源独立精确一致。
++
++## 4. 对继续使用新浪的影响
++
++新浪仍可作为候选。若精度/来源方法得到充分核实，并明确不同精度的标准化及校核规则，可以继续使用；不必因为本轮差异直接淘汰整个来源，002245既有新浪切片不受本报告改判。
++
++但**现有M01要求原始四值具有至多两位非零精度且两源逐值精确一致**，新浪本窗口不符合。重新采用新浪需更新相应来源契约、证据显示和验收，保留三位原值，不能直接替换URL或在代码中加一个round。来源身份、时间边界、原件/旧版本留存、完整日期及异常隔离继续适用。
++
++后续可比较两条路径，均尚未批准实施：取得明确方法依据后制定不同精度的对账规则；或以中证官方两位数值作为发布标准、将新浪作为保留原精度的核验来源。后一条会改变取值角色及发布校核契约，不等于现有任务书已通过。任何路径仍需适用的受控联网验证和独立审查；本次离线结果不证明新浪当前可访问或持续更新稳定。
++
++## 5. 证据、复现及恢复
++
++证据根 `/private/tmp/thewolf-sina-precision-20261006-egs9g9h0`。仓库根命令：
++
++```bash
++PYTHONDONTWRITEBYTECODE=1 python/.venv/bin/python /private/tmp/thewolf-sina-precision-20261006-egs9g9h0/check_precision.py
++```
++
++该脚本只读已有原件，禁用Python网络连接函数，Node隔离上下文仅运行固定解码器，不调用SDK获取函数。输出完整1040字段对比 `all-field-comparisons.json`（SHA-256 `685098369221db927f617b39540457646bd869df35956582deac0cb5bd48a738`）、`summary.json`、合成数学例子。没有新增HTTP或目标连接请求，原采集/诊断计数保持。
++
++[复核脚本与汇总归档](artifacts/PLAN-P01-20261006-sina-precision-evidence.zip) SHA-256 `3693d1eeec9abbfb51cea072e2382d9607d0037be1882a4742883df2c0dabf77`。归档仅含脚本、汇总及合成例子，不含金融原响应、完整日线表或私密配置。重跑需匹配原件和解码器哈希，缺失时如实报告，不能自动联网补件；跨机需调整脚本路径。临时根不保证永久存在。
++
++本轮没有启动应用/服务、故障注入、配置切换、正式库访问或依赖安装。短暂JS上下文已关闭，Node子进程正常退出；原件哈希保持。开始Git/文件指纹与代理环境摘要、结束对照、文档检查保存在证据根；只授权修改来源补充结论、status、新报告和该证据归档，业务源码、旧报告及固定归档保持，未暂存或提交。原coding窗口r2材料收尾及A04阻塞仍由status保留，不被此次分析关闭。
+--- /dev/null
++++ r3/docs/test-reports/PLAN-P01-20261006-tencent-precision.md
+@@ -0,0 +1,71 @@
++# PLAN-P01 腾讯沪深300精度取样 · 2026-10-06
++
++**本轮260日精度检查通过：1040个OHLC值与已保存中证C01全部精确一致。** 本报告是候选来源样本验证，不是产品换源、实时双源发布验收或独立代码审查；当前开发阻塞及授权以[status](../status.md)为准。
++
++## 1. 范围与请求
++
++用户明确要求“再试一下腾讯的数据源精度”。固定沿用P01的2025-09-04—2026-09-30、260个完整交易日，与既存中证原件和日历离线对账，不重新请求中证或东财，不补五年。候选验证单列1次GET、8 MiB上限，无重试或重定向，连接5秒/读取15秒/总时限45秒，保持现有代理及TLS证书校验；未挪用原任务审查job或重置旧账本。
++
++接口依据本地AKShare 1.18.97的 `index/index_stock_zh.py:354` 中 `stock_zh_index_daily_tx`，源码指纹保存于归档。未调用SDK，避免其逐年循环和默认起点发现请求。直接访问其已有HTTPS端点 `https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get`，参数：
++
++```text
++_var=kline_dayqfq
++param=sh000300,day,2025-09-04,2026-09-30,640,qfq
++r=0.8205512681390605
++```
++
++请求于UTC 2026-10-06T08:06:43.208098开始，08:06:43.472785结束（北京时间16:06:43）；HTTP 200，收到71,252字节。只有这1次实际请求，无自动重试。响应Content-Type是text/html，但内容为指定变量赋值包裹的JSON；严格匹配 `kline_dayqfq={...}` 后使用JSON解析，不执行JavaScript。
++
++## 2. 身份、日期和字段
++
++响应 `code=0`，`data.sh000300.qt.sh000300`名称/代码为沪深300/000300。OHLC取自 `data.sh000300.day`，数组前五列为日期、开、收、高、低；成交量及其他字段未验证或用于产品。
++
++请求保留SDK的qfq参数，但响应实际仅有 `day`，没有 `qfqday`；本次只校验这一明确分支。不据参数名宣称指数已前复权，也不把未来出现的qfqday静默当作同一契约。字段 `prec` 是未解释元数据，不能当作小数位数；实测精度直接从OHLC数值判断。
++
++接口实际返回640日，范围2024-02-07—2026-09-30，未按请求起始日截断。解析后按固定P01日历筛选，排除更早380行；窗口内恰好260日，无缺日、额外日期或重复。全响应日期有序且唯一，目标窗口各OHLC有限、为正、高低关系合法。不能依赖该接口请求起点自动裁剪；未验证区间外380日的金融精度或五年能力。
++
++## 3. 精确比较结果
++
++腾讯价格字符串和中证JSON数值直接以Decimal解析，不经二进制浮点、不舍入、不设置容差。
++
++| 检查 | 结果 |
++|---|---:|
++| 完整目标交易日 | 260 / 260 |
++| 开、高、低、收比较数 | 1040 |
++| 数值精确一致 | 1040 |
++| 差异 / 涉及日期 | 0 / 0 |
++| 最大绝对差 | 0.00点 |
++| 超过两位的非零精度 | 0 |
++| 两次离线解析 | 一致 |
++
++首日开/高/低/收为4461.25/4465.50/4327.51/4365.21，末日为4356.80/4368.61/4341.88/4357.62，均与中证数值相同；字符串尾零差异不计为价格差异。完整1040字段对照哈希见下表。
++
++与[新浪离线复核](PLAN-P01-20261006-sina-precision.md)相比，腾讯在同一窗口不需要处理三位转两位的半分点边界。这支持其作为沪深300近期价格候选；一次成功不证明持续稳定、当日终值标记、所有历史、估值、供应方独立性或未来不修订。
++
++## 4. 接入边界与下一步
++
++本轮样本满足当前两位非零精度及逐值精确一致这两项要求，**来源身份仍是腾讯，不能冒充现有东财契约已通过**。下一步如决定采用腾讯，应先明确替换主采集源并保留中证校核，更新来源身份/允许域名、day分支与日期裁剪、证据显示、任务书及受控验证预算，再由原coding窗口实现；不得直接改URL、静默fallback或导入本次测试原件作为新联网验收。
++
++现有A04所需新空根实时获取、双源校核、原子发布及原生证据闭环尚未完成。中证本轮只读旧原件，其当前可用性没有得到新证明。r2材料收尾也仍未完成；这两项不被本报告关闭。
++
++## 5. 证据、验证及恢复
++
++| 输入/输出 | SHA-256 |
++|---|---|
++| 腾讯原响应 | `396245b5940b3f6efe049c9582113d0398738805a12d5772f0f8fead6c9c531a` |
++| 中证C01原件（87,656字节） | `40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43` |
++| 固定日历 | `56cfc77e67626ebaa06ae603e265f427784111c95aada0a3577af66adafecf2a` |
++| 1040字段逐项对比 | `77f9f2a17ecfe90a6b5805c2f17b2dd92a50d7c3ca291c5e3ed8f046fd6ef1b0` |
++
++证据根 `/private/tmp/thewolf-tencent-precision-20261006-4h039tms`；旧原件根 `/private/tmp/thewolf-p01-csi300-qkuqgt8q`。以下命令在仓库根重放离线对账，脚本禁止网络，重复验证原件/日历哈希：
++
++```bash
++python/.venv/bin/python /private/tmp/thewolf-tencent-precision-20261006-4h039tms/analyze.py
++python/.venv/bin/python /private/tmp/thewolf-tencent-precision-20261006-4h039tms/check_docs.py
++```
++
++[脚本、请求回执、账本及汇总归档](artifacts/PLAN-P01-20261006-tencent-precision-evidence.zip) SHA-256 `bacaa5e3fa4d9be686b9ae1efc90bd2b91a1ad05a0f13064d3d5427fa5b50962`，ZIP完整性通过。未纳管金融原响应或完整日线表。跨机重放需具备匹配哈希的输入并调整路径，缺失时不能自动联网补件；临时目录不保证永久存在。联网脚本仅作为已执行证据，其排他账本阻止同目录误重跑，不是未来新增请求授权。
++
++真实基线HEAD `ff614e4e2605292a9a151ea38a752677f10cd7e7`，包含开始时101份已有文件指纹；本轮只新增本报告/归档、更新来源补充及status。执行README V-DOC检查3份Markdown本地链接/锚点、围栏/空白、Git差异和允许变化文件集合，结果在证据根 `vdoc-result.json`。没有改业务代码，不重复产品测试，不宣称独立审查通过。
++
++HTTP响应和会话均已关闭、定时器撤销、短进程已退出；没有启动常驻服务、修改代理/数据根/应用配置、正式库操作或依赖安装。结束核验HEAD、索引、既有文件指纹及代理环境保持；原件在重复解析中哈希匹配。仅保留验证原件与必要证据，无本轮运行影响待恢复；未暂存、提交、创建窗口或发布。
+--- r2/docs/test-reports/TASK-20261005-01-network-diagnosis.md
++++ r3/docs/test-reports/TASK-20261005-01-network-diagnosis.md
+@@ -1,6 +1,6 @@
+ # TASK-20261005-01 连接诊断记录 · 2026-10-06
+ 
+-**当前状态：阻塞，尚不能进入独立审查。** 本记录完成时，两源连接条件已恢复，但A04新空根真实采集、校核与发布尚待开发补证；后续状态以[status](../status.md)为准。原5次失败及[r1报告](TASK-20261005-01-r1-supplement.md)结论保留。
++**当前状态：阻塞，尚不能进入独立审查。** 两次CONNECT/TLS诊断通过后，已执行获准的job6，但行情请求仍失败；A04新空根真实采集、校核与发布未通过；后续状态以[status](../status.md)为准。原5次失败、新增job6失败及[r1报告](TASK-20261005-01-r1-supplement.md)结论保留。
+ 
+ ## 1. 诊断范围与授权
+ 
+@@ -36,3 +36,24 @@
+ 本次只产生短连接和一次性执行进程，脚本finally关闭套接字并取消定时器，执行已退出；没有本次创建的监听服务或持久故障注入。未修改配置、当前正式根、QA运行根指向及用户应用状态。后续开发者新启动的QA资源由该窗口按自身基线恢复，不能混作本次诊断残留。
+ 
+ 负责人及下一步：原协调者已将新依据和明确授权交给原coding窗口，最多一个新空隔离根真实job；成功后补齐原生成功更新和代表日双源依据，失败即停止并保留具体错误。预算守卫按新授权同步，不换账本、不清零。待r2固定材料及恢复证据齐备后，再由协调者判断独立审查入口；当前无需用户重复确认开发。
++
++
++## 5. job6及异常名称的解释边界
++
++获准job6于北京时间01:26:33—34执行，东财0正文失败，中证未请求；01:26:34.626的ClashX目标日志同样为 `match GeoIP(CN) using DIRECT`。本任务原账本累计6个job/6次来源尝试/0正文，新增开发额度和2次连接诊断均已用尽，最后1个job仍留审查。证据 `target-log-matches-after-job6.json`；开发者的r2材料仍待正式交付，不据草稿声明完成归档或独立审查。
++
++本机urllib3 2.8.0代码显示：HTTPSConnection读取响应时发生RemoteDisconnected，可能调用close清除代理已连接标志；外层urlopen再据该标志包装ProxyError。完全离线的假socket/空响应检查复现了“初始已连接→RemoteDisconnected→标志清空”，结果在 `offline-proxy-label-check.json`。这说明ProxyError名称不能单独确定实际断开阶段；它不证明job6已执行到行情GET响应阶段。job6仅保存异常链，没有真实调用栈，阶段仍未知。最初依据错误名称将问题定位到代理建立阶段的表述应收窄，以本节为准，历史报告原文保留。
++
++## 6. 用户提供的外部分析参考
++
++2026-10-06用户提供 `/Users/yuanqi/Documents/thewolf-net-debug/`，要求参考另一AI的分析。本协调者只读了findings.md及五个Python脚本，没有执行其中任何命令。参考主文SHA-256为 `a58c860807025b6f6f5fc04a57b515aa98b809d3d3fd0bfc0be945657efccb2f`；报告自述排查时间02:00—02:08。所给目录及其提及的临时目录均只有说明和脚本，没有逐请求原始日志、响应原件或实际运行的完整调用栈。机器专属出口IP不复制到本项目文档。
++
++| 外部陈述 | 本次评估 |
++|---|---|
++| TLS成功，发送历史K线GET后空响应；直连也失败，其他网页/接口可响应 | 是值得保留的排查线索，与本任务握手通过但完整请求失败相容；外部运行结果目前是报告自述，未由逐次原始输出核验。支持调查请求发送后的接口/边缘处理，不足以锁定责任端 |
++| 已确定当前出口IP被封禁，排除全部代码/代理/线路原因 | 证据不足。未提供同一请求、不同出口的对照；同出口多个目标节点失败也可由接口级规则、请求条件或共同链路造成，不能单独推出封IP或穷尽排除其他原因 |
++| 中证HTTP200、1062字节说明可用 | 仅支持该次请求有响应的自述，不能替代260日、1040个OHLC精确对账；脚本中的价格探针为三日窗口，与本任务全窗口不同 |
++| 下一次100%失败，切换网络即可确认IP封禁 | 不能将有限失败外推为必然。即使后续跨出口对照成功，也首先支持“结果与出口/路径相关”，仍需区分IP策略、路由及边缘差异，不直接宣布永久封禁 |
++| 诊断独立执行，因此不计任何预算 | 作为外部报告自身的说明保留，不把它当本任务追加出站的授权。对方自述东财约18次、中证约4次且另有对照站点；缺逐次账本，精确请求数、流量及与其他记录是否重复均未知，不捏造job或改写本任务账本 |
++
++可采纳的方向是：停止相同请求，先取得现有逐次输出、请求参数和完整异常阶段证据，再决定是否需要严格限定的跨出口对照。热点切换、绕过代理、重跑脚本、访问新增对照站点均未因这份参考自动获准，本轮没有执行。外部测试表明来源已承受额外请求，后续计划须一并考虑，不能只看本任务账本来重置实际尝试历史。无需为归档参考重复请求网站。
+--- /dev/null
++++ r3/docs/test-reports/TASK-20261005-01-r2-supplement.md
+@@ -0,0 +1,88 @@
++# TASK-20261005-01 沪深300价格首版有限补证 · r2
++
++**当前状态：阻塞，尚不能进入独立审查。** 2026-10-06首次送审前补证：已同步获准的7job预算守卫并通过针对性验证，但唯一新增开发job6仍失败；M01-V01 / A04未通过，A05真实成功更新亦缺证据。已立即停止来源请求，恢复本次测试影响。当前授权、计数、问题及下一步仍以[status](../status.md)为唯一来源；本窗口未写status。
++
++| 阻塞项 | 原因与影响 | 解除条件、负责人/下一步、用户操作 |
++|---|---|---|
++| M01-V01：环境与必要验证缺口 | job6东财请求再次RemoteDisconnected/ProxyError，正文0字节，中证未请求；新空根未发布快照，不能证明A04真实双源闭环或A05原生成功更新。此前两次CONNECT/TLS成功不能替代行情GET成功 | 协调者依据现有诊断材料确定新的定位方案及有限授权/预算，再安排开发或审查执行者完成新空根双源获取、校核、发布和原生成功证据。当前开发追加额度已用尽，不能重复原路线或挪用审查job；尚无已定位、可直接要求用户执行的修复操作，不需重复确认开发 |
++
++## 1. 授权、差异与固定版本
++
++任务：[TASK-20261005-01](../tasks/TASK-20261005-01-csi300-price-slice.md)，设计[§5.6](../Market-Dashboard-Design-V0.1.md#56-沪深300首版p02实施设计2026-10-05)，规则[AGENTS](../../AGENTS.md)、[代码规范](../Coding-Standards.md)、[Task-Workflow](../Task-Workflow.md#72-自动任务书模式固定快照审查与git待提交)，命令[README](../../README.md#验证入口)。完整实现/初始验收沿用[r0](TASK-20261005-01-implementation.md)，本地原生补证及恢复沿用[r1](TASK-20261005-01-r1-supplement.md)，连接诊断由协调者的[诊断报告](TASK-20261005-01-network-diagnosis.md)维护。原报告和固定归档未修改。
++
++- 本轮为首次实现的有限补证，已授权自动模式，非复审修复。用户于2026-10-06在协调窗口明确批准“2次连接诊断＋1个补证job”，status登记后由协调者传入本窗口；两次诊断已由协调者完成，不再执行。开发窗口仍为 `01a10a98-c976-75d1-9315-ec9a7af16235`，请求配置 `gpt-6.1-sol/high`；运行时模型/档位无法独立核实。无新窗口、子Agent或跨窗口发送。
++- 初始真实基线 `ff614e4e2605292a9a151ea38a752677f10cd7e7`；上次所审SHA不适用，独立审查尚未开始。本轮比较基线为r1固定快照 `TASK-20261005-01+r1+111422d71d067d764c6b3bf52a48baa5005b2f5c81e2198ea63481564ecb2173`。
++- 本次待审提交SHA/父提交不适用：自动模式不暂存、不提交。HEAD与空索引保持；无amend、reset、push、merge、Tag、发布或正式根操作。
++- r2固定快照 `TASK-20261005-01+r2+1b923bfc23521ad3eebc0d4213079075d85e99afb4a8e706c14780f7ec16ead0`；[清单](artifacts/TASK-20261005-01-r2-manifest.json)记录86份源码、测试、配置、规则、任务及历史/诊断报告依赖的哈希、模式和相对r1差异。这是文件快照指纹，不是Git提交SHA。
++- [源码ZIP](artifacts/TASK-20261005-01-r2-source.zip) SHA-256 `1c8a18d63a4108aae0aa14fab884dc5846a08fa60a2b7b6392ab47f50bbf178c`；[证据ZIP](artifacts/TASK-20261005-01-r2-evidence.zip) SHA-256 `02c86c59a0bf67c1c3d9a0d211cac9510731fa08750b784098f168c49a25fa83`；[r1→r2开发差异](artifacts/TASK-20261005-01-r1-to-r2.patch)。本报告与交付索引单列，避免自引用哈希循环。
++
++| 本轮写入 | 必要变化与消费者 |
++|---|---|
++| `python/src/pmi/index_update.py` | 仅把共用验证账本job上限6改7并同步说明；12次/64MiB/8MiB预留及账本锁、持久化、来源/代理/TLS/发布规则不变。只有配置共用验证账本时启用该守卫，正式产品行为边界保持 |
++| `python/tests/test_index.py` | 新增3项无网络账本边界测试：第7可开始并继续第二源、第8拒绝且不改历史；第12可记录、第13拒绝；已完成和未完成预留合计64MiB后拒绝新增 |
++| 任务书、README | 保留初始6job约定并追加2026-10-06有限授权；实际运行入口同步为7job，引用status中的实际授权/额度，不重置计数 |
++
++以上4文件是本窗口r1→r2开发差异。status由协调者更新；协调者新诊断报告作为只读依赖固化，不算开发改动。固定时点后的协调文档可继续变化，接手不得把最新工作区内容混作固定快照代码。没有改前端、Rust、依赖、日历、来源、数据契约、鉴权或发布规则；无方案偏离。现有其他增量保留。
++
++## 2. 真实job6及诊断边界
++
++新空隔离根 `/private/tmp/thewolf-m01-r2-f3jpujgh/live-empty` 创建时无文件，未导入P01或旧样本。通过真实原生“检查更新”按钮发起唯一一次POST，正常本地API返回202；随后GET显示failed，页面保持无本地快照与ProxyError提示。`native.txt`核对只有1次指数POST；无自动重复POST。
++
++| 项目 | 实际证据 |
++|---|---|
++| job / attempt | `beda26e25276410c91d2b2b3b3b370f1` / `9367184b91744b4fb405c496955b6ad8` |
++| 时间 | 东财尝试UTC `2026-10-05T17:26:33.664628+00:00`—`17:26:34.743290+00:00`；北京时间10月6日01:26:33—34 |
++| 固定目标 | 2025-09-04—2026-09-30，260完整交易日，服务端按已核验日历推导冻结；不是离线种子 |
++| 终态 | failed / source network unavailable (ProxyError)，正文0字节；中证未请求、无SQLite/快照发布、last_success_at及previous_snapshot_id为null |
++| 原生与API | `ui-before-real-job.*`、`ui-real-job-started.*`、`ui-real-job-failed.*`，`native.txt`及`live-job6-status.json`；`live-empty-result.json`核验未发布及唯一POST |
++
++异常观察沿用r1脱敏脚本，仅在获取子进程的requests.get抛异常时保存类型、cause/context/reason/异常参数；没有改transport参数、关闭证书校验或重试。脚本为证据中的`diagnostics_observer.py`。真实异常链见`live-diagnostics.jsonl`：`requests.exceptions.ProxyError` → `urllib3.exceptions.MaxRetryError` → `urllib3.exceptions.ProxyError` → `http.client.RemoteDisconnected`，底层为“Remote end closed connection without response”。无HTTP响应、明确errno或TLS错误，**未记录真实traceback，不能定位CONNECT、TLS或后续哪一步断开**。MaxRetryError名称不代表多次真实请求。
++
++协调者现有证据已只读复制进r2证据ZIP：
++
++- `target-connection-ledger.jsonl`：北京时间01:20:38/39，两目标各一次CONNECT 200、TLSv1.3及证书校验成功，无行情GET；诊断2/2已用完。
++- `target-log-matches.json`及`target-log-matches-after-job6.json`：上述两次和job6对应01:26:34.626的东财连接均匹配`GeoIP(CN) using DIRECT`。这支持所记录ClashX连接选DIRECT；HTTP代理参与不等于选VPN节点，不能将失败简单归因为VPN节点。未改NO_PROXY、全局代理或TLS。
++- `offline-proxy-label-check.json`：协调者以假socket/空响应、无真实socket观察到RemoteDisconnected后代理连接标志清空。它只说明ProxyError包装标签不足以判断阶段，不能证明job6已到GET响应阶段，也不是新增连接探测。本窗口仅复制现成结果。
++
++两次诊断的握手可达与job6实际请求失败同时成立；旧5次及本次失败根因均未确定。没有为补调用栈、验证标签或换来源追加任何请求。
++
++## 3. 预算回执、验证与未执行项
++
++仍使用原共用账本 `/private/tmp/thewolf-m01-implementation-3kyht073/evidence/network-ledger.jsonl`。r2开始副本与结束副本逐字节前缀比较，原5job/5次/0字节保持，本次只追加1个attempt及其finished；不能以新根作为新预算。两轮旧证据ZIP中的历史账本保持其原时点计数。
++
++| 额度 | 本次结束实际值 |
++|---|---|
++| 来源任务 | 6/7，剩余1个仍保留独立审查；本次新增开发job额度已用尽 |
++| 来源尝试 | 6/12，剩余6次；本job东财早失败，中证0次 |
++| 正文 | 0/64MiB，剩余64MiB |
++| 单列连接诊断 | 2/2，全部由协调者此前完成；本窗口没有追加 |
++
++macOS arm64、既有Python 3.12.14/Node/Tauri环境。所测代码为本报告r2快照；命令从仓库根执行，日志在证据ZIP的`evidence/`下。
++
++| 入口/命令 | 结果与边界 |
++|---|---|
++| V-PY `PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_index.IndexBudgetTests -v`，旧守卫下 | 3项中正文边界通过，另2项在第7job处按旧6job上限拒绝；保留`budget-before-fix.txt`，证明需同步授权 |
++| V-PY `PYTHONPATH=python/src:python/tests python/.venv/bin/python -m unittest test_index.IndexBudgetTests test_index.IndexStorageTests.test_start_update_and_budget -v`，同步后 | **4项通过**，`budget-after-fix.txt`；新增边界及既有更新/预算路径，全部独立合成账本，无金融出站 |
++| V-UI/API 独立QA5174/8001、新空根、显式指数开关、原共用账本 | 实际POST202和GET200消费者可用，但真实job6失败；A04、受限A05**未通过**，失败后立即停止 |
++| V-DOC `python/.venv/bin/python /private/tmp/thewolf-m01-r2-f3jpujgh/evidence/check_docs.py` | 通过：3份Markdown、48处本地链接/锚点、围栏、空白及Git差异检查；脚本和结果随证据固化 |
++| 固定材料核对 | 86份SHA/模式与源码ZIP一致，r0/r1报告及固定归档保持；`snapshot-verification.json`、`verify_snapshot.py`及其结果。固化后的status/诊断报告已由协调者继续更新，清单保留固化时点版本，业务及开发文档仍匹配 |
++
++没有机械重跑未受单一预算阈值影响的r0全量49项Python、36项前端、构建、原生矩阵、旧PDF或生命周期；已有有效证据沿用原所测版本，不宣称它们在r2重跑。预算行为变化的独立差异审查尚待后续，不能把本窗口自检当独立审查。真实成功K线、首末/跨年双源原生依据及成功后重启验证本轮未执行：新空根没有成功发布材料，不能导入P01来补成A04成功。r1的V02/V03关闭结论保持；本次无前端变化，不重开其矩阵。
++
++## 4. 复现、恢复与交接
++
++源码ZIP解压到新隔离目录，以`workspace/`为仓库根，先核对清单哈希/模式再运行上述无网络预算检查。README为已有完整入口。真实job命令只是执行记录，**不得以复现名义再执行来源请求**；最后额度仍归审查，须由协调者安排。
++
++实际前端从`apps/desktop`执行 `WOLF_SERVICE_PORT=8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`；原生复用r1已构建960×720 QA二进制的临时.app包装，无Rust重新编译或正式配置修改。运行环境为`PYTHONPATH=<r2临时观察脚本目录>:python/src`、`WOLF_QA_DIAGNOSTICS=1`、`WOLF_DEV_PORT=5174`、`WOLF_SERVICE_PORT=8001`、`WOLF_SLICE_DATA_ROOT=<r2/live-empty>`、`WOLF_ENABLE_INDEX_UPDATE=1`、`WOLF_ENABLE_DATA_UPDATE=0`及原`WOLF_INDEX_BUDGET_LEDGER`。脚本不匹配获取子进程时无API/POST拦截；本次POST为真实更新路径。正常执行权限、代理/TLS保持。临时包装与观察脚本已移除，必要脚本副本保留。
++
++开始基线`baseline.json`记录HEAD/索引、候选文件哈希、六端口无监听、代理环境哈希、原账本哈希及预计4文件变化；`app-state-before.json`记录QA标识系统状态不存在。结束`restoration.json`、`cache-process-cleanup.json`核验：
++
++- 原生、Vite、uvicorn及采集子进程无残留；5173/8000/5174/8001/5184/8014均无监听，与基线一致。
++- 代理环境摘要保持；没有修改系统代理、VPN、NO_PROXY、日志级别或TLS配置。未操作正式金融根或再次读静态备份。
++- QA WebKit/Caches出生时间晚于本次基线，按精确QA标识移除；Preferences/Saved State仍不存在。临时sitecustomize、QA.app及其字节码移除。
++- 只保留已授权源码/文档差异、失败隔离根/原账本与必要证据、既有构建缓存；无活跃数据根指向，无已知未恢复项。失败根无金融快照，正式数据未打开，不声称检查了其他进程的正式数据变化。
++- Git初始HEAD/空索引及r0/r1固定材料保持；既有其他修改保留，status只读。协调者后续文档写入不属于本窗口差异。
++
++复审修复轮次0/3，已定位同根因代码修复失败0/2。六次来源失败现象保留，未定位根因，不冒充代码修复失败；新增有限开发额度已消费，已停止本路线请求，不清零或循环尝试。
++
++接收者为原协调窗口。本窗口只返回材料，不发送跨窗口消息。下一步由协调者核验r2/恢复/预算、保留M01-V01并决定新的有依据诊断或补证安排；当前不创建独立审查、不提交Git，也不能标记用户验收或发布完成。
+--- r2/python/src/pmi/api.py
++++ r3/python/src/pmi/api.py
+@@ -224,7 +224,7 @@
+ class IndexUpdateStatus(BaseModel):
+     """指数任务独立阶段；不存在的值保留null，不伪造成功时刻。"""
+ 
+-    stage: Literal["idle", "preparing", "fetching_eastmoney", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"]
++    stage: Literal["idle", "preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing", "completed", "failed", "interrupted"]
+     enabled: bool = False
+     job_id: Optional[str] = None
+     result: Optional[Literal["business_changed", "evidence_changed", "unchanged", "source_not_ready", "failed", "interrupted"]] = None
+--- r2/python/src/pmi/index_contract.py
++++ r3/python/src/pmi/index_contract.py
+@@ -14,16 +14,40 @@
+ from pmi.index_calendar import completion_basis, trading_days
+ from pmi.snapshot import SnapshotError
+ 
+-Source = Literal["eastmoney", "csindex"]
+-SOURCES: tuple[Source, ...] = ("eastmoney", "csindex")
++Source = Literal["eastmoney", "tencent", "csindex"]
++SOURCES: tuple[Source, ...] = ("tencent", "csindex")
++LEGACY_SOURCES: tuple[Source, ...] = ("eastmoney", "csindex")
+ URLS = {"eastmoney": "https://push2his.eastmoney.com/api/qt/stock/kline/get",
++        "tencent": "https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get",
+         "csindex": "https://www.csindex.com.cn/csindex-home/perf/index-perf"}
+ INSTRUMENT = {"id": "csi:000300:price", "code": "000300", "name": "沪深300",
+               "provider": "中证", "return_type": "price", "frequency": "daily"}
+ FIELDS = ("open", "high", "low", "close")
+-CONTRACT = {"version": "csi300-exact-ohlc-v1", "normalization": "decimal-two-places-v1",
+-            "sources": URLS, "unused_fields": ["volume", "amount", "changePct", "peg"],
++LEGACY_CONTRACT = {"version": "csi300-exact-ohlc-v1", "normalization": "decimal-two-places-v1",
++            "sources": {source: URLS[source] for source in LEGACY_SOURCES}, "unused_fields": ["volume", "amount", "changePct", "peg"],
+             "publication_time": "unknown", "identity_basis": "PLAN-P01 official factsheet; H00300/N00300 excluded"}
++CONTRACT = {**LEGACY_CONTRACT, "version": "csi300-tencent-exact-ohlc-v2",
++            "sources": {source: URLS[source] for source in SOURCES},
++            "unused_fields": ["volume", "amount", "changePct", "peg", "prec", "version"],
++            "tencent_branch": "day", "request_qfq_semantics": "SDK compatibility parameter; price index day only",
++            "date_selection": "exclude earlier rows; reject later, duplicate or unordered dates; retain original array index"}
++
++
++def contract_sources(version: str) -> tuple[Source, ...]:
++    """按已登记策略选择来源；旧版本仅供固定原件重放和只读核验。
++
++    Args:
++        version: 固定快照的来源契约版本，未知版本不能推定为当前来源。
++    Returns:
++        对应双源的固定顺序。
++    Raises:
++        SnapshotError: 版本未登记。
++    """
++    if version == CONTRACT["version"]:
++        return SOURCES
++    if version == LEGACY_CONTRACT["version"]:
++        return LEGACY_SOURCES
++    raise SnapshotError("未知指数来源契约版本")
+ 
+ 
+ class SourceNotReady(SnapshotError):
+@@ -72,7 +96,12 @@
+ 
+ 
+ def source_url(source: Source, days: tuple[str, ...]) -> str:
+-    """从服务端固定来源和冻结窗口构造URL，无任意外链参数。"""
++    """构造固定来源/窗口URL；东财URL只用于验证旧归档，不授予出站权限。"""
++    if source not in URLS:
++        raise SnapshotError("未知指数来源")
++    if source == "tencent":
++        return URLS[source] + "?" + urlencode({"_var": "kline_dayqfq",
++            "param": f"sh000300,day,{days[0]},{days[-1]},640,qfq", "r": "0.8205512681390605"})
+     params = ({"secid": "1.000300", "fields1": "f1,f2,f3,f4,f5", "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+                "klt": "101", "fqt": "0", "beg": days[0].replace("-", ""), "end": days[-1].replace("-", "")}
+               if source == "eastmoney" else {"indexCode": "000300", "startDate": days[0].replace("-", ""), "endDate": days[-1].replace("-", "")})
+@@ -107,6 +136,16 @@
+                      raw_values={name: str(values[name]) for name in FIELDS})
+ 
+ 
++def _unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
++    """腾讯JSON拒绝重复键，避免身份或day分支被后一个同名键覆盖。"""
++    result = {}
++    for key, value in pairs:
++        if key in result:
++            raise SnapshotError("tencent: 重复JSON字段")
++        result[key] = value
++    return result
++
++
+ def parse_source(source: Source, content: bytes) -> tuple[SourceRow, ...]:
+     """核验来源身份并显式映射OHLC，JSON小数从原始文本进入Decimal。
+ 
+@@ -114,9 +153,30 @@
+         SnapshotError: 身份、成功状态、结构、日期或点位不符合契约。
+     """
+     try:
+-        raw = json.loads(content, parse_float=Decimal, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
++        if source not in URLS:
++            raise SnapshotError("未知指数来源")
++        text = content.decode("utf-8")
++        if source == "tencent" and not text.lstrip().startswith("{"):
++            match = re.fullmatch(r"\s*kline_dayqfq=(\{.*\});?\s*", text, re.S)
++            if match is None:
++                raise SnapshotError("tencent: 仅允许指定变量的JSON，不执行脚本")
++            text = match[1]
++        raw = json.loads(text, parse_float=Decimal, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
++                         **({"object_pairs_hook": _unique_fields} if source == "tencent" else {}))
+         rows = []
+-        if source == "eastmoney":
++        if source == "tencent":
++            data = raw["data"]["sh000300"]
++            identity = data["qt"]["sh000300"]
++            if type(raw["code"]) is not int or raw["code"] != 0 or not isinstance(identity, list) or identity[1:3] != ["沪深300", "000300"]:
++                raise SnapshotError("tencent: 指数身份或成功状态不符")
++            if not isinstance(data.get("day"), list) or "qfqday" in data or "hfqday" in data:
++                raise SnapshotError("tencent: 只准入day分支，不降级至复权分支")
++            for index, fields in enumerate(data["day"]):
++                if not isinstance(fields, list) or len(fields) < 5 or not all(isinstance(value, str) for value in fields[:5]):
++                    raise SnapshotError("tencent: day字段结构不符")
++                # 腾讯同样按日期、开、收、高、低返回；原数组下标不因裁剪改变。
++                rows.append(_row(fields[0], dict(zip(("open", "close", "high", "low"), fields[1:5])), f"$.data.sh000300.day[{index}]"))
++        elif source == "eastmoney":
+             data = raw["data"]
+             if raw["rc"] != 0 or any(data.get(k) != v for k, v in {"code": "000300", "market": 1, "name": "沪深300", "decimal": 2}.items()):
+                 raise SnapshotError("eastmoney: 指数身份或成功状态不符")
+@@ -139,7 +199,11 @@
+         days = [row.trade_date for row in rows]
+         if len(set(days)) != len(days):
+             raise SnapshotError(f"{source}: 重复交易日")
++        if source == "tencent" and days != sorted(days):
++            raise SnapshotError("tencent: 日期未按原数组递增")
+         return tuple(sorted(rows, key=lambda row: row.trade_date))
++    except SnapshotError:
++        raise
+     except (KeyError, TypeError, ValueError, AttributeError, InvalidOperation) as error:
+         raise SnapshotError(f"{source}: 非法来源结构（{type(error).__name__}）") from error
+ 
+@@ -150,17 +214,25 @@
+         raise SnapshotError("指数窗口必须为260个完整、唯一、递增的已核验交易日")
+ 
+ 
+-def build_manifest(days: tuple[str, ...], originals: tuple[Original, ...]) -> dict:
++def build_manifest(days: tuple[str, ...], originals: tuple[Original, ...], *,
++                   contract_version: str = CONTRACT["version"]) -> dict:
+     """精确对账两个独立来源并生成不含观察时刻的不可变内容清单。
+ 
+     缺中间日期/额外日期为失败，仅末尾连续缺失为未就绪；两源不互补。
++    腾讯只排除窗口前的日期，完整原件和原数组定位保持；旧策略仅由只读核验显式指定。
+     """
+     validate_window(days)
+-    if tuple(item.source for item in originals) != SOURCES:
++    sources = contract_sources(contract_version)
++    contract = CONTRACT if sources == SOURCES else LEGACY_CONTRACT
++    if tuple(item.source for item in originals) != sources:
+         raise SnapshotError("需要两份固定来源原件且顺序一致")
+     parsed = [parse_source(item.source, item.content) for item in originals]
++    if sources == SOURCES:
++        if any(row.trade_date > days[-1] for row in parsed[0]):
++            raise SnapshotError("tencent: 存在晚于冻结截止日的日期")
++        parsed[0] = tuple(row for row in parsed[0] if row.trade_date >= days[0])
+     incomplete = []
+-    for source, rows in zip(SOURCES, parsed):
++    for source, rows in zip(sources, parsed):
+         actual = tuple(row.trade_date for row in rows)
+         if actual != days:
+             if len(actual) < len(days) and actual == days[:len(actual)]:
+@@ -184,12 +256,12 @@
+     for left, right in zip(*parsed):
+         for field in FIELDS:
+             if getattr(left, field) != getattr(right, field):
+-                raise SnapshotError(f"双源不一致: {left.trade_date} {field} eastmoney={getattr(left, field)} csindex={getattr(right, field)}")
++                raise SnapshotError(f"双源不一致: {left.trade_date} {field} {sources[0]}={getattr(left, field)} csindex={getattr(right, field)}")
+         bars.append({"trade_date": left.trade_date, **{field: getattr(left, field) for field in FIELDS},
+                      "evidence_refs": [{"object_id": item["object_id"], "locator": rows[len(bars)].locator} for item, rows in zip(evidence, parsed)]})
+     return {"schema_version": "csi300-price-snapshot-v1", "instrument": INSTRUMENT, "unit": "点", "timezone": "Asia/Shanghai",
+             "pit_grade": "latest_only", "calendar_dates": list(days), "window": {"start": days[0], "end": days[-1], "expected_count": 260, "actual_count": 260},
+-            "bars": bars, "summary": summarize(bars), "completion_basis": completion_basis(), "source_contract": CONTRACT, "evidence": evidence}
++            "bars": bars, "summary": summarize(bars), "completion_basis": completion_basis(), "source_contract": contract, "evidence": evidence}
+ 
+ 
+ def summarize(bars: list[dict]) -> dict:
+--- r2/python/src/pmi/index_fetch.py
++++ r3/python/src/pmi/index_fetch.py
+@@ -11,7 +11,7 @@
+ 
+ import requests
+ 
+-from pmi.index_contract import source_url
++from pmi.index_contract import SOURCES, source_url
+ from pmi.snapshot import SnapshotError
+ 
+ MAX_BODY = 8 * 1024 * 1024
+@@ -57,7 +57,7 @@
+ def main() -> None:
+     """只接受固定来源和窗口边界，不接受任意URL。"""
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--source", choices=("eastmoney", "csindex"), required=True)
++    parser.add_argument("--source", choices=SOURCES, required=True)
+     parser.add_argument("--start", required=True)
+     parser.add_argument("--end", required=True)
+     parser.add_argument("--output", type=Path, required=True)
+--- r2/python/src/pmi/index_snapshot.py
++++ r3/python/src/pmi/index_snapshot.py
+@@ -11,7 +11,7 @@
+ from pathlib import Path
+ from typing import Callable, Iterator
+ 
+-from pmi.index_contract import Original, SOURCES, build_manifest, canonical, digest, source_url, utc
++from pmi.index_contract import Original, build_manifest, canonical, contract_sources, digest, source_url, utc
+ from pmi.snapshot import SnapshotError
+ 
+ ID_PATTERN = r"[0-9a-f]{64}"
+@@ -235,7 +235,8 @@
+     if digest(canonical(receipt)) != row["first_observation"] or receipt["snapshot_id"] != snapshot_id:
+         raise SnapshotError("指数观察身份损坏")
+     originals = tuple(Original(item["source"], read_object(root, item["object_id"]), item["started_at"], item["completed_at"]) for item in receipt["sources"])
+-    if tuple(item.source for item in originals) != SOURCES or build_manifest(tuple(manifest["calendar_dates"]), originals) != manifest:
++    version = manifest.get("source_contract", {}).get("version")
++    if tuple(item.source for item in originals) != contract_sources(version) or build_manifest(tuple(manifest["calendar_dates"]), originals, contract_version=version) != manifest:
+         raise SnapshotError("指数快照清单契约不一致")
+     if _observation(snapshot_id, originals, tuple(manifest["calendar_dates"])) != receipt or row["end_date"] != manifest["window"]["end"]:
+         raise SnapshotError("指数观察/截止日不一致")
+--- r2/python/src/pmi/index_update.py
++++ r3/python/src/pmi/index_update.py
+@@ -24,7 +24,8 @@
+ from pmi.snapshot import SnapshotError
+ from pmi.writer_lock import writer_lock
+ 
+-ACTIVE = {"preparing", "fetching_eastmoney", "fetching_csindex", "validating", "publishing"}
++# 旧东财阶段仅用于重启/状态恢复，新编排只遍历当前SOURCES。
++ACTIVE = {"preparing", "fetching_eastmoney", "fetching_tencent", "fetching_csindex", "validating", "publishing"}
+ _LOGGER = logging.getLogger(__name__)
+ _MUTEX = threading.Lock()
+ _FETCH_DEADLINE_SECONDS = 45
+@@ -83,15 +84,15 @@
+ 
+ 
+ def _ledger_path(parent: Path) -> Path:
+-    # 隔离实测可共用预算账本；正式产品仍只记录本子根账本，不受验证7job上限影响。
++    # 隔离实测可共用预算账本；正式产品仍只记录本子根账本，不受验证8job上限影响。
+     configured = os.environ.get("WOLF_INDEX_BUDGET_LEDGER")
+     return safe_path(Path(configured)) if configured else index_root(parent) / "network-ledger.jsonl"
+ 
+ 
+ def _record_attempt(parent: Path, entry: dict) -> None:
+-    """出站前持久化尝试，失败/中断同样计数；隔离验证共用7job/12次/64MiB预算。
+-
+-    七job为2026-10-06有限补证追加后的授权；沿用旧账本，不重置历史尝试。
++    """出站前持久化尝试，失败/中断同样计数；隔离验证共用8job/12次/64MiB预算。
++
++    八job为2026-10-06腾讯换源追加后的授权；沿用旧账本，不重置历史尝试。
+     """
+     path = _ledger_path(parent)
+     with path.open("a+", encoding="utf-8") as stream:
+@@ -104,7 +105,7 @@
+             # 未完成尝试按整个8MiB预留，防止中断后低估正文预算。
+             completed = {line["attempt_id"]: line["bytes"] for line in lines if line["event"] == "finished"}
+             used = sum(completed.get(line["attempt_id"], 8 * 1024 * 1024) for line in attempts)
+-            if len(attempts) >= 12 or len(jobs | {entry["job_id"]}) > 7 or used + 8 * 1024 * 1024 > 64 * 1024 * 1024:
++            if len(attempts) >= 12 or len(jobs | {entry["job_id"]}) > 8 or used + 8 * 1024 * 1024 > 64 * 1024 * 1024:
+                 raise SnapshotError("受控真实出站预算不足，停止请求")
+         stream.seek(0, 2)
+         stream.write(canonical(entry).decode() + "\n")
+@@ -117,6 +118,8 @@
+ 
+     主机冷却至少5秒，冷却在父根锁内；不绕过代理/TLS或重试。
+     """
++    if source not in SOURCES:
++        raise SnapshotError("来源只读或未准入，禁止新增出站")
+     ledger = _ledger_path(parent)
+     if ledger.exists():
+         entries = [json.loads(line) for line in ledger.read_text().splitlines()]
+--- r2/python/tests/index_replay_smoke.py
++++ r3/python/tests/index_replay_smoke.py
+@@ -1,4 +1,4 @@
+-"""核对P01固定原件后在新隔离根离线重放，绝不代替新鲜真实更新验收。"""
++"""核对腾讯候选及P01中证原件后离线重放，绝不代替新鲜真实更新验收。"""
+ 
+ import argparse
+ import json
+@@ -10,7 +10,7 @@
+ from pmi.index_snapshot import index_root, publish, read_evidence, read_snapshot
+ from pmi.writer_lock import writer_lock
+ 
+-EXPECTED = {"E01": "846aa040400b173a179f359db4f4813646a4df17215fc7718ac440f2939e7282",
++EXPECTED = {"Tencent": "396245b5940b3f6efe049c9582113d0398738805a12d5772f0f8fead6c9c531a",
+             "C01": "40aff181ee6a4503d73cca807ec7c67e7be733429136c59d4e7550b609ca9e43"}
+ 
+ 
+@@ -18,6 +18,7 @@
+     """实际读取原件、开始/结束账本和日历哈希；缺材料就停止。"""
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--p01-root", type=Path, required=True)
++    parser.add_argument("--tencent-root", type=Path, required=True)
+     parser.add_argument("--data-root", type=Path, required=True)
+     args = parser.parse_args()
+     root = args.data_root.resolve()
+@@ -26,8 +27,12 @@
+         parser.error("需要尚无指数子根的隔离目录，不覆盖旧测试结果或正式库")
+     receipts = json.loads((args.p01_root / "evidence/originals-manifest.json").read_bytes())
+     ledger = [json.loads(line) for line in (args.p01_root / "evidence/request-ledger.jsonl").read_text().splitlines()]
+-    originals = []
+-    for source, request_id in (("eastmoney", "E01"), ("csindex", "C01")):
++    tencent_receipt = json.loads((args.tencent_root / "receipt.json").read_bytes())
++    content = (args.tencent_root / "raw-response.bin").read_bytes()
++    assert digest(content) == tencent_receipt["sha256"] == EXPECTED["Tencent"]
++    assert tencent_receipt["status_code"] == 200 and tencent_receipt["bytes"] == len(content)
++    originals = [Original("tencent", content, tencent_receipt["start_utc"], tencent_receipt["end_utc"])]
++    for source, request_id in (("csindex", "C01"),):
+         receipt = receipts[request_id]
+         assert receipt["sha256"] == EXPECTED[request_id]
+         content = args.p01_root.joinpath("raw", receipt["sha256"]).read_bytes()
+@@ -40,7 +45,7 @@
+     days = complete_window(datetime(2026, 10, 5, tzinfo=timezone.utc))
+     manifest = build_manifest(days, tuple(originals))
+     with writer_lock(root):
+-        snapshot_id = publish(root, manifest, tuple(originals), {"job_id": "p01-offline-replay", "result": "business_changed", "message": "P01固定原件离线重放，非本轮联网成功"})
++        snapshot_id = publish(root, manifest, tuple(originals), {"job_id": "tencent-offline-replay", "result": "business_changed", "message": "腾讯候选及P01固定原件离线重放，非本轮联网成功"})
+     view = read_snapshot(root, snapshot_id)
+     for item in view["evidence"]:
+         evidence = read_evidence(root, snapshot_id, item["object_id"])
+--- r2/python/tests/test_index.py
++++ r3/python/tests/test_index.py
+@@ -59,14 +59,14 @@
+ 
+ def originals(days=DAYS, close="105.00", stamp="2026-10-05T01:00:00Z", extra=None):
+     """构造两源明确合成价格原件，保留开/收/高/低的不同值证明映射。"""
+-    east = {"rc": 0, "data": {"code": "000300", "market": 1, "name": "沪深300", "decimal": 2,
+-                              "klines": [f"{day},100.00,{close},110.00,90.00,0,0,0" for day in days]}}
++    east = {"code": 0, "data": {"sh000300": {"qt": {"sh000300": ["1", "沪深300", "000300"]},
++                    "day": [[day, "100.00", close, "110.00", "90.00", "0"] for day in days]}}}
+     official = {"code": "200", "msg": "Success", "data": [
+         {"tradeDate": day.replace("-", ""), "indexCode": "000300", "indexNameCn": "沪深300", "indexNameCnAll": "沪深300指数",
+          "open": "100.00", "high": "110.00", "low": "90.00", "close": close} for day in days]}
+     if extra:
+         east.update(extra)
+-    return (Original("eastmoney", canonical(east), stamp, stamp), Original("csindex", canonical(official), stamp, stamp))
++    return (Original("tencent", canonical(east), stamp, stamp), Original("csindex", canonical(official), stamp, stamp))
+ 
+ 
+ def mutated(items, source, mutation):
+@@ -92,13 +92,14 @@
+         manifest = build_manifest(DAYS, originals())
+         self.assertEqual([manifest["bars"][0][key] for key in ("open", "high", "low", "close")], ["100.00", "110.00", "90.00", "105.00"])
+         self.assertEqual(manifest["instrument"]["id"], "csi:000300:price")
+-        for mutate in (lambda raw: raw["data"].update(code="H00300"), lambda raw: raw["data"].update(market=0),
+-                       lambda raw: raw["data"].update(decimal=3), lambda raw: raw.update(rc=1)):
++        for mutate in (lambda raw: raw["data"]["sh000300"]["qt"]["sh000300"].__setitem__(2, "H00300"),
++                       lambda raw: raw["data"]["sh000300"]["qt"]["sh000300"].__setitem__(1, "其他指数"),
++                       lambda raw: raw["data"].update(sh000300={}), lambda raw: raw.update(code=1)):
+             with self.assertRaises(SnapshotError):
+                 build_manifest(DAYS, mutated(originals(), 0, mutate))
+         for invalid_day in ("2026-10-05", "2026-10-08", DAYS[0]):
+             with self.assertRaises(SnapshotError):
+-                build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["klines"].__setitem__(-1, f"{invalid_day},100,105,110,90,0,0,0")))
++                build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__setitem__(-1, [invalid_day,"100","105","110","90","0"])))
+ 
+     def test_decimal_and_calculation_boundaries(self):
+         self.assertEqual(point("100.000"), "100.00")
+@@ -126,14 +127,14 @@
+     def test_missing_and_mismatch(self):
+         items = originals()
+         with self.assertRaises(SourceNotReady):
+-            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["klines"].pop()))
++            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
+         with self.assertRaisesRegex(SnapshotError, "内部缺日"):
+-            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["klines"].pop(100)))
++            build_manifest(DAYS, mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop(100)))
+         mismatch = mutated(items, 1, lambda raw: raw["data"][0].update(close="104.99"))
+         with self.assertRaisesRegex(SnapshotError, "双源不一致"):
+             build_manifest(DAYS, mismatch)
+         with self.assertRaisesRegex(SnapshotError, "双源不一致"):
+-            build_manifest(DAYS, mutated(mismatch, 0, lambda raw: raw["data"]["klines"].pop()))
++            build_manifest(DAYS, mutated(mismatch, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
+ 
+ 
+ class IndexStorageTests(unittest.TestCase):
+@@ -267,7 +268,7 @@
+                     raise SnapshotError("synthetic network unavailable")
+                 items = originals(stamp="2026-10-05T02:00:00Z")
+                 if kind in ("tail", "middle"):
+-                    items = mutated(items, 0, lambda raw: raw["data"]["klines"].pop(-1 if kind == "tail" else 100))
++                    items = mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].pop(-1 if kind == "tail" else 100))
+                 if kind == "mismatch":
+                     items = mutated(items, 1, lambda raw: raw["data"][0].update(close="104.99"))
+                 return next(item for item in items if item.source == source)
+@@ -291,7 +292,7 @@
+         self.assertEqual(result["stage"], "preparing")
+         for _ in range(100):
+             result = update_status(self.root)
+-            if result["stage"] not in ("preparing", "fetching_eastmoney", "fetching_csindex", "validating", "publishing"):
++            if result["stage"] not in ("preparing", "fetching_tencent", "fetching_csindex", "validating", "publishing"):
+                 break
+             time.sleep(.01)
+         self.assertEqual(result["stage"], "completed")
+@@ -326,17 +327,17 @@
+             _record_attempt(self.root, {"event": "finished", "attempt_id": attempt_id,
+                                         "bytes": completed_bytes})
+ 
+-    def test_seventh_job_allowed_eighth_rejected_without_rewriting_history(self):
+-        """第七job可开始并继续第二源；第八job拒绝，原失败计数不清零。"""
+-        for index in range(6):
++    def test_eighth_job_allowed_ninth_rejected_without_rewriting_history(self):
++        """第八job可开始并继续第二源；第九job拒绝，原失败计数不清零。"""
++        for index in range(7):
+             self.attempt(f"job-{index}", f"attempt-{index}", 0)
+         history = self.ledger.read_bytes()
+-        self.attempt("job-6", "seventh", 0)
+-        self.attempt("job-6", "seventh-second-source", 0)
++        self.attempt("job-7", "eighth", 0)
++        self.attempt("job-7", "eighth-second-source", 0)
+         self.assertTrue(self.ledger.read_bytes().startswith(history))
+         before_rejection = self.ledger.read_bytes()
+         with self.assertRaisesRegex(SnapshotError, "预算不足"):
+-            self.attempt("job-7", "eighth", 0)
++            self.attempt("job-8", "ninth", 0)
+         self.assertEqual(self.ledger.read_bytes(), before_rejection)
+ 
+     def test_twelve_attempt_limit_is_unchanged(self):
+@@ -413,7 +414,7 @@
+             index_root(root).mkdir(parents=True)
+             with patch.dict(os.environ, {"WOLF_INDEX_BUDGET_LEDGER": ""}), patch("pmi.index_update.subprocess.Popen", side_effect=synthetic_child), patch("pmi.index_update._FETCH_DEADLINE_SECONDS", .05):
+                 with self.assertRaisesRegex(SnapshotError, "硬截止"):
+-                    fetch_bounded(root, "eastmoney", DAYS, "deadline")
++                    fetch_bounded(root, "tencent", DAYS, "deadline")
+             self.assertIsNotNone(children[0].poll())
+             self.assertTrue(children[0].stdin.closed)
+             entries = [json.loads(line) for line in index_root(root).joinpath("network-ledger.jsonl").read_text().splitlines()]
+@@ -425,7 +426,7 @@
+         with tempfile.TemporaryDirectory() as directory:
+             root = Path(directory).resolve()
+             root.joinpath("requests.py").write_text("import time\nclass RequestException(Exception): pass\ndef get(*args, **kwargs):\n    time.sleep(60)\n")
+-            child = subprocess.Popen([sys.executable, "-m", "pmi.index_fetch", "--source", "eastmoney", "--start", DAYS[0], "--end", DAYS[-1], "--output", str(root)],
++            child = subprocess.Popen([sys.executable, "-m", "pmi.index_fetch", "--source", "tencent", "--start", DAYS[0], "--end", DAYS[-1], "--output", str(root)],
+                                      stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                      env={**os.environ, "PYTHONPATH": str(root) + os.pathsep + str(Path("python/src").resolve())})
+             try:
+--- /dev/null
++++ r3/python/tests/test_index_tencent.py
+@@ -0,0 +1,106 @@
++"""腾讯换源反例与旧契约只读兼容，所有输入均为明确合成原件。"""
++
++import json
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++from pmi.index_contract import (CONTRACT, LEGACY_CONTRACT, Original, SourceNotReady,
++                                build_manifest, canonical, digest, parse_source)
++from pmi.index_snapshot import index_root, publish, read_evidence, read_snapshot
++from pmi.index_update import fetch_bounded
++from pmi.snapshot import SnapshotError
++from pmi.writer_lock import writer_lock
++from test_index import DAYS, mutated, originals, state
++
++
++def legacy_originals():
++    """仅为兼容测试生成旧东财格式，生产采集不使用此路径。"""
++    items = originals()
++    raw = {"rc": 0, "data": {"code": "000300", "market": 1, "name": "沪深300", "decimal": 2,
++        "klines": [f"{day},100.00,105.00,110.00,90.00,0,0,0" for day in DAYS]}}
++    return (Original("eastmoney", canonical(raw), items[0].started_at, items[0].completed_at), items[1])
++
++
++class TencentContractTests(unittest.TestCase):
++    def test_json_envelope_and_original_locator(self):
++        items = originals()
++        earlier = ["2025-09-03", "100.00", "105.00", "110.00", "90.00"]
++        items = mutated(items, 0, lambda raw: raw["data"]["sh000300"]["day"].insert(0, earlier))
++        for prefix, suffix in ((b"", b""), (b"kline_dayqfq=", b";\n")):
++            with self.subTest(prefix=prefix):
++                content = prefix + items[0].content + suffix
++                manifest = build_manifest(DAYS, (Original("tencent", content, items[0].started_at, items[0].completed_at), items[1]))
++                evidence = manifest["evidence"][0]
++                self.assertEqual(len(manifest["bars"]), 260)
++                self.assertEqual(evidence["object_id"], digest(content))
++                self.assertEqual(evidence["rows"][0]["locator"], "$.data.sh000300.day[1]")
++                self.assertEqual(manifest["bars"][0]["evidence_refs"][0]["locator"], "$.data.sh000300.day[1]")
++                self.assertEqual(manifest["source_contract"], CONTRACT)
++
++    def test_no_script_execution_duplicate_fields_or_branch_fallback(self):
++        raw = originals()[0].content
++        for content in (b"other=" + raw, b"kline_dayqfq=" + raw + b";alert(1)",
++                        b"kline_dayqfq=(" + raw + b")", raw.replace(b'"code":0', b'"code":0,"code":0')):
++            with self.subTest(content=content[:40]), self.assertRaises(SnapshotError):
++                parse_source("tencent", content)
++        mutations = [lambda raw: raw.update(code=True), lambda raw: raw.update(code="0"),
++            lambda raw: raw["data"]["sh000300"].update(qfqday=[]),
++            lambda raw: raw["data"]["sh000300"].update(hfqday=[]),
++            lambda raw: raw["data"]["sh000300"].pop("day"),
++            lambda raw: raw["data"]["sh000300"]["qt"].update(sh000300=["1", "沪深300", "H00300"]),
++            lambda raw: raw["data"]["sh000300"]["day"][0].__setitem__(1, 100),
++            lambda raw: raw["data"]["sh000300"]["day"][0].__setitem__(1, "100.001")]
++        for mutation in mutations:
++            with self.subTest(mutation=mutation), self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, mutation))
++
++    def test_date_validation_precedes_trimming(self):
++        early = ["2025-09-03", "100.00", "105.00", "110.00", "90.00"]
++        for rows in ([early, early], [early, ["2025-09-02", *early[1:]]], [["2025-02-30", *early[1:]]]):
++            with self.subTest(rows=rows), self.assertRaises(SnapshotError):
++                build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__setitem__(slice(0, 0), rows)))
++        with self.assertRaisesRegex(SnapshotError, "晚于冻结"):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].append(["2026-10-01", *early[1:]])))
++        with self.assertRaisesRegex(SnapshotError, "内部缺日"):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].insert(2, ["2025-09-06", *early[1:]])))
++        with self.assertRaises(SourceNotReady):
++            build_manifest(DAYS, mutated(originals(), 0, lambda raw: raw["data"]["sh000300"]["day"].__delitem__(slice(-2, None))))
++        conflict = mutated(originals(), 1, lambda raw: raw["data"][0].update(close="104.99"))
++        with self.assertRaisesRegex(SnapshotError, "双源不一致"):
++            build_manifest(DAYS, mutated(conflict, 0, lambda raw: raw["data"]["sh000300"]["day"].pop()))
++
++    def test_legacy_read_preserved_after_new_publication(self):
++        with tempfile.TemporaryDirectory(prefix="thewolf-tencent-compat-") as directory:
++            root = Path(directory).resolve()
++            items = legacy_originals()
++            old_manifest = build_manifest(DAYS, items, contract_version=LEGACY_CONTRACT["version"])
++            # 仅模拟旧版本曾经发布的磁盘夹具；解除替身后所有读取和新发布走生产路径。
++            with writer_lock(root), patch("pmi.index_snapshot.build_manifest", return_value=old_manifest):
++                old_id = publish(root, old_manifest, items, state("old-fixture"))
++            old_view = read_snapshot(root, old_id)
++            old_evidence = [read_evidence(root, old_id, item["object_id"]) for item in old_view["evidence"]]
++            old_objects = {path.name: path.read_bytes() for path in (index_root(root) / "objects").iterdir()}
++            with writer_lock(root), self.assertRaises(SnapshotError):
++                publish(root, old_manifest, items, state("forbidden-legacy-publication"))
++            new = originals(stamp="2026-10-06T01:00:00Z")
++            with writer_lock(root):
++                new_id = publish(root, build_manifest(DAYS, new), new, state("new-tencent"))
++            self.assertNotEqual(new_id, old_id)
++            self.assertEqual(read_snapshot(root)["snapshot_id"], new_id)
++            self.assertEqual(read_snapshot(root, old_id), old_view)
++            self.assertEqual([read_evidence(root, old_id, item["object_id"]) for item in old_view["evidence"]], old_evidence)
++            for object_id, content in old_objects.items():
++                self.assertEqual((index_root(root) / "objects" / object_id).read_bytes(), content)
++            with self.assertRaisesRegex(SnapshotError, "未知指数来源契约"):
++                build_manifest(DAYS, new, contract_version="unknown-v3")
++
++    def test_legacy_fetch_rejected_before_budget_or_process(self):
++        with tempfile.TemporaryDirectory(prefix="thewolf-source-whitelist-") as directory:
++            root = Path(directory).resolve()
++            with patch("pmi.index_update._record_attempt") as record, patch("pmi.index_update.subprocess.Popen") as spawn:
++                with self.assertRaises(SnapshotError):
++                    fetch_bounded(root, "eastmoney", DAYS, "forbidden")
++                record.assert_not_called()
++                spawn.assert_not_called()

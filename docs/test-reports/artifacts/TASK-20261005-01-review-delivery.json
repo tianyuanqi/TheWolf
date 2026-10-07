@@ -1,0 +1,53 @@
+{
+  "task": "TASK-20261005-01",
+  "review_round": 0,
+  "review_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "fixed_snapshot": "TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279",
+  "conclusion": "needs_changes",
+  "findings": [
+    {
+      "id": "M01-R01",
+      "classification": "confirmed-defect",
+      "severity": "P2",
+      "origin": "initial implementation navigation/unmount regression"
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-review.md",
+      "sha256": "b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5",
+      "bytes": 15179
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-review-evidence.zip",
+      "sha256": "f8ee7f671ccc702f34e0f74b033fa8e297ffd32e4894f366875845a8968686f5",
+      "bytes": 17708
+    }
+  ],
+  "verification": {
+    "python_tests": 57,
+    "frontend_tests": 39,
+    "build": "PASS",
+    "loopback_api_and_parent_eof": "PASS after permitted local socket rerun",
+    "real_saved_exact_matches": 1040,
+    "legacy_fixed_compatibility": "PASS",
+    "pdf_unmount_probe": "DEFECT REPRODUCED",
+    "restoration": "PASS",
+    "native_ui": "reviewed fixed developer screenshots/AX; not separately launched",
+    "new_financial_requests": 0,
+    "reserved_review_job_consumed": false,
+    "source_ledger_unchanged": true,
+    "runtime_model": "not independently verified",
+    "code_mutation": false,
+    "status_mutation": false,
+    "git_mutation": false,
+    "cross_thread_message": false,
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 1,
+      "local_links": 5,
+      "errors": []
+    }
+  }
+}

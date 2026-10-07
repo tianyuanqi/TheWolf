@@ -1,0 +1,115 @@
+{
+  "task": "TASK-20261005-01",
+  "review_round": 2,
+  "review_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "previous_reviewed_snapshot": "TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d",
+  "fixed_snapshot": "TASK-20261005-01+r5+1592a1fceb7aac187d8602e31f70f27ddcccc4ab1f67c41cc83142c42511eda8",
+  "conclusion": "passed",
+  "automatic_mode_endpoint": "independent review passed, Git pending submission",
+  "findings": [
+    {
+      "id": "M01-R01",
+      "classification": "confirmed-defect",
+      "severity": "P2",
+      "state": "closed",
+      "closed_in_snapshot": "r5",
+      "evidence": "synchronous ownership; original actual React counterexample now releases URL; original and adjacent consumers remain correct"
+    }
+  ],
+  "new_findings": [],
+  "reopened_findings": [],
+  "unresolved_task_blockers": [],
+  "counters_for_coordinator": {
+    "review_round": 2,
+    "review_limit": 3,
+    "same_root_failure_before": 1,
+    "same_root_failure_after": 1,
+    "same_root_failure_limit": 2,
+    "counts_reset": false,
+    "stop_threshold_reached": false,
+    "normal_repair_cycle_finished": true
+  },
+  "previous_round_report_sha256": "1443d018caf82594d49b0edcc0bd1e87f0c310a151007fed11be9821928f4c24",
+  "preserved_prefix_bytes": 25436,
+  "previous_round_fixed_member": "evidence/review-before.md",
+  "previous_round_deliveries_unchanged": true,
+  "fixed_developer_delivery": {
+    "path": "docs/test-reports/artifacts/TASK-20261005-01-r5-delivery.json",
+    "sha256": "9c5a9b19a92731ab171418aa7d5378af34ecab358ebc83ec273bfeacbcc9705a",
+    "source_zip_sha256": "114ff5552671bdfecd4cbd56f968a74c0bf8d94260d34f712a77641c6d8791ed",
+    "development_evidence_sha256": "f3ace82f8176c77c3a3651a99abbe1c42758f5967ccefd64514c12b0ea1e3262",
+    "source_file_count": 95
+  },
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-review.md",
+      "sha256": "e2693d847eb06567ef495d0f1da2ca3206aa7fac6f611ac35858e89cac008de2",
+      "bytes": 37267
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-review-r2-evidence.zip",
+      "sha256": "faf964c77cd0721d050ce6ed67fc00df9097b082fde2c1addd67ffd231d7c849",
+      "bytes": 498647
+    }
+  ],
+  "evidence_manifest_sha256": "4063d0763fa0074393a27408fe388acf513f02d3b5016cceeec5b993d503f47f",
+  "evidence_files": 38,
+  "verification": {
+    "frontend_tests": 43,
+    "frontend_pass": 43,
+    "real_react_new_suite_tests": 5,
+    "real_react_new_suite_pass": 5,
+    "additional_reviewer_react_edge_cases": 2,
+    "additional_reviewer_react_pass": 2,
+    "build": "PASS",
+    "r4_negative_control": "original probe REPRODUCED; 5 new tests 1 pass and 4 expected fail",
+    "same_original_entry_rebuilt_for_r5": "PASS: created1 revoked1 unreadable; market committed, iframe0",
+    "strictMode_actual_development_replay_verified": true,
+    "production_component_sha256": "311a61c1db73493c3ae73e3b82a18c8e157490e73a9b35a8e7c9fb320df2086e",
+    "closure_conditions": {
+      "1": "PASS: original and adjacent URL ownership paths",
+      "2": "PASS: affected native consumers and preserved prior delayed/market/update evidence",
+      "3": "PASS: frontend/build, fixed source/differences, independent review and actual restoration"
+    },
+    "native_ui": "independently checked fixed developer AX/logs/two real PDF screenshots; no new native launch",
+    "native_heap_measurement": false,
+    "new_financial_requests": 0,
+    "reserved_review_job_consumed": false,
+    "ledger_sha256": "8010f55c7f05d850c6ab25331a45238ff1de863eab245ff52873e1a112adcc4a",
+    "restoration": "PASS",
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 1,
+      "local_links": 13,
+      "preserved_round0_1_bytes": 25436,
+      "errors": []
+    },
+    "report_append_only": true,
+    "code_mutation": false,
+    "status_mutation": false,
+    "git_mutation": false,
+    "cross_thread_message": false,
+    "new_agents_or_threads": false,
+    "runtime_model": "not independently verified"
+  },
+  "carried_unaffected_evidence": [
+    "round0 57 Python tests and loopback/parent EOF",
+    "round0 saved real-source 1040 values and legacy compatibility",
+    "round1 delayed body native navigation, market stale evidence, uncertain update recovery"
+  ],
+  "unexecuted_boundaries": [
+    "user acceptance",
+    "formal data root operations",
+    "distribution",
+    "five-year/valuation/PIT",
+    "Git submission and publication"
+  ],
+  "final_original_workspace_changes": [
+    "docs/test-reports/TASK-20261005-01-review.md"
+  ],
+  "final_new_review_artifacts": [
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r2-delivery.json",
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r2-evidence.zip"
+  ]
+}

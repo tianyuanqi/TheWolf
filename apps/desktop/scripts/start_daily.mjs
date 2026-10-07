@@ -8,6 +8,7 @@ const environment = {
   ...process.env,
   WOLF_SLICE_DATA_ROOT: dataRoot,
   WOLF_ENABLE_DATA_UPDATE: "1",
+  WOLF_ENABLE_INDEX_UPDATE: "1",
   WOLF_DEV_PORT: "5173",
   WOLF_SERVICE_PORT: "8000",
   CARGO_TARGET_DIR: fileURLToPath(new URL("../src-tauri/target", import.meta.url)),

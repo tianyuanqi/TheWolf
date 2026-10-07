@@ -1,0 +1,62 @@
+{
+  "task_id": "TASK-20261005-01",
+  "round": "r6",
+  "stage": "authorized daily-use handoff ready for incremental independent review; official button/user acceptance pending",
+  "baseline_git_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "snapshot": "TASK-20261005-01+r6+c374f9f225dfd8e18bdba929e37c7c33bdc489ea71d779b093dfaf478a6cdf59",
+  "previous_passed_snapshot": "TASK-20261005-01+r5+1592a1fceb7aac187d8602e31f70f27ddcccc4ab1f67c41cc83142c42511eda8",
+  "review_report_sha256": "e2693d847eb06567ef495d0f1da2ca3206aa7fac6f611ac35858e89cac008de2",
+  "prior_repair_reviews": 2,
+  "prior_repair_limit": 3,
+  "prior_same_root_failed_repairs": 1,
+  "prior_same_root_limit": 2,
+  "R01": "closed in r5; not reopened or reset",
+  "user_requested_increment": "daily manual index update enable; not a new R01 repair round",
+  "git": "not staged or committed; automatic fixed snapshot mode",
+  "model_requested": "gpt-6.1-sol/high",
+  "runtime_model": "not independently verified",
+  "coding_thread": "01a10a98-c976-75d1-9315-ec9a7af16235",
+  "verification": {
+    "daily_entry_tests": "3 passed",
+    "old_entry_with_new_expectation": "2 passed, 1 expected failure",
+    "js_syntax": "PASS",
+    "build": "not rerun; launcher JS constant/test/docs only",
+    "restoration": "PASS; original daily window/14561+14640 preserved; no unrestored items",
+    "financial_requests": 0,
+    "formal_data": "not accessed",
+    "official_button_and_first_update": "pending coordinator read-only restart checks and user operation"
+  },
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r6-daily-enable.md",
+      "bytes": 9114,
+      "sha256": "122a6c33a43bab68e63b39f6ff4d23eb0174a5fbb9ce650dc73f5e02b8c3cdf6"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r6-manifest.json",
+      "bytes": 101462,
+      "sha256": "c374f9f225dfd8e18bdba929e37c7c33bdc489ea71d779b093dfaf478a6cdf59"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r6-source.zip",
+      "bytes": 694901,
+      "sha256": "e88e52bfb992ffff4e8d9da12743dd9dba1dc32c2f2352580281e130cb002aca"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r6-evidence.zip",
+      "bytes": 19042,
+      "sha256": "2ce01519419c6924811ad80538d8e30cdf4ba17f77726e9c3cd5d310f41c5e26"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r5-to-r6.patch",
+      "bytes": 56425,
+      "sha256": "ca98efd57acb6cf9520b0d923bb5a75a0f357d8d46b6e0211211d2aabe0573d6"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-head-to-r6-business.patch",
+      "bytes": 214328,
+      "sha256": "901f52bbbc98bddeaca45941fd0b8b04be71157d3f40e9fe2ad3caee054b03bc"
+    }
+  ],
+  "sending": "returned in coding window only; coordinator dispatches existing reviewer"
+}

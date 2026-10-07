@@ -1,0 +1,113 @@
+--- r1/python/src/pmi/index_update.py
++++ r2/python/src/pmi/index_update.py
+@@ -83,13 +83,16 @@
+ 
+ 
+ def _ledger_path(parent: Path) -> Path:
+-    # 隔离实测可共用预算账本；正式产品仍只记录本子根账本，不受验证6job上限影响。
++    # 隔离实测可共用预算账本；正式产品仍只记录本子根账本，不受验证7job上限影响。
+     configured = os.environ.get("WOLF_INDEX_BUDGET_LEDGER")
+     return safe_path(Path(configured)) if configured else index_root(parent) / "network-ledger.jsonl"
+ 
+ 
+ def _record_attempt(parent: Path, entry: dict) -> None:
+-    """出站前持久化尝试，失败/中断同样计数；隔离验证共用6job/12次/64MiB预算。"""
++    """出站前持久化尝试，失败/中断同样计数；隔离验证共用7job/12次/64MiB预算。
++
++    七job为2026-10-06有限补证追加后的授权；沿用旧账本，不重置历史尝试。
++    """
+     path = _ledger_path(parent)
+     with path.open("a+", encoding="utf-8") as stream:
+         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+@@ -101,7 +104,7 @@
+             # 未完成尝试按整个8MiB预留，防止中断后低估正文预算。
+             completed = {line["attempt_id"]: line["bytes"] for line in lines if line["event"] == "finished"}
+             used = sum(completed.get(line["attempt_id"], 8 * 1024 * 1024) for line in attempts)
+-            if len(attempts) >= 12 or len(jobs | {entry["job_id"]}) > 6 or used + 8 * 1024 * 1024 > 64 * 1024 * 1024:
++            if len(attempts) >= 12 or len(jobs | {entry["job_id"]}) > 7 or used + 8 * 1024 * 1024 > 64 * 1024 * 1024:
+                 raise SnapshotError("受控真实出站预算不足，停止请求")
+         stream.seek(0, 2)
+         stream.write(canonical(entry).decode() + "\n")
+--- r1/python/tests/test_index.py
++++ r2/python/tests/test_index.py
+@@ -303,6 +303,59 @@
+                 _record_attempt(self.root, {"event": "finished", "attempt_id": str(index), "bytes": 0})
+             with self.assertRaisesRegex(SnapshotError, "预算不足"):
+                 _record_attempt(self.root, {"event": "attempt", "job_id": "extra", "attempt_id": "extra"})
++
++
++class IndexBudgetTests(unittest.TestCase):
++    """用独立合成账本验证新增授权及原请求/正文边界，不访问真实来源。"""
++
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(prefix="thewolf-index-budget-")
++        self.root = Path(self.directory.name).resolve()
++        self.ledger = self.root / "budget.jsonl"
++        self.environment = patch.dict(os.environ, {"WOLF_INDEX_BUDGET_LEDGER": str(self.ledger)})
++        self.environment.start()
++
++    def tearDown(self):
++        self.environment.stop()
++        self.directory.cleanup()
++
++    def attempt(self, job_id, attempt_id, completed_bytes=None):
++        _record_attempt(self.root, {"event": "attempt", "job_id": job_id,
++                                    "attempt_id": attempt_id, "source": "eastmoney"})
++        if completed_bytes is not None:
++            _record_attempt(self.root, {"event": "finished", "attempt_id": attempt_id,
++                                        "bytes": completed_bytes})
++
++    def test_seventh_job_allowed_eighth_rejected_without_rewriting_history(self):
++        """第七job可开始并继续第二源；第八job拒绝，原失败计数不清零。"""
++        for index in range(6):
++            self.attempt(f"job-{index}", f"attempt-{index}", 0)
++        history = self.ledger.read_bytes()
++        self.attempt("job-6", "seventh", 0)
++        self.attempt("job-6", "seventh-second-source", 0)
++        self.assertTrue(self.ledger.read_bytes().startswith(history))
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("job-7", "eighth", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
++
++    def test_twelve_attempt_limit_is_unchanged(self):
++        """七job内第十二次可记录，第十三次拒绝，终态失败仍占尝试额度。"""
++        for index in range(12):
++            self.attempt(f"job-{index % 7}", f"attempt-{index}", 0)
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("job-0", "thirteenth", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
++
++    def test_body_limit_and_unfinished_reservation_are_unchanged(self):
++        """已完成及中断尝试合计64MiB时拒绝新增，未知正文按8MiB预留。"""
++        for index in range(8):
++            self.attempt("same-job", f"attempt-{index}", 8 * 1024 * 1024 if index < 4 else None)
++        before_rejection = self.ledger.read_bytes()
++        with self.assertRaisesRegex(SnapshotError, "预算不足"):
++            self.attempt("same-job", "over-body-limit", 0)
++        self.assertEqual(self.ledger.read_bytes(), before_rejection)
+ 
+ 
+ class IndexTransportTests(unittest.TestCase):
+--- r1/docs/tasks/TASK-20261005-01-csi300-price-slice.md
++++ r2/docs/tasks/TASK-20261005-01-csi300-price-slice.md
+@@ -75,7 +75,9 @@
+ 4. 加入导航、K线和证据面板，连真实本地API；完成默认、空、错误及窄窗键盘交互，回归旧单股与两公告。更新成功按固定新ID一次替换视图；未成功继续旧视图。
+ 5. 按下表验证并修复；清理本次临时运行影响、核对恢复，准备固定版本及独立审查材料。用户演示/验收单列，不预先标完成。
+ 
+-**真实出站边界（开发授权后的验证执行约定）**：仅设计列出的东财/中证固定价格URL，每次job每源1次、无自动重试；开发与本任务审查合计最多6个手动job、12次出站尝试、累计64 MiB正文，逐次记录成功/失败/字节及预算，换窗口沿用计数。单次限额/超时见设计；失败尝试同样计数。不调用新浪、估值、历史抽查或未经登记的发现接口，不接着使用P01剩余重试额度。主要故障用离线受控夹具/本机注入验证，不为制造失败反复打真实上游。额度不足或接口/权限阻塞时保留证据，停止相关联网，不绕过代理/TLS/访问限制。
++**初始真实出站边界（开发授权后的验证执行约定）**：仅设计列出的东财/中证固定价格URL，每次job每源1次、无自动重试；开发与本任务审查合计最多6个手动job、12次出站尝试、累计64 MiB正文，逐次记录成功/失败/字节及预算，换窗口沿用计数。单次限额/超时见设计；失败尝试同样计数。不调用新浪、估值、历史抽查或未经登记的发现接口，不接着使用P01剩余重试额度。主要故障用离线受控夹具/本机注入验证，不为制造失败反复打真实上游。额度不足或接口/权限阻塞时保留证据，停止相关联网，不绕过代理/TLS/访问限制。
++
++**2026-10-06有限追加授权补充**：用户批准东财/中证各1次仅CONNECT/TLS诊断，以及连接恢复后新增1个开发补证job（每源1次）；原最后1个job继续保留独立审查。来源采集总上限改为**7个job**，**12次来源尝试、64 MiB正文**不变；已有失败记录继续使用同一账本，不通过新账本清零。本段仅替换初始job总上限，其余来源、隔离、时限、恢复及验收约定保持；实际授权、诊断耗用、进展和剩余额度只在[status](../status.md)维护。有限开发job失败后立即停止，不自动重试、不重复连接诊断、不改全局代理或TLS。
+ 
+ **运行方式**：工作目录仓库根；复用README V-UI的 `run_qa.py` 和新建的真实隔离目录，按实际空闲端口选择，进程环境仅对本次QA设置 `WOLF_ENABLE_INDEX_UPDATE=1`。不把开关写到用户shell或日常脚本。旧功能回归在隔离根准备旧002245固定样本，不依赖正式库；没有所需原件或权限如实报告。真实响应不纳管，必要测试使用清楚标注的合成夹具；纳管可重建的测试/验证脚本和脱敏报告。
+ 
+--- r1/README.md
++++ r2/README.md
+@@ -159,4 +159,4 @@
+   --data-root /absolute/path/to/new-empty-isolated-root
+ ```
+ 
+-原生UI沿用上方QA入口，可用成对 `--window-width 520 --window-height 560` 或 `1280/720` 覆盖本次临时窗口尺寸；不改正式Tauri配置。真实更新验证必须遵守任务书合计6个job/12次尝试/64 MiB预算；通过本次QA进程环境 `WOLF_INDEX_BUDGET_LEDGER=/absolute/path/to/shared-network-ledger.jsonl` 共用账本，换窗口继续原计数。该环境值仅供受控验证；每源单次请求、无重定向/重试、8 MiB正文上限、45秒硬截止及5/15秒连接/读取超时，保留代理/TLS。新鲜来源不可用时记录阻塞，不把离线重放改判A04成功。
++原生UI沿用上方QA入口，可用成对 `--window-width 520 --window-height 560` 或 `1280/720` 覆盖本次临时窗口尺寸；不改正式Tauri配置。真实更新验证必须遵守任务书2026-10-06追加授权后的合计7个job/12次尝试/64 MiB预算，实际授权与剩余额度见[status](docs/status.md)；通过本次QA进程环境 `WOLF_INDEX_BUDGET_LEDGER=/absolute/path/to/shared-network-ledger.jsonl` 共用账本，换窗口继续原计数。该环境值仅供受控验证；每源单次请求、无重定向/重试、8 MiB正文上限、45秒硬截止及5/15秒连接/读取超时，保留代理/TLS。新鲜来源不可用时记录阻塞，不把离线重放改判A04成功。

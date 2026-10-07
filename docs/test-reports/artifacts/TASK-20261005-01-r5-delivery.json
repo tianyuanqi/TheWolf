@@ -1,0 +1,72 @@
+{
+  "task_id": "TASK-20261005-01",
+  "round": "r5",
+  "stage": "R01 synchronous URL ownership repair ready for independent re-review; not independently passed",
+  "baseline_git_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "snapshot": "TASK-20261005-01+r5+1592a1fceb7aac187d8602e31f70f27ddcccc4ab1f67c41cc83142c42511eda8",
+  "previous_snapshot": "TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d",
+  "review_report_sha256": "1443d018caf82594d49b0edcc0bd1e87f0c310a151007fed11be9821928f4c24",
+  "completed_review_rounds_before": 1,
+  "review_round_on_handoff": 2,
+  "review_round_limit": 3,
+  "same_root_failed_repairs": 1,
+  "same_root_failed_repair_limit": 2,
+  "stop_triggered": false,
+  "stop_if_same_root_fails_again": true,
+  "git": "not staged or committed; automatic fixed snapshot mode",
+  "model_requested": "gpt-6.1-sol/high",
+  "runtime_model": "not independently verified",
+  "coding_thread": "01a10a98-c976-75d1-9315-ec9a7af16235",
+  "reviewer_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "verification": {
+    "result": "PASS",
+    "v_fe": 43,
+    "v_fe_real_react": 5,
+    "build": "PASS",
+    "r4_actual_probe": "created1 revoked0 readable",
+    "r5_same_actual_probe": "created1 revoked1 not readable",
+    "r4_new_regressions": "1 pass / 4 expected fail",
+    "r5_new_regressions": "5 pass",
+    "strict_mode_effect_replay": "verified >=2 legacy effects",
+    "native_real_pdfs_read_switch_close_unmount_reentry": "PASS",
+    "native_update_post_count": 0,
+    "new_external_financial_requests": 0,
+    "native_heap_measurement": false,
+    "preserved_round1_same_root_failure_count": 1,
+    "next_independent_review_round": 2
+  },
+  "restoration": "PASS; no unrestored items",
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-r5-pdf-ownership.md",
+      "bytes": 14274,
+      "sha256": "d1ba27d377b106b23e0bbebe995c91371b14a534791cc1e079c4f39d57aa5d44"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r5-manifest.json",
+      "bytes": 89289,
+      "sha256": "1592a1fceb7aac187d8602e31f70f27ddcccc4ab1f67c41cc83142c42511eda8"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r5-source.zip",
+      "bytes": 680792,
+      "sha256": "114ff5552671bdfecd4cbd56f968a74c0bf8d94260d34f712a77641c6d8791ed"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r5-evidence.zip",
+      "bytes": 763662,
+      "sha256": "f3ace82f8176c77c3a3651a99abbe1c42758f5967ccefd64514c12b0ea1e3262"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-r4-to-r5.patch",
+      "bytes": 53430,
+      "sha256": "0b0d6fa5aeee9889d492f850ee7067c5394f6a17d91641ff87f2e6e640071940"
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-head-to-r5-business.patch",
+      "bytes": 211663,
+      "sha256": "94bb9101ebb8c2d2cbed74db520814affb029c8c91ac6a288d5c984877b307b5"
+    }
+  ],
+  "sending": "returned in coding window only; coordinator dispatches re-review"
+}

@@ -1,0 +1,89 @@
+{
+  "task": "TASK-20261005-01",
+  "review_round": 1,
+  "review_thread": "01a11071-2602-77f1-a45c-ba32ec471bbc",
+  "baseline_sha": "ff614e4e2605292a9a151ea38a752677f10cd7e7",
+  "previous_reviewed_snapshot": "TASK-20261005-01+r3+af091e94fb4d228f187391f968cc9609017dc17b723ed30c9382dc5ec586a279",
+  "fixed_snapshot": "TASK-20261005-01+r4+51a7ed70004a63f2a3e1fab60c4933e507879503892c2b96575139435ceebe7d",
+  "conclusion": "needs_changes",
+  "findings": [
+    {
+      "id": "M01-R01",
+      "classification": "confirmed-defect",
+      "severity": "P2",
+      "state": "unresolved",
+      "origin": "same incomplete PDF object URL ownership, accepted state update not committed before navigation unmount",
+      "new_id": false
+    }
+  ],
+  "counters_for_coordinator": {
+    "review_round": 1,
+    "review_limit": 3,
+    "same_root_failure_before": 0,
+    "recommended_same_root_failure_after": 1,
+    "same_root_failure_limit": 2,
+    "stop_threshold_reached": false
+  },
+  "previous_round_report_sha256": "b864a2e39c10c83ac237de94bee8983dee65ddacf0d7e9ac44721ebcc1b699d5",
+  "preserved_prefix_bytes": 15179,
+  "previous_round_fixed_member": "evidence/review-before.md",
+  "previous_round_delivery_unchanged": true,
+  "fixed_developer_delivery": {
+    "path": "docs/test-reports/artifacts/TASK-20261005-01-r4-delivery.json",
+    "sha256": "c47430a4c57c8aa90ab4ee74b0a4c23db3fbf593f67236005569193662e13efd",
+    "source_zip_sha256": "7128174f7c40c3663b9cbe51cee1635268f261a031897d4713fcec15ea0c244d",
+    "development_evidence_sha256": "3d834e50520d7d03368238921d7ee522dc15db8422bcf7300b745e92dffbb0c4",
+    "source_file_count": 92
+  },
+  "files": [
+    {
+      "path": "docs/test-reports/TASK-20261005-01-review.md",
+      "sha256": "1443d018caf82594d49b0edcc0bd1e87f0c310a151007fed11be9821928f4c24",
+      "bytes": 25436
+    },
+    {
+      "path": "docs/test-reports/artifacts/TASK-20261005-01-review-r1-evidence.zip",
+      "sha256": "384a24c3fabbba815b6226a723d6502c32c3827fd4ac391d78c42e7ab9151123",
+      "bytes": 159918
+    }
+  ],
+  "evidence_manifest_sha256": "2bfa6174be1b249b38a81c7091036eafc62187535f38ce927ff56e942e5d47c6",
+  "evidence_files": 23,
+  "verification": {
+    "frontend_tests": 43,
+    "frontend_pass": 43,
+    "build": "PASS",
+    "r3_expected_baseline_failures": 2,
+    "r3_baseline_test_count": 5,
+    "actual_react_pdf_probe": "DEFECT REPRODUCED: created 1, revoked 0, retained readable Blob URL",
+    "probe_runtime": "actual React createRoot; deterministic synthetic host, ordinary navigation button click; headless Chromium",
+    "production_component_sha256": "afa4fa323f7407668ef404ba1183f4e0000d3ba12ff196f1a81f17b02df4fd78",
+    "native_ui": "inspected frozen developer AX/request logs/two real PDF screenshots; checker replay passed; no new native launch",
+    "native_heap_measurement": false,
+    "new_financial_requests": 0,
+    "reserved_review_job_consumed": false,
+    "ledger_sha256": "8010f55c7f05d850c6ab25331a45238ff1de863eab245ff52873e1a112adcc4a",
+    "restoration": "PASS",
+    "vdoc": {
+      "result": "PASS",
+      "markdown_files": 1,
+      "local_links": 10,
+      "preserved_round0_bytes": 15179,
+      "errors": []
+    },
+    "report_append_only": true,
+    "code_mutation": false,
+    "status_mutation": false,
+    "git_mutation": false,
+    "cross_thread_message": false,
+    "new_agents_or_threads": false,
+    "runtime_model": "not independently verified"
+  },
+  "final_original_workspace_changes": [
+    "docs/test-reports/TASK-20261005-01-review.md"
+  ],
+  "final_new_review_artifacts": [
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r1-delivery.json",
+    "docs/test-reports/artifacts/TASK-20261005-01-review-r1-evidence.zip"
+  ]
+}
