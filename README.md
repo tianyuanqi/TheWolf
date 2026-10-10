@@ -6,6 +6,8 @@
 
 协作规则见 [AGENTS.md](AGENTS.md)；当前阶段、授权、进展与下一步统一见 [项目状态](docs/status.md)。
 
+工程规范：[代码编写规范](docs/Coding-Standards.md)规定怎样写代码；[独立审查规范](docs/Independent-Code-Review-Policy.md)规定风险等级、检查与通过标准；[Task-Workflow](docs/Task-Workflow.md)规定版本、交接、修复和恢复。验证命令沿用下方入口，规范采用不表示CI、分支保护或技术只读权限已配置。
+
 ## 验证入口
 
 本节是当前验证命令的统一索引；按 [Task-Workflow 第 10 节](docs/Task-Workflow.md#10-稳定验证入口与证据)选取适用项，不要求每次全部执行。下列路径相对仓库根目录，工作目录另列；从固定导出验证时，路径应指向该导出，解释器可复用已核对的本地环境，源码导入必须固定到被测版本。
