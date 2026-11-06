@@ -64,7 +64,7 @@ function startService(kind) {
     '--port', String(backend), '--origin', origin]);
 }
 async function startPair(kind, mode = 'valid') {
-  const command = 'from pathlib import Path;import json,sys;from pmi.service_config import ServiceConfig; c=ServiceConfig(Path(sys.argv[1]),int(sys.argv[2]),(sys.argv[3],),False,False); Path(sys.argv[4]).write_text(json.dumps(c.public_descriptor()));Path(sys.argv[5]).write_text(json.dumps(c.public_index_descriptor()))';
+  const command = 'from pathlib import Path;import json,sys;from pmi.service_config import ServiceConfig; c=ServiceConfig(Path(sys.argv[1]),int(sys.argv[2]),(sys.argv[3],)); Path(sys.argv[4]).write_text(json.dumps(c.public_descriptor()));Path(sys.argv[5]).write_text(json.dumps(c.public_index_descriptor()))';
   const result = spawnSync(py, ['-B', '-c', command, path.join(root, kind), String(backend), origin, root + '/legacy.json', root + '/index.json'], { cwd: repo, env, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   record[kind + '_scope'] = JSON.parse(await readFile(root + '/legacy.json', 'utf8')).data_scope_id;
@@ -97,7 +97,7 @@ try {
     if (!url.startsWith(origin + '/') && !url.startsWith(api + '/') && !url.startsWith('blob:' + origin + '/')) record.external_attempts.push(url);
   });
   page.on('pageerror', error => record.page_errors.push(String(error)));
-  const loaded = () => page.getByText('读取结束 · 当前读取不采集新行情', { exact: true }).waitFor();
+  const loaded = async () => { await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))); await page.getByText('读取结束 · 当前读取不采集新行情', { exact: true }).waitFor(); };
   const reconnect = () => page.getByRole('button', { name: '重新连接', exact: true }).click();
   async function emptyOfA() {
     assert.equal(await page.locator('.m-metric-value').count(), 0);
@@ -118,6 +118,7 @@ try {
   await page.getByRole('button', { name: '重新读取', exact: true }).waitFor();
   await page.waitForFunction(() => !Array.from(document.querySelectorAll('button')).find(button => button.textContent === '重新读取').disabled);
   assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), values);
+  await page.getByText(/当前显示上次成功读取的快照/).waitFor();
   assert.equal(await page.getByText(/当前显示上次成功读取的快照/).count(), 1);
   service = startService('a'); await ready(api + '/api/session/ready', { 'X-Wolf-Client': '1' }); await reconnect(); await loaded();
   assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), values);
@@ -165,7 +166,7 @@ try {
   record.cases.push('four-late-calculation-bodies-cannot-repopulate-new-root');
   await switchRoot('a', 'valid'); await loaded(); assert.equal(await page.locator('.m-metric-value').count(), 4);
   await switchRoot('b', 'mismatch');
-  await page.getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
+  await page.locator('.m-connection').getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
   record.cases.push('new-root-v2-ready-mismatch-clears-all-a-display');
   await page.screenshot({ path: root + '/cross-root-ready-mismatch.png', fullPage: true });
   await switchRoot('a', 'valid'); await loaded(); assert.equal(await page.locator('.m-metric-value').count(), 4);
@@ -184,7 +185,7 @@ try {
   await stop(service); service = startService('b'); await ready(api + '/api/session/ready', { 'X-Wolf-Client': '1' });
   const newInstance = (await (await fetch(api + '/api/session/ready', { headers: { 'X-Wolf-Client': '1' } })).json()).instance_id;
   assert.notEqual(oldInstance, newInstance); await page.evaluate(() => window.__scopeReadyRelease());
-  await page.getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
+  await page.locator('.m-connection').getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
   record.cases.push('new-root-v1-v2-instance-change-clears-all-a-display');
   await switchRoot('b', 'valid'); await loaded(); await emptyOfA();
   assert.equal(await page.getByText(/暂无数据，尚未保存价格/).count(), 4);
@@ -196,7 +197,7 @@ try {
   assert.ok(record.requests.every(request => request.method === 'GET'));
   assert.equal(record.requests.filter(request => request.document && request.url === origin + '/').length, 1, '跨根检查不得通过刷新页面重置状态');
   record.passed = true;
-} catch (error) { record.failure = String(error); process.exitCode = 1; }
+} catch (error) { record.failure = String(error.stack || error); process.exitCode = 1; }
 finally {
   if (browser) { await browser.close(); record.browser_closed = !browser.isConnected(); }
   for (const child of [...children].reverse()) await stop(child);
