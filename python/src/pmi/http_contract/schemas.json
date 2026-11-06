@@ -1,0 +1,6300 @@
+{
+  "$defs": {
+    "Bar": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Point"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "high": {
+          "$ref": "#/$defs/Point"
+        },
+        "low": {
+          "$ref": "#/$defs/Point"
+        },
+        "open": {
+          "$ref": "#/$defs/Point"
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "evidence_refs"
+      ],
+      "type": "object"
+    },
+    "BoundaryError400": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid_headers",
+                "connection_context_required",
+                "connection_context_invalid",
+                "invalid_preflight"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError403": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "bad_host",
+                "bad_origin",
+                "bad_fetch_metadata",
+                "client_marker_required",
+                "update_disabled",
+                "index_update_disabled"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError404": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "route_not_found"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError405": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "method_not_allowed"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError409": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "connection_context_mismatch",
+                "request_id_conflict"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError415": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "unsupported_media_type"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError422": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid_request"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "BoundaryError503": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "operation_capacity_exceeded"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "Boundary_00fad7bcb00c5730": {
+      "type": "string"
+    },
+    "Boundary_026fea92db315524": {
+      "type": "string"
+    },
+    "Boundary_0c15899bea2aeb67": {
+      "$ref": "#/$defs/PublicDigest"
+    },
+    "Boundary_0c3acda7c4bdccce": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_0d9829ac02f2632c": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_0d987bc534bf81e8": {
+      "type": "string"
+    },
+    "Boundary_0e02ca0733c485b7": {
+      "type": "string"
+    },
+    "Boundary_0e7602c3a7db12f0": {
+      "type": "string"
+    },
+    "Boundary_0ffd1e97a29908b9": {
+      "$ref": "#/$defs/PublicDigest"
+    },
+    "Boundary_10b6b24da8d8f14e": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_136f2e3b00d0bc4d": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_138e71c8c58d5233": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_1489479c1adbcf8f": {
+      "type": "string"
+    },
+    "Boundary_175eb0e67be246d0": {
+      "type": "string"
+    },
+    "Boundary_17af2cbc8e3c45fe": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_17b43172a684e7d9": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_17c0dfa30d63c6a4": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_17e9bb4a059ef023": {
+      "$ref": "#/$defs/Day"
+    },
+    "Boundary_183901b0fac14434": {
+      "$ref": "#/$defs/Day"
+    },
+    "Boundary_1b4a7a43ce910536": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_1d3438c7657eb46c": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_1eb2eeb1350634d8": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_2072e775805f94e7": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_2262aef91b625e68": {
+      "type": "string"
+    },
+    "Boundary_2271aceb51e8af5e": {
+      "type": "string"
+    },
+    "Boundary_23e8c6441b6ee7b6": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_248953e812f3fcc1": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_2c1925885ff6279a": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_2d49fc9809be8c6f": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_2d51177da2386557": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_3092bf8da43414e7": {
+      "type": "string"
+    },
+    "Boundary_309701dc1f8f9248": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_30adc0024715d833": {
+      "type": "string"
+    },
+    "Boundary_317a8751146f93e7": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_323eb31a797599a0": {
+      "type": "string"
+    },
+    "Boundary_331aad7302eaff88": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_3325a7c1a7fe9141": {
+      "type": "string"
+    },
+    "Boundary_39821a260bf20c90": {
+      "enum": [
+        "GET",
+        "POST"
+      ],
+      "type": "string"
+    },
+    "Boundary_3b232c78335d0801": {
+      "enum": [
+        "market-activity-calculations-v1",
+        "market-activity-calculations-sse-szse-v1"
+      ],
+      "type": "string"
+    },
+    "Boundary_402ef032da4eae58": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_418da4d8470d5ed2": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "Boundary_43c15723c074da16": {
+      "type": "string"
+    },
+    "Boundary_464bcd604570c3ee": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_4bbd90e867efbdce": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_4c71a2895cfc510d": {
+      "type": "string"
+    },
+    "Boundary_4ca88dfffeda9639": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_4d5190e3951a896e": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_4dad30944c8a2235": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "Boundary_4ec3fe101d8a1cee": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_4f0ea3b9e6263f10": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_4fb840cc568b1625": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_52623136a709df86": {
+      "type": "string"
+    },
+    "Boundary_552ea905041b5c5a": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_55e88e21dc28850d": {
+      "$ref": "#/$defs/PublicInstanceId"
+    },
+    "Boundary_55ee3ffecf0428a7": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_588e083a12e66e39": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_5aeee1ef5afe33f1": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_5b76d4c776d26382": {
+      "type": "string"
+    },
+    "Boundary_5c7b61979ef23bd3": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_5e5c9ebd29550301": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_62f085a720b3c32f": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_6315786f28aa42f6": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_64f6cac81d6a5f60": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_668b7eb17c6c6508": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_68e6b3c153f17212": {
+      "type": "string"
+    },
+    "Boundary_6ae3d02d6ffd1527": {
+      "description": "省略时为open,high,low,close；不允许重复字段，由业务校验拒绝。",
+      "pattern": "^(?:open|high|low|close)(?:,(?:open|high|low|close)){0,3}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "Boundary_6be67a2616d23e0a": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_6c938519256b23bf": {
+      "type": "string"
+    },
+    "Boundary_6d2fedfa9503fd5f": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_6fae800cebb4ec44": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_6fb057342c0f7d3e": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_6fb75f79686d6cee": {
+      "type": "string"
+    },
+    "Boundary_6ffea7ea87cbfcec": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_71ab1f9b50be791a": {
+      "enum": [
+        "index-price-calculations-v1"
+      ],
+      "type": "string"
+    },
+    "Boundary_72c43d7666cc24c4": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_73feff39e2bfceb2": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_7522d49a52233b65": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_75312d9d315abc8b": {
+      "type": "string"
+    },
+    "Boundary_76d5ba62815ef2b6": {
+      "type": "string"
+    },
+    "Boundary_786cd342324853b4": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_79ff9719ebad8c6d": {
+      "const": "1",
+      "type": "string"
+    },
+    "Boundary_7b59f0f7268e8451": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_7bce636fdf768b47": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_7cfa0b3358071400": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_7cfbe3d6b34fddbd": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_7d0ea6fd67a01e6f": {
+      "type": "string"
+    },
+    "Boundary_7e303c3ea60cc0a3": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_819058b9d9fcedbe": {
+      "type": "string"
+    },
+    "Boundary_830c490aa9d91239": {
+      "type": "string"
+    },
+    "Boundary_84d17f63d724010c": {
+      "type": "string"
+    },
+    "Boundary_8669887027c46a15": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_868546f60547a59c": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_86a90e629083324c": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_871667ab804e4534": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_87e9ba9db82947dd": {
+      "enum": [
+        "POST"
+      ],
+      "type": "string"
+    },
+    "Boundary_8c62c7eae52feebc": {
+      "type": "string"
+    },
+    "Boundary_8e19db85143f41c5": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_8efed99ab9075771": {
+      "type": "string"
+    },
+    "Boundary_8f564106356b9fa0": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_8f650fde99839f55": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_9196bd3eb30c544a": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_92717ee01c05a5c6": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_929176c0249324f4": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_9374193eea50aa59": {
+      "type": "string"
+    },
+    "Boundary_9545e33a90df6935": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_96bd5e04f8e52efc": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_977c1d6186eb8c66": {
+      "type": "string"
+    },
+    "Boundary_98c6908515985fbd": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_99c8d0e45839cac9": {
+      "$ref": "#/$defs/PublicInstanceId"
+    },
+    "Boundary_9a0d2a0fd6e61d3c": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_9cc27e57ddaf72d1": {
+      "type": "string"
+    },
+    "Boundary_9e13c6a7c270faea": {
+      "type": "string"
+    },
+    "Boundary_9f14eee6b7a796eb": {
+      "type": "string"
+    },
+    "Boundary_9fa8847c11d1a22e": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_a00fb8eceb0f74b0": {
+      "const": "600",
+      "type": "string"
+    },
+    "Boundary_a70b31730c038fd0": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_a72ec94467b869d9": {
+      "const": "600",
+      "type": "string"
+    },
+    "Boundary_a7c8b363de83a286": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "Boundary_a86bcc8ded547566": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_abad5a55be24e0b4": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_acc085f0e4bc6cce": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_b02395a0669b2f93": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_b0c84b963acae0d0": {
+      "type": "string"
+    },
+    "Boundary_b18426d749d30a96": {
+      "type": "string"
+    },
+    "Boundary_b297af1f5815f64d": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_b2e3d2cea9de33eb": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_b47da80d0a1770a3": {
+      "type": "string"
+    },
+    "Boundary_b4c018c977809625": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_b5ac16f60a3f1be8": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_b645e06911311109": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_b6715505b047dabe": {
+      "type": "string"
+    },
+    "Boundary_b78a524a12d6e5e6": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_b8312b4b5ad2d610": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_b8d4aab344128ea7": {
+      "type": "string"
+    },
+    "Boundary_b96331d537e30357": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_ba1cfc9e6820962a": {
+      "$ref": "#/$defs/IndexSeriesOperationKind"
+    },
+    "Boundary_ba95be738649f2cb": {
+      "type": "string"
+    },
+    "Boundary_bafc85c4a13e6f51": {
+      "type": "string"
+    },
+    "Boundary_bb26b400310ca652": {
+      "type": "string"
+    },
+    "Boundary_bb2aa15314a46076": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_bc25becfb6161ce5": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_bf2d4a23bc21e9f5": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_c36ce0fe2c33cbf2": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_c4d96b04b7e49e23": {
+      "type": "string"
+    },
+    "Boundary_c51a2aa5e9cb3c64": {
+      "maxLength": 160,
+      "type": "string"
+    },
+    "Boundary_c561b2b2cc227432": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_c585431a23e2a89f": {
+      "type": "string"
+    },
+    "Boundary_c754c1576579b53c": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_c84b3b3301e61247": {
+      "type": "string"
+    },
+    "Boundary_c8c75dc588faa70e": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_c9901f2307cbb5e4": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_ca9ad6b42ea83e60": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_d12e57c7a7337021": {
+      "type": "string"
+    },
+    "Boundary_d4cf579ef78d9404": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_d4d6e6f68b36588e": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_d59e094ff15533f3": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_dbcbe72f463588cb": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_e0fbd55bc4c1cbc9": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_e20dee7504af54c5": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_e35dac466507ce1f": {
+      "type": "string"
+    },
+    "Boundary_e35f0e40b23a45eb": {
+      "type": "string"
+    },
+    "Boundary_e4131dc127093b2f": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "type": "string"
+    },
+    "Boundary_e4180e77f737154f": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_e58716f8672795fa": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_e642d8cd59931ea6": {
+      "$ref": "#/$defs/PublicInstanceId"
+    },
+    "Boundary_e812aa7955f8c1a5": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_e897097e1ec04f7a": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "Boundary_ea4d7527536e3b20": {
+      "type": "string"
+    },
+    "Boundary_ea9b174eb2de2c5b": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_ebba0f4688edf304": {
+      "$ref": "#/$defs/PublicDigest"
+    },
+    "Boundary_eeb5bbdd9d50d5f6": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_ef1f5cdafdd5f171": {
+      "type": "string"
+    },
+    "Boundary_ef771ba1ca11d4e7": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_f0100e99d52b52b6": {
+      "type": "string"
+    },
+    "Boundary_f0103c915354770f": {
+      "type": "string"
+    },
+    "Boundary_f269ffa6eceea68e": {
+      "type": "string"
+    },
+    "Boundary_f27c9f24b8df062e": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_f280988bfaad1bb7": {
+      "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_f2fb4ecc3feca925": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_f33aa24b10950df6": {
+      "const": "no-store",
+      "type": "string"
+    },
+    "Boundary_f3c4af4b3f6b2016": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_f40a9fb15e4cca6d": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_f4cecdc1a65a5ca6": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_f6e1f39cba87347e": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_f7228568626f27aa": {
+      "type": "string"
+    },
+    "Boundary_f811f75db20f44dd": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_fa0df70946712bae": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_fa5dfee1c24b7ada": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_fb2628d743dbe048": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_fc19e52fce2afa2b": {
+      "type": "string"
+    },
+    "Boundary_fd0ff43a5af71b0e": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_fec237236eb78a61": {
+      "type": "string"
+    },
+    "Boundary_fef8a5ec30f4bc41": {
+      "type": "string"
+    },
+    "Boundary_ff2155709b8b5e37": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_ff610905600fda0c": {
+      "type": "string"
+    },
+    "BusinessError": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "CompletionBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "limits": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "sha256": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sha256",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "coverage",
+        "limits",
+        "rule",
+        "sources",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Day": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/SourceRow"
+          },
+          "maxItems": 260,
+          "minItems": 260,
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "url",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        }
+      },
+      "required": [
+        "object_id",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "Health": {
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "status": {
+          "const": "ok",
+          "type": "string"
+        },
+        "storage": {
+          "const": "sqlite",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "service",
+        "storage"
+      ],
+      "type": "object"
+    },
+    "IndexEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "preview_truncated": {
+          "type": "boolean"
+        },
+        "retrieval": {
+          "$ref": "#/$defs/RetrievalSource"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/SourceRow"
+          },
+          "maxItems": 260,
+          "minItems": 260,
+          "type": "array"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "text_preview": {
+          "type": "string"
+        },
+        "unused_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "url": {
+          "type": "string"
+        },
+        "verification": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "observation_id",
+        "source",
+        "object_id",
+        "url",
+        "rows",
+        "retrieval",
+        "verification",
+        "unused_fields",
+        "text_preview",
+        "preview_truncated"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesAcceptedOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "business_status": {
+          "$ref": "#/$defs/IndexSeriesUpdateStatus"
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "job_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/IndexSeriesOperationKind"
+        },
+        "rejection": {
+          "type": "null"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "reused_job": {
+          "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "running"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "instance_id",
+        "config_id",
+        "request_id",
+        "operation",
+        "state",
+        "job_id",
+        "reused_job",
+        "business_status",
+        "rejection",
+        "index_id"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesBar": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesEvidenceRef"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "high": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "low": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "open": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "evidence_refs"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "period": {
+          "enum": [
+            5,
+            10,
+            20,
+            30,
+            60,
+            120,
+            180,
+            250
+          ],
+          "type": "integer"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "insufficient_samples"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "required_count": {
+          "enum": [
+            5,
+            10,
+            20,
+            30,
+            60,
+            120,
+            180,
+            250
+          ],
+          "type": "integer"
+        },
+        "sample_count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "period",
+        "available",
+        "sample_count",
+        "required_count",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationBar": {
+      "additionalProperties": false,
+      "properties": {
+        "change_pct": {
+          "$ref": "#/$defs/IndexSeriesCalculationScalar"
+        },
+        "close": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "formula_version": {
+          "enum": [
+            "raw-daily-price-v1",
+            "calendar-ohlc-v1"
+          ],
+          "type": "string"
+        },
+        "high": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "incomplete_reasons": {
+          "items": {
+            "enum": [
+              "window_start_truncated",
+              "period_in_progress",
+              "calendar_unknown"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "type": "array"
+        },
+        "input_ref": {
+          "$ref": "#/$defs/IndexSeriesCalculationInput"
+        },
+        "low": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "ma": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCalculationScalar"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "open": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "period_end": {
+          "$ref": "#/$defs/Day"
+        },
+        "period_start": {
+          "$ref": "#/$defs/Day"
+        },
+        "sample_count": {
+          "type": "integer"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "period_start",
+        "period_end",
+        "start",
+        "end",
+        "open",
+        "high",
+        "low",
+        "close",
+        "sample_count",
+        "complete",
+        "incomplete_reasons",
+        "formula_version",
+        "input_ref",
+        "change_pct",
+        "ma"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationError": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "index_series_empty",
+                "index_series_snapshot_not_found",
+                "index_series_unavailable",
+                "index_series_invalid",
+                "index_series_evidence_not_found",
+                "index_range_invalid",
+                "coverage_insufficient",
+                "calculation_parameters_invalid"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationInput": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Day"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "period": {
+          "enum": [
+            "1",
+            "5",
+            "10",
+            "20",
+            "30",
+            "60",
+            "120",
+            "180",
+            "250",
+            "1y"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "frequency",
+        "period"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationScalar": {
+      "additionalProperties": false,
+      "properties": {
+        "formula_version": {
+          "enum": [
+            "adjacent-expected-close-pct-half-up-v1",
+            "period-close-pct-half-up-v1",
+            "trading-window-close-pct-v1",
+            "natural-year-close-pct-v1",
+            "close-sma-half-up-4-v1"
+          ],
+          "type": "string"
+        },
+        "input_ref": {
+          "$ref": "#/$defs/IndexSeriesCalculationInput"
+        },
+        "parameters": {
+          "$ref": "#/$defs/IndexSeriesCalculationParameters"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "insufficient_samples",
+                "missing_previous_close",
+                "missing_year_baseline"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "enum": [
+            "%",
+            "点"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "pattern": "^-?[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "reason",
+        "unit",
+        "formula_version",
+        "parameters",
+        "input_ref"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculationSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "ma_availability": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCalculationAvailability"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCalculationBar"
+          },
+          "maxItems": 1100,
+          "type": "array"
+        }
+      },
+      "required": [
+        "frequency",
+        "ma_availability",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "daily": {
+          "$ref": "#/$defs/IndexSeriesCalculationSeries"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "monthly": {
+          "$ref": "#/$defs/IndexSeriesCalculationSeries"
+        },
+        "performance": {
+          "additionalProperties": false,
+          "properties": {
+            "day_20": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_5": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_60": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "year_1": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            }
+          },
+          "required": [
+            "day_5",
+            "day_20",
+            "day_60",
+            "year_1"
+          ],
+          "type": "object"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "weekly": {
+          "$ref": "#/$defs/IndexSeriesCalculationSeries"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "daily",
+        "weekly",
+        "monthly",
+        "performance"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCalendarSource": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_kind": {
+          "enum": [
+            "web_tool_text",
+            "http_original"
+          ],
+          "type": "string"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "exchange": {
+          "enum": [
+            "sse",
+            "szse"
+          ],
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "year": {
+          "enum": [
+            2023,
+            2024,
+            2025,
+            2026
+          ],
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "exchange",
+        "url",
+        "evidence_kind",
+        "evidence_sha256"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCatalog": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_version": {
+          "const": "index-catalog-v1",
+          "type": "string"
+        },
+        "indices": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCatalogEntry"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolved_index_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndexSeriesId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "catalog_version",
+        "query",
+        "resolved_index_id",
+        "indices"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCatalogEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilities": {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "const": "unavailable",
+              "type": "string"
+            },
+            "ohlc": {
+              "const": "available",
+              "type": "string"
+            },
+            "valuation": {
+              "const": "unavailable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ohlc",
+            "amount",
+            "valuation"
+          ],
+          "type": "object"
+        },
+        "code": {
+          "pattern": "^[0-9]{6}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "frequency": {
+          "const": "daily",
+          "type": "string"
+        },
+        "full_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "csindex",
+            "cnindex"
+          ],
+          "type": "string"
+        },
+        "return_type": {
+          "const": "price",
+          "type": "string"
+        },
+        "source_policy_version": {
+          "$ref": "#/$defs/IndexSeriesSourcePolicy"
+        },
+        "storage_decimals": {
+          "enum": [
+            2,
+            4
+          ],
+          "type": "integer"
+        },
+        "writable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index_id",
+        "code",
+        "name",
+        "full_name",
+        "provider",
+        "return_type",
+        "frequency",
+        "aliases",
+        "storage_decimals",
+        "source_policy_version",
+        "capabilities",
+        "limitations",
+        "writable"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesComparisonFields": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Point"
+        },
+        "high": {
+          "$ref": "#/$defs/Point"
+        },
+        "low": {
+          "$ref": "#/$defs/Point"
+        },
+        "open": {
+          "$ref": "#/$defs/Point"
+        }
+      },
+      "required": [
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesCompletionBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude_anchor_day": {
+          "const": true,
+          "type": "boolean"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rule": {
+          "const": "exchange_weekdays_excluding_announced_full_day_closures_before_shanghai_today",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCalendarSource"
+          },
+          "maxItems": 8,
+          "minItems": 8,
+          "type": "array"
+        },
+        "supported_years": {
+          "items": {
+            "enum": [
+              2023,
+              2024,
+              2025,
+              2026
+            ],
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "timezone",
+        "exclude_anchor_day",
+        "supported_years",
+        "sources",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "2.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "feature_version": {
+          "const": "index-series-v2",
+          "type": "string"
+        },
+        "identity_format": {
+          "const": "wolf-index-config-v2",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/IndexSeriesPolicy"
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startup_indices": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesId"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "write_indices": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesId"
+          },
+          "maxItems": 6,
+          "type": "array"
+        }
+      },
+      "required": [
+        "endpoint",
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "data_scope_id",
+        "config_id",
+        "identity_format",
+        "feature_version",
+        "write_indices",
+        "startup_indices",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesDifference": {
+      "additionalProperties": false,
+      "properties": {
+        "comparison_value": {
+          "$ref": "#/$defs/Point"
+        },
+        "date": {
+          "$ref": "#/$defs/Day"
+        },
+        "eastmoney_raw": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        },
+        "field": {
+          "$ref": "#/$defs/IndexSeriesField"
+        },
+        "official_raw": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        }
+      },
+      "required": [
+        "date",
+        "field",
+        "official_raw",
+        "comparison_value",
+        "eastmoney_raw"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesError": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "index_series_empty",
+                "index_series_snapshot_not_found",
+                "index_series_unavailable",
+                "index_series_invalid",
+                "index_series_evidence_not_found",
+                "index_range_invalid",
+                "coverage_insufficient"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesSourceRow"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/IndexSeriesSource"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "url",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesEvidenceDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "preview_truncated": {
+          "type": "boolean"
+        },
+        "retrieval": {
+          "$ref": "#/$defs/IndexSeriesRetrievalSource"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesSourceRow"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source": {
+          "$ref": "#/$defs/IndexSeriesSource"
+        },
+        "text_preview": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/IndexSeriesVerification"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "observation_id",
+        "source",
+        "object_id",
+        "url",
+        "rows",
+        "retrieval",
+        "verification",
+        "text_preview",
+        "preview_truncated"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source": {
+          "$ref": "#/$defs/IndexSeriesSource"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesEvidenceView": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "evidence": {
+              "$ref": "#/$defs/IndexSeriesEvidenceDetail"
+            },
+            "format": {
+              "const": "v2",
+              "type": "string"
+            },
+            "index_id": {
+              "$ref": "#/$defs/IndexSeriesId"
+            }
+          },
+          "required": [
+            "index_id",
+            "format",
+            "evidence"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "evidence": {
+              "$ref": "#/$defs/IndexEvidence"
+            },
+            "format": {
+              "const": "legacy_v1",
+              "type": "string"
+            },
+            "index_id": {
+              "const": "csi:000300:price",
+              "type": "string"
+            }
+          },
+          "required": [
+            "index_id",
+            "format",
+            "evidence"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IndexSeriesField": {
+      "enum": [
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "type": "string"
+    },
+    "IndexSeriesId": {
+      "enum": [
+        "csi:000300:price",
+        "sse:000001:price",
+        "csi:000852:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price"
+      ],
+      "type": "string"
+    },
+    "IndexSeriesInstrument": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[0-9]{6}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "frequency": {
+          "const": "daily",
+          "type": "string"
+        },
+        "full_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "csindex",
+            "cnindex"
+          ],
+          "type": "string"
+        },
+        "return_type": {
+          "const": "price",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "full_name",
+        "provider",
+        "return_type",
+        "frequency"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesNetworkPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline_seconds": {
+          "const": 45,
+          "type": "integer"
+        },
+        "max_attempts": {
+          "type": "integer"
+        },
+        "max_bytes": {
+          "type": "integer"
+        },
+        "max_response_bytes": {
+          "const": 1048576,
+          "type": "integer"
+        },
+        "min_host_interval_seconds": {
+          "const": 5,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_attempts",
+        "max_bytes",
+        "max_response_bytes",
+        "min_host_interval_seconds",
+        "deadline_seconds"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesOperationKind": {
+      "const": "index.series.update",
+      "type": "string"
+    },
+    "IndexSeriesOperationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "business_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndexSeriesUpdateStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation": {
+          "$ref": "#/$defs/IndexSeriesOperationKind"
+        },
+        "rejection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndexSeriesRecordedRejection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "reused_job": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "running",
+            "completed",
+            "failed",
+            "interrupted",
+            "rejected",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "instance_id",
+        "config_id",
+        "request_id",
+        "operation",
+        "state",
+        "job_id",
+        "reused_job",
+        "business_status",
+        "rejection",
+        "index_id"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesPoint": {
+      "description": "官方原值以十进制字符串保留两位或四位；深圳四位值仅核验时HALF_UP到两位，不改写存储或计算输入。",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.[0-9]{2}(?:[0-9]{2})?$(?![\\s\\S])",
+      "type": "string"
+    },
+    "IndexSeriesPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "catalog_version": {
+          "const": "index-catalog-v1",
+          "type": "string"
+        },
+        "feature_version": {
+          "const": "index-series-v2",
+          "type": "string"
+        },
+        "network": {
+          "$ref": "#/$defs/IndexSeriesNetworkPolicy"
+        },
+        "periodic": {
+          "$ref": "#/$defs/OverviewPeriodicPolicy"
+        },
+        "source_policy_versions": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesSourcePolicy"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "window_years": {
+          "const": 3,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "feature_version",
+        "catalog_version",
+        "calendar_version",
+        "window_years",
+        "source_policy_versions",
+        "network"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRange": {
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "additionalProperties": false,
+          "properties": {
+            "end": {
+              "$ref": "#/$defs/Day"
+            },
+            "start": {
+              "$ref": "#/$defs/Day"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "type": "object"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesField"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "type": "array"
+        },
+        "format": {
+          "enum": [
+            "v2",
+            "legacy_v1"
+          ],
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesRangeRow"
+          },
+          "type": "array"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        },
+        "storage_decimals": {
+          "enum": [
+            2,
+            4
+          ],
+          "type": "integer"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index_id",
+        "format",
+        "snapshot_id",
+        "start",
+        "end",
+        "fields",
+        "unit",
+        "pit_grade",
+        "storage_decimals",
+        "coverage",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRangeRow": {
+      "additionalProperties": false,
+      "properties": {
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "values": {
+          "additionalProperties": false,
+          "properties": {
+            "close": {
+              "$ref": "#/$defs/IndexSeriesPoint"
+            },
+            "high": {
+              "$ref": "#/$defs/IndexSeriesPoint"
+            },
+            "low": {
+              "$ref": "#/$defs/IndexSeriesPoint"
+            },
+            "open": {
+              "$ref": "#/$defs/IndexSeriesPoint"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "required": [
+        "trade_date",
+        "values"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRawPoint": {
+      "maxLength": 40,
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$(?![\\s\\S])",
+      "type": "string"
+    },
+    "IndexSeriesRawPriceFields": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        },
+        "high": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        },
+        "low": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        },
+        "open": {
+          "$ref": "#/$defs/IndexSeriesRawPoint"
+        }
+      },
+      "required": [
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesReady": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "2.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "feature_version": {
+          "const": "index-series-v2",
+          "type": "string"
+        },
+        "identity_format": {
+          "const": "wolf-index-config-v2",
+          "type": "string"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "policy": {
+          "$ref": "#/$defs/IndexSeriesPolicy"
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startup_indices": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesId"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "status": {
+          "const": "ready",
+          "type": "string"
+        },
+        "write_indices": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesId"
+          },
+          "maxItems": 6,
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "instance_id",
+        "data_scope_id",
+        "config_id",
+        "identity_format",
+        "feature_version",
+        "write_indices",
+        "startup_indices",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRecordedRejection": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/IndexSeriesError"
+        },
+        "status": {
+          "const": 409,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "body"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRetrieval": {
+      "additionalProperties": false,
+      "properties": {
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "observed_at": {
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesRetrievalSource"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "sources",
+        "observed_at"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesRetrievalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_at": {
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "published_at": {
+          "type": "null"
+        },
+        "source": {
+          "$ref": "#/$defs/IndexSeriesSource"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "url",
+        "started_at",
+        "completed_at",
+        "published_at"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "bars": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesBar"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "calendar_dates": {
+          "items": {
+            "$ref": "#/$defs/Day"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "catalog_version": {
+          "const": "index-catalog-v1",
+          "type": "string"
+        },
+        "completion_basis": {
+          "$ref": "#/$defs/IndexSeriesCompletionBasis"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesEvidence"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "instrument": {
+          "$ref": "#/$defs/IndexSeriesInstrument"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "retrieval": {
+          "$ref": "#/$defs/IndexSeriesRetrieval"
+        },
+        "schema_version": {
+          "const": "index-series-price-snapshot-v2",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source_policy_version": {
+          "$ref": "#/$defs/IndexSeriesSourcePolicy"
+        },
+        "storage_decimals": {
+          "enum": [
+            2,
+            4
+          ],
+          "type": "integer"
+        },
+        "summary": {
+          "$ref": "#/$defs/IndexSeriesSummary"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "type": "string"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/IndexSeriesVerification"
+        },
+        "window": {
+          "$ref": "#/$defs/IndexSeriesWindow"
+        }
+      },
+      "required": [
+        "schema_version",
+        "catalog_version",
+        "instrument",
+        "source_policy_version",
+        "calendar_version",
+        "unit",
+        "timezone",
+        "pit_grade",
+        "storage_decimals",
+        "window",
+        "calendar_dates",
+        "completion_basis",
+        "verification",
+        "bars",
+        "summary",
+        "evidence",
+        "snapshot_id",
+        "observation_id",
+        "retrieval"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesSource": {
+      "enum": [
+        "csindex",
+        "cnindex",
+        "eastmoney"
+      ],
+      "type": "string"
+    },
+    "IndexSeriesSourcePolicy": {
+      "enum": [
+        "index-csindex-eastmoney-exact-v1",
+        "index-cnindex-eastmoney-rounding-aware-v1"
+      ],
+      "type": "string"
+    },
+    "IndexSeriesSourceRow": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "comparison_values": {
+          "$ref": "#/$defs/IndexSeriesComparisonFields"
+        },
+        "high": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "locator": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "low": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "open": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "raw_values": {
+          "$ref": "#/$defs/IndexSeriesRawPriceFields"
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "locator",
+        "raw_values",
+        "comparison_values"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "daily_change_pct": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formula_version": {
+          "const": "adjacent-expected-close-pct-half-up-v1",
+          "type": "string"
+        },
+        "input_refs": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesSummaryInput"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "const": "first_row_without_previous_close",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "close",
+        "daily_change_pct",
+        "reason",
+        "formula_version",
+        "input_refs"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesSummaryInput": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/IndexSeriesPoint"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesEvidenceRef"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "close",
+        "evidence_refs"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesUpdateStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "added_dates": {
+          "items": {
+            "$ref": "#/$defs/Day"
+          },
+          "type": "array"
+        },
+        "differences": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesDifference"
+          },
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_success_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "previous_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "enum": [
+                "business_changed",
+                "evidence_changed",
+                "unchanged",
+                "source_not_ready",
+                "failed",
+                "interrupted"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revised_dates": {
+          "items": {
+            "$ref": "#/$defs/Day"
+          },
+          "type": "array"
+        },
+        "snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stage": {
+          "enum": [
+            "idle",
+            "preparing",
+            "fetching_csindex",
+            "fetching_cnindex",
+            "fetching_eastmoney",
+            "validating",
+            "publishing",
+            "completed",
+            "failed",
+            "interrupted"
+          ],
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Day"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Day"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "enum": [
+                "manual",
+                "startup"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "index_id",
+        "job_id",
+        "trigger",
+        "stage",
+        "result",
+        "started_at",
+        "finished_at",
+        "last_success_at",
+        "message",
+        "target_start",
+        "target_end",
+        "previous_snapshot_id",
+        "snapshot_id",
+        "observation_id",
+        "added_dates",
+        "revised_dates",
+        "differences",
+        "enabled"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesVerification": {
+      "additionalProperties": false,
+      "properties": {
+        "comparison_decimals": {
+          "const": 2,
+          "type": "integer"
+        },
+        "comparison_rounding": {
+          "anyOf": [
+            {
+              "const": "ROUND_HALF_UP",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "mode": {
+          "enum": [
+            "exact",
+            "rounding_aware"
+          ],
+          "type": "string"
+        },
+        "primary_source": {
+          "enum": [
+            "csindex",
+            "cnindex"
+          ],
+          "type": "string"
+        },
+        "result": {
+          "const": "matched",
+          "type": "string"
+        },
+        "verification_source": {
+          "const": "eastmoney",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "primary_source",
+        "verification_source",
+        "comparison_decimals",
+        "comparison_rounding",
+        "result",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesView": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "const": "v2",
+              "type": "string"
+            },
+            "index_id": {
+              "$ref": "#/$defs/IndexSeriesId"
+            },
+            "snapshot": {
+              "$ref": "#/$defs/IndexSeriesSnapshot"
+            }
+          },
+          "required": [
+            "index_id",
+            "format",
+            "snapshot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "const": "legacy_v1",
+              "type": "string"
+            },
+            "index_id": {
+              "const": "csi:000300:price",
+              "type": "string"
+            },
+            "snapshot": {
+              "$ref": "#/$defs/IndexView"
+            }
+          },
+          "required": [
+            "index_id",
+            "format",
+            "snapshot"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IndexSeriesWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "actual_count": {
+          "type": "integer"
+        },
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "expected_count": {
+          "type": "integer"
+        },
+        "natural_start": {
+          "$ref": "#/$defs/Day"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        },
+        "version": {
+          "const": "three-natural-years-before-shanghai-day-v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "anchor_date",
+        "natural_start",
+        "start",
+        "end",
+        "expected_count",
+        "actual_count"
+      ],
+      "type": "object"
+    },
+    "IndexView": {
+      "additionalProperties": false,
+      "properties": {
+        "bars": {
+          "items": {
+            "$ref": "#/$defs/Bar"
+          },
+          "maxItems": 260,
+          "minItems": 260,
+          "type": "array"
+        },
+        "calendar_dates": {
+          "items": {
+            "$ref": "#/$defs/Day"
+          },
+          "maxItems": 260,
+          "minItems": 260,
+          "type": "array"
+        },
+        "completion_basis": {
+          "$ref": "#/$defs/CompletionBasis"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "instrument": {
+          "$ref": "#/$defs/Instrument"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "retrieval": {
+          "$ref": "#/$defs/Retrieval"
+        },
+        "schema_version": {
+          "const": "csi300-price-snapshot-v1",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source_contract": {
+          "$ref": "#/$defs/SourceContract"
+        },
+        "summary": {
+          "$ref": "#/$defs/Summary"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "type": "string"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "bars",
+        "calendar_dates",
+        "completion_basis",
+        "evidence",
+        "instrument",
+        "pit_grade",
+        "schema_version",
+        "source_contract",
+        "summary",
+        "timezone",
+        "unit",
+        "window",
+        "snapshot_id",
+        "observation_id",
+        "retrieval"
+      ],
+      "type": "object"
+    },
+    "Instrument": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "const": "000300",
+          "type": "string"
+        },
+        "frequency": {
+          "const": "daily",
+          "type": "string"
+        },
+        "id": {
+          "const": "csi:000300:price",
+          "type": "string"
+        },
+        "name": {
+          "const": "沪深300",
+          "type": "string"
+        },
+        "provider": {
+          "const": "中证",
+          "type": "string"
+        },
+        "return_type": {
+          "const": "price",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "frequency",
+        "id",
+        "name",
+        "provider",
+        "return_type"
+      ],
+      "type": "object"
+    },
+    "InternalError": {
+      "const": "Internal Server Error",
+      "type": "string"
+    },
+    "MarketActivityAnchors": {
+      "additionalProperties": false,
+      "properties": {
+        "sse_szse": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sse_szse_bse": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "sse_szse",
+        "sse_szse_bse"
+      ],
+      "type": "object"
+    },
+    "MarketActivityCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "comparisons": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "day_20": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_5": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_60": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "year_1": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "day_5",
+                "day_20",
+                "day_60",
+                "year_1"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "volume",
+                  "amount"
+                ],
+                "type": "string"
+              },
+              "frequency": {
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly"
+                ],
+                "type": "string"
+              },
+              "ma_availability": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "period": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "required_count": {
+                      "type": "integer"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "available",
+                    "sample_count",
+                    "required_count",
+                    "reason"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "change_pct": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "end": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "ma": {
+                      "items": {
+                        "$ref": "#/$defs/MarketActivityScalar"
+                      },
+                      "type": "array"
+                    },
+                    "period_end": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "period_start": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    },
+                    "start": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "total": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end",
+                    "period_start",
+                    "period_end",
+                    "sample_count",
+                    "total",
+                    "change_pct",
+                    "ma"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "frequency",
+              "field",
+              "rows",
+              "ma_availability"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "formula_version",
+        "pit_grade",
+        "series",
+        "comparisons"
+      ],
+      "type": "object"
+    },
+    "MarketActivityCurrent": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "coverage_end": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "coverage_start": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "missing_dates": {
+          "items": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "anchor_date",
+        "coverage_start",
+        "coverage_end",
+        "missing_dates",
+        "observation_id"
+      ],
+      "type": "object"
+    },
+    "MarketActivityDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "blocked_series": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "evidence_id": {
+                "$ref": "#/$defs/ObjectId"
+              },
+              "reason": {
+                "const": "source_withdrawn",
+                "type": "string"
+              },
+              "series_id": {
+                "enum": [
+                  "sse:000001:price",
+                  "szse:399001:price",
+                  "szse:399006:price",
+                  "sse:000688:price",
+                  "cn-a-turnover",
+                  "cn-a-turnover-sse-szse"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "series_id",
+              "evidence_id",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "2.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "feature_version": {
+          "const": "market-activity-v1",
+          "type": "string"
+        },
+        "identity_format": {
+          "const": "wolf-activity-config-v1",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/MarketActivityPolicy"
+        },
+        "price_index_config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startup_series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "write_series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "endpoint",
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "data_scope_id",
+        "identity_format",
+        "feature_version",
+        "config_id",
+        "price_index_config_id",
+        "activity_scope_id",
+        "series",
+        "write_series",
+        "startup_series",
+        "blocked_series",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "MarketActivityError": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "MarketActivityEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "byte_length": {
+          "type": "integer"
+        },
+        "content_base64": {
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservation"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "published_at": {
+          "type": "null"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "object_id",
+        "source",
+        "url",
+        "published_at",
+        "content_base64",
+        "byte_length",
+        "price_snapshot_id",
+        "observations"
+      ],
+      "type": "object"
+    },
+    "MarketActivityFact": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "object_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_unit": {
+          "type": "string"
+        },
+        "raw_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_quantum": {
+          "type": "string"
+        },
+        "unit": {
+          "enum": [
+            "股",
+            "元"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "reason",
+        "raw_value",
+        "raw_unit",
+        "source_quantum",
+        "object_id",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "MarketActivityIndexSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "activity_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "comparison": {
+                  "const": "exact_available_values_match",
+                  "type": "string"
+                },
+                "price_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "relation": {
+                  "enum": [
+                    "same_source_object",
+                    "different_source_objects"
+                  ],
+                  "type": "string"
+                },
+                "rows": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activity_locator": {
+                        "type": "string"
+                      },
+                      "price_locator": {
+                        "type": "string"
+                      },
+                      "trade_date": {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "trade_date",
+                      "price_locator",
+                      "activity_locator"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version",
+                "price_object_id",
+                "activity_object_id",
+                "relation",
+                "comparison",
+                "rows"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_dates": {
+          "items": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "completion_basis": {
+          "$ref": "#/$defs/IndexSeriesCompletionBasis"
+        },
+        "currency": {
+          "const": "CNY",
+          "type": "string"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservation"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "parser_version": {
+          "type": "string"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "$ref": "#/$defs/MarketActivityFact"
+              },
+              "trade_date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "volume": {
+                "$ref": "#/$defs/MarketActivityFact"
+              }
+            },
+            "required": [
+              "trade_date",
+              "volume",
+              "amount"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "activity-facts-v1",
+          "type": "string"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover"
+          ],
+          "type": "string"
+        },
+        "source_policy_version": {
+          "type": "string"
+        },
+        "source_revision_id": {
+          "type": "null"
+        },
+        "source_revision_relation": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "source_scope": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "$ref": "#/$defs/ObjectId"
+              },
+              "source": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "object_id",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "window": {
+          "$ref": "#/$defs/IndexSeriesWindow"
+        }
+      },
+      "required": [
+        "schema_version",
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "anchor_date",
+        "window",
+        "calendar_version",
+        "calendar_dates",
+        "source_policy_version",
+        "parser_version",
+        "pit_grade",
+        "currency",
+        "source_scope",
+        "source_revision_relation",
+        "source_revision_id",
+        "binding",
+        "sources",
+        "rows",
+        "completion_basis",
+        "observations"
+      ],
+      "type": "object"
+    },
+    "MarketActivityMarketSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "activity_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "comparison": {
+                  "const": "exact_available_values_match",
+                  "type": "string"
+                },
+                "price_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "relation": {
+                  "enum": [
+                    "same_source_object",
+                    "different_source_objects"
+                  ],
+                  "type": "string"
+                },
+                "rows": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activity_locator": {
+                        "type": "string"
+                      },
+                      "price_locator": {
+                        "type": "string"
+                      },
+                      "trade_date": {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "trade_date",
+                      "price_locator",
+                      "activity_locator"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version",
+                "price_object_id",
+                "activity_object_id",
+                "relation",
+                "comparison",
+                "rows"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_dates": {
+          "items": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "completion_basis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndexSeriesCompletionBasis"
+            },
+            {
+              "$ref": "#/$defs/ThreeMarketCompletionBasis"
+            }
+          ]
+        },
+        "currency": {
+          "const": "CNY",
+          "type": "string"
+        },
+        "market_calendars": {
+          "additionalProperties": false,
+          "properties": {
+            "bse": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sse": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "szse": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sse",
+            "szse",
+            "bse"
+          ],
+          "type": "object"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservation"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "parser_version": {
+          "type": "string"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "components": {
+                "additionalProperties": false,
+                "properties": {
+                  "bse": {
+                    "items": {
+                      "$ref": "#/$defs/MarketActivityFact"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "sse": {
+                    "items": {
+                      "$ref": "#/$defs/MarketActivityFact"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "szse": {
+                    "items": {
+                      "$ref": "#/$defs/MarketActivityFact"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "sse",
+                  "szse",
+                  "bse"
+                ],
+                "type": "object"
+              },
+              "trade_date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "trade_date",
+              "components"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "activity-facts-v1",
+          "type": "string"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover"
+          ],
+          "type": "string"
+        },
+        "source_policy_version": {
+          "type": "string"
+        },
+        "source_revision_id": {
+          "type": "null"
+        },
+        "source_revision_relation": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "source_scope": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "$ref": "#/$defs/ObjectId"
+              },
+              "source": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "object_id",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "window": {
+          "$ref": "#/$defs/IndexSeriesWindow"
+        }
+      },
+      "required": [
+        "schema_version",
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "anchor_date",
+        "window",
+        "calendar_version",
+        "calendar_dates",
+        "source_policy_version",
+        "parser_version",
+        "pit_grade",
+        "currency",
+        "source_scope",
+        "source_revision_relation",
+        "source_revision_id",
+        "binding",
+        "sources",
+        "rows",
+        "completion_basis",
+        "market_calendars",
+        "observations"
+      ],
+      "type": "object"
+    },
+    "MarketActivityObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservedSource"
+          },
+          "maxItems": 2200,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "observation_id",
+        "request_id",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "MarketActivityObservedSource": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$",
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "published_at": {
+          "type": "null"
+        },
+        "source": {
+          "type": "string"
+        },
+        "started_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$",
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "url",
+        "started_at",
+        "completed_at",
+        "published_at"
+      ],
+      "type": "object"
+    },
+    "MarketActivityOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recovered_from_instance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicInstanceId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        },
+        "signature": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "state": {
+          "enum": [
+            "preparing",
+            "completed",
+            "failed",
+            "interrupted"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "request_id",
+        "config_id",
+        "instance_id",
+        "target",
+        "signature",
+        "state",
+        "activity_id",
+        "reason",
+        "recovered_from_instance",
+        "observation_id"
+      ],
+      "type": "object"
+    },
+    "MarketActivityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_version": {
+          "type": "string"
+        },
+        "network": {
+          "additionalProperties": false,
+          "properties": {
+            "budget_cycle": {
+              "type": "string"
+            },
+            "deadline_seconds": {
+              "type": "integer"
+            },
+            "ledger_scope": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ledger_version": {
+              "type": "string"
+            },
+            "max_attempts": {
+              "type": "integer"
+            },
+            "max_bytes": {
+              "type": "integer"
+            },
+            "max_operation_requests": {
+              "type": "integer"
+            },
+            "max_response_bytes": {
+              "type": "integer"
+            },
+            "minimum_interval_seconds": {
+              "type": "integer"
+            },
+            "redirects": {
+              "type": "boolean"
+            },
+            "retries": {
+              "type": "integer"
+            },
+            "timeout_seconds": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_attempts",
+            "max_bytes",
+            "max_response_bytes",
+            "timeout_seconds",
+            "deadline_seconds",
+            "minimum_interval_seconds",
+            "redirects",
+            "retries",
+            "max_operation_requests",
+            "budget_cycle",
+            "ledger_version",
+            "ledger_scope"
+          ],
+          "type": "object"
+        },
+        "parser": {
+          "additionalProperties": false,
+          "properties": {
+            "max_rows": {
+              "type": "integer"
+            },
+            "version": {
+              "type": "string"
+            },
+            "xlsx_cells": {
+              "type": "integer"
+            },
+            "xlsx_expanded_bytes": {
+              "type": "integer"
+            },
+            "xlsx_members": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "version",
+            "max_rows",
+            "xlsx_members",
+            "xlsx_expanded_bytes",
+            "xlsx_cells"
+          ],
+          "type": "object"
+        },
+        "sources": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "admitted": {
+                "type": "boolean"
+              },
+              "amount_quantum": {
+                "type": "string"
+              },
+              "amount_unit": {
+                "type": "string"
+              },
+              "gaps": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "scope": {
+                "type": "string"
+              },
+              "series": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "volume_unit": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "series",
+              "source",
+              "amount_unit",
+              "amount_quantum",
+              "volume_unit",
+              "scope",
+              "gaps",
+              "admitted",
+              "version"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        },
+        "window_years": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "binding_version",
+        "window_years",
+        "sources",
+        "network",
+        "parser"
+      ],
+      "type": "object"
+    },
+    "MarketActivityReady": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "blocked_series": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "evidence_id": {
+                "$ref": "#/$defs/ObjectId"
+              },
+              "reason": {
+                "const": "source_withdrawn",
+                "type": "string"
+              },
+              "series_id": {
+                "enum": [
+                  "sse:000001:price",
+                  "szse:399001:price",
+                  "szse:399006:price",
+                  "sse:000688:price",
+                  "cn-a-turnover",
+                  "cn-a-turnover-sse-szse"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "series_id",
+              "evidence_id",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "2.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "feature_version": {
+          "const": "market-activity-v1",
+          "type": "string"
+        },
+        "identity_format": {
+          "const": "wolf-activity-config-v1",
+          "type": "string"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "market_anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "market_anchors": {
+          "$ref": "#/$defs/MarketActivityAnchors"
+        },
+        "policy": {
+          "$ref": "#/$defs/MarketActivityPolicy"
+        },
+        "price_index_config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "startup_series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "status": {
+          "const": "ready",
+          "type": "string"
+        },
+        "write_series": {
+          "items": {
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "data_scope_id",
+        "identity_format",
+        "feature_version",
+        "config_id",
+        "price_index_config_id",
+        "activity_scope_id",
+        "series",
+        "write_series",
+        "startup_series",
+        "blocked_series",
+        "policy",
+        "instance_id",
+        "status",
+        "market_anchor_date"
+      ],
+      "type": "object"
+    },
+    "MarketActivityScalar": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "incomplete_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "input_ref": {
+          "additionalProperties": false,
+          "properties": {
+            "activity_id": {
+              "$ref": "#/$defs/ObjectId"
+            },
+            "end": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "price_snapshot_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "series_id": {
+              "enum": [
+                "sse:000001:price",
+                "szse:399001:price",
+                "szse:399006:price",
+                "sse:000688:price",
+                "cn-a-turnover",
+                "cn-a-turnover-sse-szse"
+              ],
+              "type": "string"
+            },
+            "start": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "series_id",
+            "activity_id",
+            "price_snapshot_id",
+            "start",
+            "end"
+          ],
+          "type": "object"
+        },
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "frequency": {
+              "type": "string"
+            },
+            "operation": {
+              "type": "string"
+            },
+            "period": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "field",
+            "frequency",
+            "operation",
+            "period"
+          ],
+          "type": "object"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "reason",
+        "unit",
+        "formula_version",
+        "parameters",
+        "input_ref",
+        "complete",
+        "incomplete_reasons"
+      ],
+      "type": "object"
+    },
+    "MarketActivitySeriesId": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
+      "type": "string"
+    },
+    "MarketActivitySnapshot": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MarketActivityIndexSnapshot"
+        },
+        {
+          "$ref": "#/$defs/MarketActivityMarketSnapshot"
+        },
+        {
+          "$ref": "#/$defs/MarketActivityTwoMarketSnapshot"
+        }
+      ]
+    },
+    "MarketActivityTwoMarketSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "binding": {
+          "type": "null"
+        },
+        "calendar_dates": {
+          "items": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "completion_basis": {
+          "$ref": "#/$defs/IndexSeriesCompletionBasis"
+        },
+        "currency": {
+          "const": "CNY",
+          "type": "string"
+        },
+        "market_calendars": {
+          "additionalProperties": false,
+          "properties": {
+            "sse": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "szse": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sse",
+            "szse"
+          ],
+          "type": "object"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservation"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "parser_version": {
+          "type": "string"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "type": "null"
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "components": {
+                "additionalProperties": false,
+                "properties": {
+                  "sse": {
+                    "items": {
+                      "$ref": "#/$defs/MarketActivityFact"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "szse": {
+                    "items": {
+                      "$ref": "#/$defs/MarketActivityFact"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "sse",
+                  "szse"
+                ],
+                "type": "object"
+              },
+              "trade_date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "trade_date",
+              "components"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "activity-facts-v1",
+          "type": "string"
+        },
+        "series_id": {
+          "const": "cn-a-turnover-sse-szse",
+          "type": "string"
+        },
+        "source_policy_version": {
+          "type": "string"
+        },
+        "source_revision_id": {
+          "type": "null"
+        },
+        "source_revision_relation": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "source_scope": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "$ref": "#/$defs/ObjectId"
+              },
+              "source": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "object_id",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "window": {
+          "$ref": "#/$defs/IndexSeriesWindow"
+        }
+      },
+      "required": [
+        "schema_version",
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "anchor_date",
+        "window",
+        "calendar_version",
+        "calendar_dates",
+        "source_policy_version",
+        "parser_version",
+        "pit_grade",
+        "currency",
+        "source_scope",
+        "source_revision_relation",
+        "source_revision_id",
+        "binding",
+        "sources",
+        "rows",
+        "completion_basis",
+        "market_calendars",
+        "observations"
+      ],
+      "type": "object"
+    },
+    "MarketActivityUpdateBody": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expected_activity_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "price_snapshot_id": {
+              "$ref": "#/$defs/ObjectId"
+            }
+          },
+          "required": [
+            "price_snapshot_id",
+            "expected_activity_id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "anchor_date": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "expected_activity_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "anchor_date",
+            "expected_activity_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ObjectId": {
+      "description": "内容或观察SHA-256；不是job ID或Git提交。",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "OverviewBudgetCounter": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "type": "integer"
+        },
+        "requests": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "requests",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "OverviewPeriodicPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "charging": {
+          "const": "response-limit-no-refund",
+          "type": "string"
+        },
+        "check_time": {
+          "const": "07:00",
+          "type": "string"
+        },
+        "daily_bytes": {
+          "type": "integer"
+        },
+        "daily_requests": {
+          "type": "integer"
+        },
+        "ledger_version": {
+          "const": "overview-periodic-ledger-v1",
+          "type": "string"
+        },
+        "monthly_bytes": {
+          "type": "integer"
+        },
+        "monthly_requests": {
+          "type": "integer"
+        },
+        "scope_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "type": "string"
+        },
+        "version": {
+          "const": "overview-periodic-v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "timezone",
+        "check_time",
+        "daily_requests",
+        "daily_bytes",
+        "monthly_requests",
+        "monthly_bytes",
+        "charging",
+        "ledger_version",
+        "scope_id"
+      ],
+      "type": "object"
+    },
+    "OverviewUpdateStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "daily": {
+          "$ref": "#/$defs/OverviewBudgetCounter"
+        },
+        "daily_resets_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$",
+          "type": "string"
+        },
+        "market_anchor_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "market_anchors": {
+          "$ref": "#/$defs/MarketActivityAnchors"
+        },
+        "monthly": {
+          "$ref": "#/$defs/OverviewBudgetCounter"
+        },
+        "monthly_resets_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$",
+          "type": "string"
+        },
+        "next_check_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 100,
+          "pattern": "^[a-z_]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reserved": {
+          "$ref": "#/$defs/OverviewBudgetCounter"
+        },
+        "resume_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "server_day": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "idle",
+            "running",
+            "failed",
+            "blocked"
+          ],
+          "type": "string"
+        },
+        "warning": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "revision",
+        "state",
+        "reason",
+        "market_anchor_date",
+        "server_day",
+        "next_check_at",
+        "resume_at",
+        "daily",
+        "monthly",
+        "reserved",
+        "warning",
+        "daily_resets_at",
+        "monthly_resets_at"
+      ],
+      "type": "object"
+    },
+    "Percent": {
+      "pattern": "^-?[0-9]+\\.[0-9]{2}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "Point": {
+      "description": "原十进制点位字符串；单位与精度引用既有指数数据约定，不作浮点转换。",
+      "pattern": "^[0-9]+\\.[0-9]{2}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "PublicDigest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "PublicInstanceId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "Ready": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "2.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "identity_format": {
+          "const": "wolf-config-v2",
+          "type": "string"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "const": "ready",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "instance_id",
+        "data_scope_id",
+        "config_id",
+        "identity_format"
+      ],
+      "type": "object"
+    },
+    "RequestId": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "Retrieval": {
+      "additionalProperties": false,
+      "properties": {
+        "observed_at": {
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/RetrievalSource"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "observed_at",
+        "snapshot_id",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "RetrievalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_at": {
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "published_at": {
+          "type": "null"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "object_id",
+        "url",
+        "started_at",
+        "completed_at",
+        "published_at"
+      ],
+      "type": "object"
+    },
+    "Source": {
+      "enum": [
+        "eastmoney",
+        "tencent",
+        "csindex"
+      ],
+      "type": "string"
+    },
+    "SourceContract": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TencentSourceContract"
+        }
+      ]
+    },
+    "SourceRow": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Point"
+        },
+        "high": {
+          "$ref": "#/$defs/Point"
+        },
+        "locator": {
+          "type": "string"
+        },
+        "low": {
+          "$ref": "#/$defs/Point"
+        },
+        "open": {
+          "$ref": "#/$defs/Point"
+        },
+        "raw_values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "properties": {
+            "close": {
+              "type": "string"
+            },
+            "high": {
+              "type": "string"
+            },
+            "low": {
+              "type": "string"
+            },
+            "open": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "open",
+            "high",
+            "low",
+            "close"
+          ],
+          "type": "object"
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "locator",
+        "raw_values"
+      ],
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Point"
+        },
+        "daily_change_pct": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formula_version": {
+          "const": "adjacent-expected-close-pct-half-up-v1",
+          "type": "string"
+        },
+        "input_refs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "close": {
+                "$ref": "#/$defs/Point"
+              },
+              "evidence_refs": {
+                "items": {
+                  "$ref": "#/$defs/EvidenceRef"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "trade_date": {
+                "$ref": "#/$defs/Day"
+              }
+            },
+            "required": [
+              "close",
+              "trade_date",
+              "evidence_refs"
+            ],
+            "type": "object"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "first_row_without_previous_close"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trade_date": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "close",
+        "trade_date",
+        "daily_change_pct",
+        "reason",
+        "formula_version",
+        "input_refs"
+      ],
+      "type": "object"
+    },
+    "TencentSourceContract": {
+      "additionalProperties": false,
+      "properties": {
+        "date_selection": {
+          "const": "exclude earlier rows; reject later, duplicate or unordered dates; retain original array index",
+          "type": "string"
+        },
+        "identity_basis": {
+          "const": "PLAN-P01 official factsheet; H00300/N00300 excluded",
+          "type": "string"
+        },
+        "normalization": {
+          "const": "decimal-two-places-v1",
+          "type": "string"
+        },
+        "publication_time": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "request_qfq_semantics": {
+          "const": "SDK compatibility parameter; price index day only",
+          "type": "string"
+        },
+        "sources": {
+          "additionalProperties": false,
+          "properties": {
+            "csindex": {
+              "type": "string"
+            },
+            "tencent": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "csindex",
+            "tencent"
+          ],
+          "type": "object"
+        },
+        "tencent_branch": {
+          "const": "day",
+          "type": "string"
+        },
+        "unused_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "version": {
+          "const": "csi300-tencent-exact-ohlc-v2",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date_selection",
+        "identity_basis",
+        "normalization",
+        "publication_time",
+        "request_qfq_semantics",
+        "sources",
+        "tencent_branch",
+        "unused_fields",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ThreeMarketCalendarSource": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_kind": {
+          "enum": [
+            "web_tool_text",
+            "http_original"
+          ],
+          "type": "string"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "exchange": {
+          "enum": [
+            "sse",
+            "szse",
+            "bse"
+          ],
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "year": {
+          "enum": [
+            2023,
+            2024,
+            2025,
+            2026
+          ],
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "exchange",
+        "url",
+        "evidence_kind",
+        "evidence_sha256"
+      ],
+      "type": "object"
+    },
+    "ThreeMarketCompletionBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude_anchor_day": {
+          "const": true,
+          "type": "boolean"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rule": {
+          "const": "exchange_weekdays_excluding_announced_full_day_closures_before_shanghai_today",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/ThreeMarketCalendarSource"
+          },
+          "maxItems": 12,
+          "minItems": 12,
+          "type": "array"
+        },
+        "supported_years": {
+          "items": {
+            "enum": [
+              2023,
+              2024,
+              2025,
+              2026
+            ],
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "timezone",
+        "exclude_anchor_day",
+        "supported_years",
+        "sources",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "UpdateRequest": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "Window": {
+      "additionalProperties": false,
+      "properties": {
+        "actual_count": {
+          "const": 260,
+          "type": "integer"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "expected_count": {
+          "const": 260,
+          "type": "integer"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "expected_count",
+        "actual_count"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

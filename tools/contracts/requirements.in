@@ -1,0 +1,6 @@
+# 仅用于隔离契约工具，不改变产品 Python 环境。
+datamodel-code-generator==0.85.0
+pydantic==2.13.5
+PyYAML==6.0.3
+jsonschema>=4.23,<5
+openapi-spec-validator>=0.7.2,<0.9

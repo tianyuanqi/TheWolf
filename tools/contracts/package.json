@@ -1,0 +1,12 @@
+{
+  "name": "thewolf-contract-tools",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "openapi-typescript": "7.13.0"
+  }
+}
