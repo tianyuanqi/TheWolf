@@ -339,6 +339,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/etf-flow/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["etfFlowReady"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightetfFlowReady"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/etf-flow/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["currentEtfFlow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightcurrentEtfFlow"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/etf-flow/snapshots/{snapshot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        get: operations["etfFlowView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightetfFlowView"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/etf-flow/snapshots/{snapshot_id}/evidence/{object_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+                object_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        get: operations["etfFlowEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightetfFlowEvidence"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/etf-flow/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startEtfFlow"];
+        delete?: never;
+        options: operations["preflightstartEtfFlow"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/etf-flow/operations/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["etfFlowOperation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightetfFlowOperation"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index-series/{index_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                index_id: components["schemas"]["IndexSeriesId"];
+            };
+            cookie?: never;
+        };
+        /** @description 按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。 */
+        get: operations["indexSeriesView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightindexSeriesView"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/market-activity/{series_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            };
+            cookie?: never;
+        };
+        /** @description 固定价格/anchor与活动版本绑定，按需读取单字段单周期；普通读取不重验原件。 */
+        get: operations["marketActivityView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightmarketActivityView"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/storage/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。 */
+        get: operations["marketVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightmarketVersions"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/storage/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。 */
+        get: operations["storageStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options: operations["preflightstorageStatus"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -502,7 +677,7 @@ export interface components {
             service_id: "thewolf-local-service";
             service_version: string;
             /** @constant */
-            contract_version: "2.0.0";
+            contract_version: "3.0.0";
             contract_sha256: components["schemas"]["PublicDigest"];
             instance_id: components["schemas"]["PublicInstanceId"];
             data_scope_id: components["schemas"]["PublicDigest"];
@@ -637,7 +812,7 @@ export interface components {
             service_id: "thewolf-local-service";
             service_version: string;
             /** @constant */
-            contract_version: "2.0.0";
+            contract_version: "3.0.0";
             contract_sha256: components["schemas"]["PublicDigest"];
             instance_id: components["schemas"]["PublicInstanceId"];
             data_scope_id: components["schemas"]["PublicDigest"];
@@ -921,7 +1096,7 @@ export interface components {
         IndexSeriesError: {
             detail: {
                 /** @enum {string} */
-                code: "index_series_empty" | "index_series_snapshot_not_found" | "index_series_unavailable" | "index_series_invalid" | "index_series_evidence_not_found" | "index_range_invalid" | "coverage_insufficient";
+                code: "index_series_empty" | "index_series_snapshot_not_found" | "index_series_unavailable" | "index_series_invalid" | "index_series_evidence_not_found" | "index_range_invalid" | "coverage_insufficient" | "range_parameters_invalid" | "range_coverage_insufficient" | "storage_publication_not_found" | "storage_observation_not_member" | "storage_activity_binding_invalid" | "storage_quarantined" | "storage_integrity_check_due" | "storage_maintenance_failed";
                 message: string;
             };
         };
@@ -1038,7 +1213,7 @@ export interface components {
         IndexSeriesCalculationError: {
             detail: {
                 /** @enum {string} */
-                code: "index_series_empty" | "index_series_snapshot_not_found" | "index_series_unavailable" | "index_series_invalid" | "index_series_evidence_not_found" | "index_range_invalid" | "coverage_insufficient" | "calculation_parameters_invalid";
+                code: "index_series_empty" | "index_series_snapshot_not_found" | "index_series_unavailable" | "index_series_invalid" | "index_series_evidence_not_found" | "index_range_invalid" | "coverage_insufficient" | "calculation_parameters_invalid" | "range_parameters_invalid" | "range_coverage_insufficient" | "storage_publication_not_found" | "storage_observation_not_member" | "storage_activity_binding_invalid" | "storage_quarantined" | "storage_integrity_check_due" | "storage_maintenance_failed";
                 message: string;
             };
         };
@@ -1226,7 +1401,7 @@ export interface components {
             service_id: "thewolf-local-service";
             service_version: string;
             /** @constant */
-            contract_version: "2.0.0";
+            contract_version: "3.0.0";
             contract_sha256: components["schemas"]["PublicDigest"];
             data_scope_id: components["schemas"]["PublicDigest"];
             /** @constant */
@@ -1492,7 +1667,7 @@ export interface components {
             service_id: "thewolf-local-service";
             service_version: string;
             /** @constant */
-            contract_version: "2.0.0";
+            contract_version: "3.0.0";
             contract_sha256: components["schemas"]["PublicDigest"];
             data_scope_id: components["schemas"]["PublicDigest"];
             /** @constant */
@@ -1520,7 +1695,7 @@ export interface components {
             service_id: "thewolf-local-service";
             service_version: string;
             /** @constant */
-            contract_version: "2.0.0";
+            contract_version: "3.0.0";
             contract_sha256: components["schemas"]["PublicDigest"];
             data_scope_id: components["schemas"]["PublicDigest"];
             config_id: components["schemas"]["PublicDigest"];
@@ -1532,6 +1707,843 @@ export interface components {
             startup_indices: components["schemas"]["IndexSeriesId"][];
             policy: components["schemas"]["IndexSeriesPolicy"];
         };
+        EtfBasis: {
+            url: string;
+            report_date: string | null;
+            published_date: string;
+            locator: string;
+        };
+        EtfMember: {
+            id: string;
+            code: string;
+            name: string;
+            manager: string;
+            exchange: string;
+            tracking_index: string;
+            index_id: string | null;
+            group: string;
+            enabled_date: string;
+            disabled_date: string | null;
+            basis: components["schemas"]["EtfBasis"];
+        };
+        EtfSource: {
+            object_id: components["schemas"]["PublicDigest"];
+            publisher: string;
+            channel: string;
+            url: string;
+            retrieved_at: string;
+            published_at: string | null;
+            locator: string;
+            original_unit: string;
+            precision: string;
+        };
+        EtfMetrics: {
+            shares: string | null;
+            comparable_previous: string | null;
+            delta: string | null;
+            change_rate: string | null;
+            amount: string | null;
+            nav: string | null;
+            close: string | null;
+            turnover: string | null;
+            volume: string | null;
+            net_assets: string | null;
+            premium: string | null;
+            turnover_ratio: string | null;
+            date: string;
+            adjustment: boolean;
+            reason: string | null;
+        };
+        EtfCondition: {
+            mean: string | null;
+            standard_deviation: string | null;
+            upper: string | null;
+            lower: string | null;
+            positive_ratio: string | null;
+            negative_ratio: string | null;
+            threshold: string | null;
+            positive_count: number | null;
+            negative_count: number | null;
+            denominator: number | null;
+            /** @enum {string} */
+            state: "insufficient" | "parameters_pending" | "evaluated";
+            reason: string | null;
+            incoming: boolean | null;
+            outgoing: boolean | null;
+        };
+        EtfExclusion: {
+            member_id: string;
+            reason: string;
+        };
+        EtfEvaluation: {
+            result_id: components["schemas"]["PublicDigest"];
+            date: string;
+            /** @enum {string} */
+            state: "insufficient" | "parameters_pending" | "abnormal_subscription" | "abnormal_redemption" | "not_triggered";
+            amount: string | null;
+            partial: boolean;
+            active_count: number;
+            ready_count: number;
+            valid_count: number;
+            valid_ids: string[];
+            exclusions: components["schemas"]["EtfExclusion"][];
+            c1: components["schemas"]["EtfCondition"];
+            c2: components["schemas"]["EtfCondition"];
+            pool_version: string;
+            rule_version: string;
+            input_version: components["schemas"]["PublicDigest"];
+            calculated_at: string;
+            selection_at: string;
+            group_id: components["schemas"]["PublicDigest"] | null;
+            /** @enum {string} */
+            mode: "original" | "current";
+        };
+        EtfAdmission: {
+            id: components["schemas"]["PublicDigest"];
+            member_id: string;
+            first_qualified_at: string;
+            checked_at: string;
+            start: string;
+            end: string;
+            required_days: number;
+            input_version: components["schemas"]["PublicDigest"];
+        };
+        EtfMemberPoint: {
+            metrics: components["schemas"]["EtfMetrics"];
+            source_ids: components["schemas"]["PublicDigest"][];
+            adjustment_detail: components["schemas"]["EtfAdjustmentDetail"] | null;
+        };
+        EtfMemberView: {
+            id: string;
+            code: string;
+            name: string;
+            manager: string;
+            exchange: string;
+            tracking_index: string;
+            index_id: string | null;
+            group: string;
+            enabled_date: string;
+            disabled_date: string | null;
+            basis: components["schemas"]["EtfBasis"];
+            group_id: components["schemas"]["PublicDigest"];
+            active: boolean;
+            admission: components["schemas"]["EtfAdmission"] | null;
+            reason: string | null;
+            metrics: components["schemas"]["EtfMetrics"];
+            amount_5: string | null;
+            amount_20: string | null;
+            series: components["schemas"]["EtfMemberPoint"][];
+            /** @enum {string} */
+            input_basis: "recorded_inputs" | "posthoc_inputs";
+            input_version: components["schemas"]["PublicDigest"];
+            input_selected_at: string;
+        };
+        EtfGroup: {
+            id: components["schemas"]["PublicDigest"];
+            name: string;
+            member_ids: string[];
+        };
+        EtfStreak: {
+            /** @enum {string} */
+            state: "parameters_pending" | "insufficient" | "not_met" | "met";
+            direction: ("subscription" | "redemption") | null;
+            days: number | null;
+            amount: string | null;
+        };
+        EtfSummary: {
+            evaluation: components["schemas"]["EtfEvaluation"] | null;
+            amount_5: string | null;
+            amount_20: string | null;
+            streak: components["schemas"]["EtfStreak"];
+        };
+        EtfPoint: {
+            date: string;
+            /** @enum {string} */
+            state: "unrecorded" | "insufficient" | "parameters_pending" | "abnormal_subscription" | "abnormal_redemption" | "not_triggered";
+            evaluation: components["schemas"]["EtfEvaluation"] | null;
+            cumulative: string | null;
+        };
+        EtfHolder: {
+            name: string;
+            shares: string | null;
+            percentage: string | null;
+            classification: string | null;
+            classification_basis: string | null;
+        };
+        EtfDisclosure: {
+            id: string;
+            member_id: string;
+            report_date: string;
+            published_date: string | null;
+            source_id: components["schemas"]["PublicDigest"];
+            locator: string;
+            /** @enum {string} */
+            state: "disclosed" | "not_disclosed";
+            holders: components["schemas"]["EtfHolder"][];
+            note: string;
+            url: string;
+            retrieved_at: string;
+            known_date: string;
+            /** @enum {string} */
+            knowledge: "later_comparison" | "published_by_evaluation_day";
+            publication_unknown: boolean;
+        };
+        EtfEvent: {
+            id: string;
+            member_ids: string[];
+            occurred_start: string | null;
+            occurred_end: string | null;
+            published_date: string | null;
+            source_id: components["schemas"]["PublicDigest"];
+            locator: string;
+            description: string;
+            subjects: string[];
+            marker_date: string;
+            /** @enum {string} */
+            marker_kind: "occurrence" | "announcement";
+            url: string;
+            retrieved_at: string;
+            known_date: string;
+            /** @enum {string} */
+            knowledge: "later_comparison" | "published_by_evaluation_day";
+            publication_unknown: boolean;
+        };
+        EtfRule: {
+            version: string;
+            effective_date: string;
+            confirmed_at: string | null;
+            confirmation: string | null;
+            window: number;
+            k: string | null;
+            min_in: string | null;
+            min_out: string | null;
+            direction_ratio: string | null;
+            streak_days: number | null;
+        };
+        EtfPool: {
+            version: string;
+            hash: components["schemas"]["PublicDigest"];
+            effective_date: string;
+            confirmed_at: string;
+            change: string;
+        };
+        EtfIndexContext: {
+            index_id: string;
+            snapshot_id: components["schemas"]["PublicDigest"];
+            formula_version: string;
+            date: string;
+            return_1: string | null;
+            return_5: string | null;
+            /** @constant */
+            input_basis: "posthoc_context";
+            calculated_at: string;
+        };
+        EtfMarketContext: {
+            series_id: string;
+            activity_id: components["schemas"]["PublicDigest"];
+            formula_version: string;
+            date: string;
+            scope_label: string;
+            turnover: string | null;
+            ratio_20: string | null;
+            /** @constant */
+            input_basis: "posthoc_context";
+            calculated_at: string;
+        };
+        EtfContext: {
+            indices: components["schemas"]["EtfIndexContext"][];
+            market: components["schemas"]["EtfMarketContext"] | null;
+            reason: string | null;
+        };
+        EtfDataStatus: {
+            /** @enum {string} */
+            state: "unrecorded" | "insufficient" | "parameters_pending" | "abnormal_subscription" | "abnormal_redemption" | "not_triggered";
+            /** @enum {string} */
+            input_basis: "recorded_inputs" | "posthoc_inputs";
+            evidence_version: string;
+            history_first: string;
+            history_last: string;
+            original_recorded: boolean;
+            parameters_confirmed: boolean;
+            required_days: number;
+            complete_amount_through: string | null;
+        };
+        EtfView: {
+            /** @constant */
+            schema_version: "etf-flow-view-v2";
+            snapshot_id: components["schemas"]["PublicDigest"];
+            /** @constant */
+            formula_version: "etf-flow-v1";
+            /** @enum {string} */
+            mode: "original" | "current";
+            end: string;
+            /** @enum {integer} */
+            period: 20 | 60 | 120 | 260;
+            group_id: components["schemas"]["PublicDigest"] | null;
+            selection_at: string;
+            selected_member_ids: string[];
+            pool_version: string;
+            rule_version: string;
+            input_version: components["schemas"]["PublicDigest"];
+            calculated_at: string | null;
+            server_day: string;
+            groups: components["schemas"]["EtfGroup"][];
+            members: components["schemas"]["EtfMemberView"][];
+            summary: components["schemas"]["EtfSummary"];
+            series: components["schemas"]["EtfPoint"][];
+            history: components["schemas"]["EtfEvaluation"][];
+            disclosures: components["schemas"]["EtfDisclosure"][];
+            events: components["schemas"]["EtfEvent"][];
+            sources: components["schemas"]["EtfSource"][];
+            context: components["schemas"]["EtfContext"];
+            data_status: components["schemas"]["EtfDataStatus"];
+            rule: components["schemas"]["EtfRule"];
+            pool: components["schemas"]["EtfPool"];
+        };
+        EtfOperation: {
+            request_id: string;
+            config_id: components["schemas"]["PublicDigest"];
+            instance_id: components["schemas"]["PublicInstanceId"];
+            operation_key: components["schemas"]["PublicDigest"];
+            plan_id: components["schemas"]["PublicDigest"];
+            expected_snapshot_id: components["schemas"]["PublicDigest"] | null;
+            /** @enum {string} */
+            state: "queued" | "running" | "completed" | "failed" | "interrupted";
+            reason: string | null;
+            snapshot_id: components["schemas"]["PublicDigest"] | null;
+            created_at: string;
+            updated_at: string;
+            batch_id: string | null;
+            lease_closed: boolean;
+            recovered_from_instance: components["schemas"]["PublicInstanceId"] | null;
+            serving_instance_id: components["schemas"]["PublicInstanceId"];
+            serving_config_id: components["schemas"]["PublicDigest"];
+            recovery_required: boolean;
+        };
+        EtfUsage: {
+            grant_id: string;
+            requests: number;
+            reserved_bytes: number;
+            actual_bytes: number;
+            unknown_attempts: number;
+            max_requests: number;
+            max_bytes: number;
+            expires_at: string;
+        };
+        EtfPlan: {
+            id: components["schemas"]["PublicDigest"];
+            start: string;
+            end: string;
+            member_ids: string[];
+            request_count: number;
+            cached_request_count: number;
+            reserved_bytes: number | null;
+        };
+        EtfUnresolved: {
+            request_id: string;
+            config_id: components["schemas"]["PublicDigest"];
+            instance_id: components["schemas"]["PublicInstanceId"];
+        };
+        EtfCurrent: {
+            snapshot_id: components["schemas"]["PublicDigest"] | null;
+            selection_at: string | null;
+            end: string | null;
+            server_day: string;
+            configuration_pending: boolean;
+            configuration_reason: string | null;
+            members: components["schemas"]["EtfMember"][];
+            pool_version: string;
+            rule_version: string;
+            initialized: boolean;
+            write_enabled: boolean;
+            blocked_reason: string | null;
+            usage: components["schemas"]["EtfUsage"] | null;
+            plan: components["schemas"]["EtfPlan"];
+            operation: components["schemas"]["EtfOperation"] | null;
+            unresolved: components["schemas"]["EtfUnresolved"][];
+        };
+        EtfEvidence: {
+            snapshot_id: components["schemas"]["PublicDigest"];
+            object_id: components["schemas"]["PublicDigest"];
+            bytes: number;
+            references: components["schemas"]["EtfSource"][];
+        };
+        EtfUpdateBody: {
+            expected_snapshot_id: components["schemas"]["PublicDigest"] | null;
+            plan_id: components["schemas"]["PublicDigest"];
+        };
+        EtfError: {
+            detail: {
+                code: string;
+                message: string;
+            };
+        };
+        EtfDescriptor: {
+            endpoint: string;
+            /** @constant */
+            service_id: "thewolf-local-service";
+            service_version: string;
+            /** @constant */
+            contract_version: "3.0.0";
+            contract_sha256: components["schemas"]["PublicDigest"];
+            data_scope_id: components["schemas"]["PublicDigest"];
+            /** @constant */
+            feature_version: "etf-flow-v1";
+            /** @constant */
+            identity_version: "wolf-etf-flow-config-v1";
+            etf_scope_id: components["schemas"]["PublicDigest"];
+            config_id: components["schemas"]["PublicDigest"];
+            configuration_hash: components["schemas"]["PublicDigest"];
+            evidence_version: string;
+            write_enabled: boolean;
+            grant_id: string | null;
+            refresh_revision: string | null;
+        };
+        EtfReady: {
+            /** @constant */
+            service_id: "thewolf-local-service";
+            service_version: string;
+            /** @constant */
+            contract_version: "3.0.0";
+            contract_sha256: components["schemas"]["PublicDigest"];
+            data_scope_id: components["schemas"]["PublicDigest"];
+            /** @constant */
+            feature_version: "etf-flow-v1";
+            /** @constant */
+            identity_version: "wolf-etf-flow-config-v1";
+            etf_scope_id: components["schemas"]["PublicDigest"];
+            config_id: components["schemas"]["PublicDigest"];
+            configuration_hash: components["schemas"]["PublicDigest"];
+            evidence_version: string;
+            write_enabled: boolean;
+            grant_id: string | null;
+            refresh_revision: string | null;
+            /** @constant */
+            status: "ready";
+            instance_id: components["schemas"]["PublicInstanceId"];
+        };
+        EtfAdjustmentDetail: {
+            /** @enum {string} */
+            kind: "normal" | "adjustment";
+            start: string;
+            end: string;
+            factor: string;
+            tail: string;
+            confirmed_at: string;
+            confirmation: string;
+            source_ids: components["schemas"]["PublicDigest"][];
+        };
+        CompactIndexDefinition: {
+            /** @enum {string} */
+            unit: "%" | "点";
+            /** @enum {string} */
+            formula_version: "adjacent-expected-close-pct-half-up-v1" | "period-close-pct-half-up-v1" | "trading-window-close-pct-v1" | "natural-year-close-pct-v1" | "close-sma-half-up-4-v1";
+            parameters: components["schemas"]["IndexSeriesCalculationParameters"];
+        };
+        CompactIndexScalar: {
+            /** @enum {integer} */
+            definition: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31;
+            value: string | null;
+            reason: ("insufficient_samples" | "missing_previous_close" | "missing_year_baseline") | null;
+            start: components["schemas"]["Day"] | null;
+            end: components["schemas"]["Day"];
+        };
+        CompactActivityDefinition: {
+            unit: string;
+            /** @enum {string} */
+            formula_version: "market-activity-calculations-v1" | "market-activity-calculations-sse-szse-v1";
+            parameters: {
+                field: string;
+                frequency: string;
+                operation: string;
+                period: string;
+            };
+        };
+        CompactActivityScalar: {
+            /** @enum {integer} */
+            definition: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63;
+            value: string | null;
+            reason: string | null;
+            start: string | null;
+            end: string;
+            complete: boolean;
+            incomplete_reasons: string[];
+        };
+        CompactIndexBar: {
+            period_start: components["schemas"]["Day"];
+            period_end: components["schemas"]["Day"];
+            start: components["schemas"]["Day"];
+            end: components["schemas"]["Day"];
+            open: string;
+            high: string;
+            low: string;
+            close: string;
+            sample_count: number;
+            complete: boolean;
+            incomplete_reasons: ("window_start_truncated" | "period_in_progress" | "calendar_unknown")[];
+            /** @enum {string} */
+            formula_version: "raw-daily-price-v1" | "calendar-ohlc-v1";
+            change_pct: components["schemas"]["CompactIndexScalar"];
+            ma: components["schemas"]["CompactIndexScalar"][];
+        };
+        CompactIndexSeries: {
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            ma_availability: components["schemas"]["IndexSeriesCalculationAvailability"][];
+            rows: components["schemas"]["CompactIndexBar"][];
+        };
+        CompactIndexCalculations: {
+            index_id: components["schemas"]["IndexSeriesId"];
+            snapshot_id: components["schemas"]["ObjectId"];
+            /** @constant */
+            formula_version: "index-price-calculations-v1";
+            /** @constant */
+            calendar_version: "cn-indices-sse-szse-2023-2026-v1";
+            anchor_date: components["schemas"]["Day"];
+            /** @constant */
+            pit_grade: "latest_only";
+            /** @constant */
+            unit: "点";
+            daily: components["schemas"]["CompactIndexSeries"];
+            weekly: components["schemas"]["CompactIndexSeries"];
+            monthly: components["schemas"]["CompactIndexSeries"];
+            performance: {
+                day_5: components["schemas"]["CompactIndexScalar"];
+                day_20: components["schemas"]["CompactIndexScalar"];
+                day_60: components["schemas"]["CompactIndexScalar"];
+                year_1: components["schemas"]["CompactIndexScalar"];
+            };
+            definitions: components["schemas"]["CompactIndexDefinition"][];
+        };
+        CompactActivityCalculations: {
+            /** @enum {string} */
+            series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            activity_id: components["schemas"]["ObjectId"];
+            price_snapshot_id: components["schemas"]["ObjectId"] | null;
+            /** @enum {string} */
+            formula_version: "market-activity-calculations-v1" | "market-activity-calculations-sse-szse-v1";
+            /** @constant */
+            pit_grade: "latest_only";
+            series: {
+                /** @enum {string} */
+                frequency: "daily" | "weekly" | "monthly";
+                /** @enum {string} */
+                field: "volume" | "amount";
+                rows: {
+                    start: string;
+                    end: string;
+                    period_start: string;
+                    period_end: string;
+                    sample_count: number;
+                    total: components["schemas"]["CompactActivityScalar"];
+                    change_pct: components["schemas"]["CompactActivityScalar"];
+                    ma: components["schemas"]["CompactActivityScalar"][];
+                }[];
+                ma_availability: {
+                    period: number;
+                    available: boolean;
+                    sample_count: number;
+                    required_count: number;
+                    reason: string | null;
+                }[];
+            }[];
+            comparisons: {
+                day_5: {
+                    baseline: components["schemas"]["CompactActivityScalar"];
+                    comparison: components["schemas"]["CompactActivityScalar"];
+                    sample_count: number;
+                };
+                day_20: {
+                    baseline: components["schemas"]["CompactActivityScalar"];
+                    comparison: components["schemas"]["CompactActivityScalar"];
+                    sample_count: number;
+                };
+                day_60: {
+                    baseline: components["schemas"]["CompactActivityScalar"];
+                    comparison: components["schemas"]["CompactActivityScalar"];
+                    sample_count: number;
+                };
+                year_1: {
+                    baseline: components["schemas"]["CompactActivityScalar"];
+                    comparison: components["schemas"]["CompactActivityScalar"];
+                    sample_count: number;
+                };
+            } | null;
+            definitions: components["schemas"]["CompactActivityDefinition"][];
+        };
+        IndexSeriesCombinedView: {
+            view: components["schemas"]["IndexSeriesView"];
+            calculations: components["schemas"]["CompactIndexCalculations"];
+        };
+        MarketActivityCombinedView: {
+            current: components["schemas"]["MarketActivityCurrent"];
+            snapshot: components["schemas"]["MarketActivitySnapshot"];
+            calculations: components["schemas"]["CompactActivityCalculations"];
+        };
+        IndexSeriesOverviewCalculations: {
+            index_id: components["schemas"]["IndexSeriesId"];
+            snapshot_id: components["schemas"]["ObjectId"];
+            /** @constant */
+            formula_version: "index-price-calculations-v1";
+            /** @constant */
+            calendar_version: "cn-indices-sse-szse-2023-2026-v1";
+            anchor_date: components["schemas"]["Day"];
+            /** @constant */
+            pit_grade: "latest_only";
+            /** @constant */
+            unit: "点";
+            performance: {
+                day_5: components["schemas"]["IndexSeriesCalculationScalar"];
+                day_20: components["schemas"]["IndexSeriesCalculationScalar"];
+                day_60: components["schemas"]["IndexSeriesCalculationScalar"];
+                year_1: components["schemas"]["IndexSeriesCalculationScalar"];
+            };
+        };
+        CompactIndexOverviewCalculations: {
+            index_id: components["schemas"]["IndexSeriesId"];
+            snapshot_id: components["schemas"]["ObjectId"];
+            /** @constant */
+            formula_version: "index-price-calculations-v1";
+            /** @constant */
+            calendar_version: "cn-indices-sse-szse-2023-2026-v1";
+            anchor_date: components["schemas"]["Day"];
+            /** @constant */
+            pit_grade: "latest_only";
+            /** @constant */
+            unit: "点";
+            performance: {
+                day_5: components["schemas"]["CompactIndexScalar"];
+                day_20: components["schemas"]["CompactIndexScalar"];
+                day_60: components["schemas"]["CompactIndexScalar"];
+                year_1: components["schemas"]["CompactIndexScalar"];
+            };
+            definitions: components["schemas"]["CompactIndexDefinition"][];
+        };
+        IndexSeriesOverviewView: {
+            view: components["schemas"]["IndexSeriesView"];
+            calculations: components["schemas"]["CompactIndexOverviewCalculations"];
+        };
+        IndexSeriesViewResponse: components["schemas"]["IndexSeriesCombinedView"] | components["schemas"]["IndexSeriesOverviewView"];
+        StoredDateRange: {
+            start: components["schemas"]["Day"];
+            end: components["schemas"]["Day"];
+        };
+        StoredVersion: {
+            publication_id: components["schemas"]["ObjectId"];
+            observation_id: components["schemas"]["ObjectId"] | null;
+            first_observation_id: components["schemas"]["ObjectId"] | null;
+            source_coverage: components["schemas"]["StoredDateRange"];
+            binding: string;
+        };
+        MarketVersions: {
+            store_id: string;
+            indices: {
+                index_id: components["schemas"]["IndexSeriesId"];
+                price: components["schemas"]["StoredVersion"] | null;
+                activity: components["schemas"]["StoredVersion"] | null;
+            }[];
+            markets: {
+                series_id: components["schemas"]["MarketActivitySeriesId"];
+                activity: components["schemas"]["StoredVersion"] | null;
+            }[];
+            etf: components["schemas"]["StoredVersion"] | null;
+        };
+        StorageStatus: {
+            quarantined: boolean;
+            reason: string | null;
+            last_structure: string | null;
+            last_full: string | null;
+            structure_due: boolean;
+            full_due: boolean;
+            available: boolean;
+        };
+        StoredPriceOverview: {
+            index_id: components["schemas"]["IndexSeriesId"];
+            snapshot_id: components["schemas"]["ObjectId"];
+            /** @constant */
+            formula_version: "index-price-calculations-v1";
+            /** @constant */
+            calendar_version: "cn-indices-sse-szse-2023-2026-v1";
+            anchor_date: components["schemas"]["Day"];
+            /** @constant */
+            pit_grade: "latest_only";
+            /** @constant */
+            unit: "点";
+            /** @enum {integer} */
+            storage_decimals: 2 | 4;
+            verification: components["schemas"]["IndexSeriesVerification"];
+            observation_id: components["schemas"]["ObjectId"];
+            source_coverage: components["schemas"]["StoredDateRange"];
+            requested_range: components["schemas"]["StoredDateRange"];
+            returned_range: components["schemas"]["StoredDateRange"] | null;
+            calculation_input_range: components["schemas"]["StoredDateRange"] | null;
+            sources: components["schemas"]["IndexSeriesRetrievalSource"][];
+            instrument: components["schemas"]["IndexSeriesInstrument"];
+            source_policy_version: components["schemas"]["IndexSeriesSourcePolicy"];
+            summary: components["schemas"]["IndexSeriesSummary"];
+            performance: {
+                day_5: components["schemas"]["IndexSeriesCalculationScalar"];
+                day_20: components["schemas"]["IndexSeriesCalculationScalar"];
+                day_60: components["schemas"]["IndexSeriesCalculationScalar"];
+                year_1: components["schemas"]["IndexSeriesCalculationScalar"];
+            };
+            observed_at: string;
+            bars: {
+                trade_date: components["schemas"]["Day"];
+                open: components["schemas"]["IndexSeriesPoint"];
+                high: components["schemas"]["IndexSeriesPoint"];
+                low: components["schemas"]["IndexSeriesPoint"];
+                close: components["schemas"]["IndexSeriesPoint"];
+            }[];
+        };
+        StoredPriceRange: {
+            index_id: components["schemas"]["IndexSeriesId"];
+            snapshot_id: components["schemas"]["ObjectId"];
+            /** @constant */
+            formula_version: "index-price-calculations-v1";
+            /** @constant */
+            calendar_version: "cn-indices-sse-szse-2023-2026-v1";
+            anchor_date: components["schemas"]["Day"];
+            /** @constant */
+            pit_grade: "latest_only";
+            /** @constant */
+            unit: "点";
+            /** @enum {integer} */
+            storage_decimals: 2 | 4;
+            verification: components["schemas"]["IndexSeriesVerification"];
+            observation_id: components["schemas"]["ObjectId"];
+            source_coverage: components["schemas"]["StoredDateRange"];
+            requested_range: components["schemas"]["StoredDateRange"];
+            returned_range: components["schemas"]["StoredDateRange"] | null;
+            calculation_input_range: components["schemas"]["StoredDateRange"] | null;
+            sources: components["schemas"]["IndexSeriesRetrievalSource"][];
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            ma_periods: (5 | 10 | 20 | 30 | 60 | 120 | 180 | 250)[];
+            series: components["schemas"]["IndexSeriesCalculationSeries"];
+            /** @description 固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。 */
+            navigation_periods: components["schemas"]["StoredDateRange"][];
+        };
+        StoredPriceView: components["schemas"]["StoredPriceOverview"] | components["schemas"]["StoredPriceRange"];
+        StoredActivitySeries: {
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            /** @enum {string} */
+            field: "volume" | "amount";
+            rows: {
+                start: string;
+                end: string;
+                period_start: string;
+                period_end: string;
+                sample_count: number;
+                total: components["schemas"]["MarketActivityScalar"];
+                change_pct: components["schemas"]["MarketActivityScalar"];
+                ma: components["schemas"]["MarketActivityScalar"][];
+            }[];
+            ma_availability: {
+                period: number;
+                available: boolean;
+                sample_count: number;
+                required_count: number;
+                reason: string | null;
+            }[];
+        };
+        StoredActivityRange: {
+            /** @enum {string} */
+            series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            activity_id: components["schemas"]["ObjectId"];
+            price_snapshot_id: components["schemas"]["ObjectId"] | null;
+            /** @enum {string} */
+            formula_version: "market-activity-calculations-v1" | "market-activity-calculations-sse-szse-v1";
+            /** @constant */
+            pit_grade: "latest_only";
+            observation_id: components["schemas"]["ObjectId"];
+            anchor_date: string;
+            calendar_version: string;
+            source_policy_version: string;
+            source_coverage: components["schemas"]["StoredDateRange"];
+            requested_range: components["schemas"]["StoredDateRange"];
+            returned_range: components["schemas"]["StoredDateRange"] | null;
+            calculation_input_range: components["schemas"]["StoredDateRange"] | null;
+            sources: components["schemas"]["MarketActivityObservedSource"][];
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            ma_periods: (5 | 10 | 20 | 30 | 60 | 120 | 180 | 250)[];
+            /** @enum {string} */
+            field: "volume" | "amount";
+            series: components["schemas"]["StoredActivitySeries"];
+            source_scope: string;
+            /** @constant */
+            source_revision_relation: "unknown";
+            binding: {
+                version: string;
+                price_object_id: components["schemas"]["ObjectId"];
+                activity_object_id: components["schemas"]["ObjectId"];
+                /** @enum {string} */
+                relation: "same_source_object" | "different_source_objects";
+                /** @constant */
+                comparison: "exact_available_values_match";
+            } | null;
+            /** @description 固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。 */
+            navigation_periods: components["schemas"]["StoredDateRange"][];
+        };
+        StoredMarketOverview: {
+            /** @enum {string} */
+            series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            activity_id: components["schemas"]["ObjectId"];
+            price_snapshot_id: components["schemas"]["ObjectId"] | null;
+            /** @enum {string} */
+            formula_version: "market-activity-calculations-v1" | "market-activity-calculations-sse-szse-v1";
+            /** @constant */
+            pit_grade: "latest_only";
+            observation_id: components["schemas"]["ObjectId"];
+            anchor_date: string;
+            calendar_version: string;
+            source_policy_version: string;
+            source_coverage: components["schemas"]["StoredDateRange"];
+            requested_range: components["schemas"]["StoredDateRange"];
+            returned_range: components["schemas"]["StoredDateRange"] | null;
+            calculation_input_range: components["schemas"]["StoredDateRange"] | null;
+            sources: components["schemas"]["MarketActivityObservedSource"][];
+            series: components["schemas"]["StoredActivitySeries"];
+            comparisons: {
+                day_5: {
+                    baseline: components["schemas"]["MarketActivityScalar"];
+                    comparison: components["schemas"]["MarketActivityScalar"];
+                    sample_count: number;
+                };
+                day_20: {
+                    baseline: components["schemas"]["MarketActivityScalar"];
+                    comparison: components["schemas"]["MarketActivityScalar"];
+                    sample_count: number;
+                };
+                day_60: {
+                    baseline: components["schemas"]["MarketActivityScalar"];
+                    comparison: components["schemas"]["MarketActivityScalar"];
+                    sample_count: number;
+                };
+                year_1: {
+                    baseline: components["schemas"]["MarketActivityScalar"];
+                    comparison: components["schemas"]["MarketActivityScalar"];
+                    sample_count: number;
+                };
+            } | null;
+            source_scope: string;
+            /** @constant */
+            source_revision_relation: "unknown";
+            binding: {
+                version: string;
+                price_object_id: components["schemas"]["ObjectId"];
+                activity_object_id: components["schemas"]["ObjectId"];
+                /** @enum {string} */
+                relation: "same_source_object" | "different_source_objects";
+                /** @constant */
+                comparison: "exact_available_values_match";
+            } | null;
+            /** @description 固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。 */
+            navigation_periods: components["schemas"]["StoredDateRange"][];
+        };
+        StoredActivityView: components["schemas"]["StoredActivityRange"] | components["schemas"]["StoredMarketOverview"];
     };
     responses: never;
     parameters: {
@@ -4656,6 +5668,1701 @@ export interface operations {
         };
     };
     preflightOverviewUpdateStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    etfFlowReady: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfReady"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightetfFlowReady: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    currentEtfFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfCurrent"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightcurrentEtfFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    etfFlowView: {
+        parameters: {
+            query: {
+                mode: "original" | "current";
+                period: "20" | "60" | "120" | "260";
+                end?: string;
+                group?: components["schemas"]["PublicDigest"];
+            };
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfView"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightetfFlowView: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    etfFlowEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+                object_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfEvidence"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightetfFlowEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path: {
+                snapshot_id: components["schemas"]["PublicDigest"];
+                object_id: components["schemas"]["PublicDigest"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    startEtfFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+                "X-Wolf-Request-Id": components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EtfUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfOperation"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            202: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfOperation"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            415: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError415"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightstartEtfFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "POST";
+                "Access-Control-Request-Headers": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    etfFlowOperation: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfOperation"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description ETF固定身份响应；缺数据与未记录不会伪装为零或正常。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtfError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightetfFlowOperation: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    indexSeriesView: {
+        parameters: {
+            query: {
+                snapshot_id: components["schemas"]["ObjectId"];
+                observation_id: components["schemas"]["ObjectId"];
+                formula_version: "index-price-calculations-v1";
+                detail: "overview" | "range";
+                start?: components["schemas"]["Day"];
+                end?: components["schemas"]["Day"];
+                frequency?: "daily" | "weekly" | "monthly";
+                ma?: string;
+            };
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path: {
+                index_id: components["schemas"]["IndexSeriesId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredPriceView"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightindexSeriesView: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path: {
+                index_id: components["schemas"]["IndexSeriesId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    marketActivityView: {
+        parameters: {
+            query: {
+                activity_id: components["schemas"]["ObjectId"];
+                observation_id: components["schemas"]["ObjectId"];
+                price_snapshot_id?: components["schemas"]["ObjectId"];
+                anchor_date?: components["schemas"]["Day"];
+                formula_version: "market-activity-calculations-v1" | "market-activity-calculations-sse-szse-v1";
+                detail: "overview" | "range";
+                start?: components["schemas"]["Day"];
+                end?: components["schemas"]["Day"];
+                frequency?: "daily" | "weekly" | "monthly";
+                ma?: string;
+                field?: "volume" | "amount";
+            };
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path: {
+                series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredActivityView"];
+                };
+            };
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketActivityError"] | components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketActivityError"] | components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketActivityError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketActivityError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description B量额身份校验后的响应；来源缺口不代表有效数据。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketActivityError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightmarketActivityView: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path: {
+                series_id: "sse:000001:price" | "szse:399001:price" | "szse:399006:price" | "sse:000688:price" | "cn-a-turnover" | "cn-a-turnover-sse-szse";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    marketVersions: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketVersions"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightmarketVersions: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "Access-Control-Request-Method": "GET";
+                "Access-Control-Request-Headers": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Valid metadata-only preflight. No body or business I/O. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Methods"?: string;
+                    "Access-Control-Allow-Headers"?: string;
+                    "Access-Control-Max-Age"?: "0";
+                    Vary?: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed preflight. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description Host, Origin or metadata denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description Preflight route/method fallback; no business I/O. */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError405"];
+                };
+            };
+        };
+    };
+    storageStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Wolf-Client": components["parameters"]["ClientMarker"];
+                "X-Wolf-Expected-Instance": components["parameters"]["ExpectedInstance"];
+                "X-Wolf-Expected-Config": components["parameters"]["ExpectedConfig"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageStatus"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            400: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError400"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            403: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundaryError403"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            404: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError404"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            409: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError409"];
+                };
+            };
+            /** @description 新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。 */
+            422: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexSeriesError"] | components["schemas"]["BoundaryError422"];
+                };
+            };
+            /** @description 未处理异常不泄露内部资料；写入结果不能据此推定回滚。 */
+            500: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    "X-Wolf-Instance": components["headers"]["ResponseInstance"];
+                    "X-Wolf-Config": components["headers"]["ResponseConfig"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["InternalError"];
+                };
+            };
+        };
+    };
+    preflightstorageStatus: {
         parameters: {
             query?: never;
             header: {

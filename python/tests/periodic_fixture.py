@@ -10,13 +10,14 @@ from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 from pmi.market_data import MarketData, ActivityOptions, SnapshotError
-from pmi.market_data import index_series_fetch as price_fetch, index_series_store as store
+from pmi.market_data import index_series_fetch as price_fetch
+from pmi.market_data.storage import index_store as store
 from pmi.market_data.activity import fetch, runtime
 from pmi.market_data.activity.model import INDEX_IDS, TWO_MARKET, Original, canonical
 from pmi.market_data.index_catalog import get_index
 from pmi.market_data.index_history_calendar import complete_window, SHANGHAI
 from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite, set_activity_budget
 from pmi.market_data.periodic_budget import initialize, MIB
 from test_index_series_contract import originals
 from test_index_series_runtime import state
@@ -54,22 +55,23 @@ def seed(root: Path, anchor='2026-10-29') -> None:
     """创建隔离旧版本，供一个新增交易日消耗12次的独立预期。"""
     for name in ('data','activity','runtime','cache'):
         (root/name).mkdir(mode=0o700)
-    price_root, activity_root = root/'data', root/'activity'
+    price_root = activity_root = root/'data'
+    initialize_sqlite(price_root)
     window = complete_window(datetime.fromisoformat(anchor+'T07:00:00+08:00'))
     with writer_lock(price_root):
         for sid in INDEX_IDS:
             index = get_index(sid); items = price_originals(index, window)
             store.prepare_directories(price_root,index)
-            store.publish(price_root,index,window,build_manifest(index,window,items),items,{**state(index),'target_start':window.start,'target_end':window.end})
-    ledger = root/'seed-budget.json'
-    ledger.write_bytes(canonical({'cycle':'fixture','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':160*MIB}))
+            store.publish(price_root,index,window,build_manifest(index,window,items),items,{**state(index, 'seed-'+index.code),'target_start':window.start,'target_end':window.end})
+    ledger = price_root/'facts.sqlite'
+    set_activity_budget(price_root, canonical({'cycle':'fixture','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':160*MIB}))
     data = MarketData(price_root,{},activity_options=ActivityOptions(activity_root,write_series=(*INDEX_IDS,TWO_MARKET),max_attempts=2200,max_bytes=160*MIB,budget_cycle='fixture',budget_ledger=ledger))
     def obtain(series, dates, options, cancel): return activity_original(data, series, dates)
     with patch.object(fetch,'fetch',obtain):
-        for sid in (*INDEX_IDS,TWO_MARKET):
+        for ordinal,sid in enumerate((*INDEX_IDS,TWO_MARKET)):
             key = 'anchor_date' if sid==TWO_MARKET else 'price_snapshot_id'
             target = anchor if sid==TWO_MARKET else data.read_daily(sid)['snapshot']['snapshot_id']
-            result = data.activity('start',sid,'seed-'+str(len(list((activity_root/'operations').glob('*'))) if (activity_root/'operations').exists() else 0), {key:target,'expected_activity_id':None},'fixture','fixture')
+            result = data.activity('start',sid,'seed-'+str(ordinal), {key:target,'expected_activity_id':None},'fixture','fixture')
             assert result['state']=='completed', result
     data.close_updates(); initialize(price_root,activity_root)
 
@@ -91,7 +93,7 @@ def transport(data: MarketData, control=lambda: {}):
         finally:
             count = len(result.content) if success else MIB
             if budget.lease: budget.lease.settle(entry['periodic_attempt'],count if success else None,success)
-            store.append_record(parent/'index-v2-network-ledger.jsonl',{'event':'finished','attempt_id':entry['attempt_id'],'index_id':index.index_id,'job_id':job_id,'source':source,'success':success,'charged_bytes':count,'finished_at':entry['started_at']})
+            store.record_network(parent,{'event':'finished','attempt_id':entry['attempt_id'],'index_id':index.index_id,'job_id':job_id,'source':source,'success':success,'charged_bytes':count,'finished_at':entry['started_at']})
     class Response(BytesIO):
         status=200
         def __init__(self,original):

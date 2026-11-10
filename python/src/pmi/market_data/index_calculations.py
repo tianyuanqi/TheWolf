@@ -106,7 +106,7 @@ def _bounds(day: str, frequency: Frequency) -> tuple[date, date]:
     return current.replace(day=1), current.replace(day=monthrange(current.year, current.month)[1])
 
 
-def _aggregate(index_id: str, snapshot: dict, frequency: Frequency) -> tuple[list[dict], list[bool]]:
+def _aggregate(index_id: str, snapshot: dict, frequency: Frequency, *, source_end: str | None = None) -> tuple[list[dict], list[bool]]:
     groups: list[list[dict]] = []
     for row in snapshot["bars"]:
         if not groups or _bounds(groups[-1][0]["trade_date"], frequency) != _bounds(row["trade_date"], frequency):
@@ -126,7 +126,8 @@ def _aggregate(index_id: str, snapshot: dict, frequency: Frequency) -> tuple[lis
             if expected and expected[-1] > last:
                 reasons.append("period_in_progress")
         # 末周期的临时收盘已获准参与；历史周期须有已知期末收盘。
-        eligible.append(position == len(groups) - 1 or bool(expected and expected[-1] == last))
+        eligible.append((last == source_end if source_end is not None else position == len(groups) - 1)
+                        or bool(expected and expected[-1] == last))
         rows.append({"period_start": start.isoformat(), "period_end": end.isoformat(),
             "start": first, "end": last, "open": group[0]["open"], "close": group[-1]["close"],
             "high": max(group, key=lambda item: positive_price(item["high"]))["high"],
@@ -137,8 +138,9 @@ def _aggregate(index_id: str, snapshot: dict, frequency: Frequency) -> tuple[lis
     return rows, eligible
 
 
-def _series(index_id: str, snapshot: dict, frequency: Frequency) -> Series:
-    rows, eligible = _aggregate(index_id, snapshot, frequency)
+def _series(index_id: str, snapshot: dict, frequency: Frequency, *, periods: tuple[int, ...] = PERIODS,
+            source_end: str | None = None, availability: list[dict] | None = None) -> Series:
+    rows, eligible = _aggregate(index_id, snapshot, frequency, source_end=source_end)
     for i, row in enumerate(rows):
         previous = rows[i - 1] if i and eligible[i - 1] else None
         value = change_pct_v1(row["close"], previous["close"]) if previous else None
@@ -146,14 +148,14 @@ def _series(index_id: str, snapshot: dict, frequency: Frequency) -> Series:
             CHANGE_V1 if frequency == "daily" else "period-close-pct-half-up-v1", frequency, "1",
             _ref(index_id, snapshot, previous["end"] if previous else None, row["end"]))
         row["ma"] = []
-        for period in PERIODS:
+        for period in periods:
             enough = i + 1 >= period and all(eligible[i + 1 - period:i + 1])
             sample = rows[i + 1 - period:i + 1] if enough else []
             row["ma"].append(_scalar(close_sma_v1([item["close"] for item in sample]) if enough else None,
                 None if enough else "insufficient_samples", "点", MA_V1, frequency, str(period),
                 _ref(index_id, snapshot, sample[0]["end"] if enough else None, row["end"])))
     count = sum(eligible)
-    return {"frequency": frequency, "ma_availability": [
+    return {"frequency": frequency, "ma_availability": availability if availability is not None else [
         {"period": period, "available": count >= period, "sample_count": count, "required_count": period,
          "reason": None if count >= period else "insufficient_samples"} for period in PERIODS], "rows": rows}
 
@@ -177,7 +179,7 @@ def _performance(index_id: str, snapshot: dict) -> dict[str, Scalar]:
     return result
 
 
-def _calculate_v1(index_id: str, snapshot: dict) -> Calculations:
+def _check_input(index_id: str, snapshot: dict) -> None:
     # 固定输入已由存储层完整重放；此处再次检查计算前提，拒绝坏值而非返回零。
     from_manifest_window(snapshot)
     if snapshot["instrument"]["id"] != index_id or not re.fullmatch(r"[a-f0-9]{64}", snapshot["snapshot_id"]):
@@ -185,10 +187,19 @@ def _calculate_v1(index_id: str, snapshot: dict) -> Calculations:
     bars = snapshot["bars"]
     if [item["trade_date"] for item in bars] != snapshot["calendar_dates"]:
         raise SnapshotError("calculation_calendar_mismatch")
+    _check_prices(snapshot)
+    # overview也保留发布摘要逐位校验；调用同一个冻结涨跌公式，不写第二套。
+    latest_change = change_pct_v1(bars[-1]['close'], bars[-2]['close']) if len(bars) > 1 else None
+    if latest_change != snapshot['summary']['daily_change_pct']:
+        raise SnapshotError('calculation_summary_mismatch')
+
+
+def _check_prices(snapshot: dict) -> None:
+    """完整和范围计算共用价格精度/OHLC检查；不把显示裁剪当成源窗口。"""
     digits = snapshot["storage_decimals"]
     if digits not in (2, 4):
         raise SnapshotError("invalid_calculation_precision")
-    for bar in bars:
+    for bar in snapshot['bars']:
         for field in ("open", "high", "low", "close"):
             if not isinstance(bar[field], str) or not re.fullmatch(r"[0-9]{1,40}\.\d{" + str(digits) + "}", bar[field]):
                 raise SnapshotError("invalid_calculation_price")
@@ -196,14 +207,30 @@ def _calculate_v1(index_id: str, snapshot: dict) -> Calculations:
         if not positive_price(bar["low"]) <= min(positive_price(bar["open"]), positive_price(bar["close"])) <= max(
                 positive_price(bar["open"]), positive_price(bar["close"])) <= positive_price(bar["high"]):
             raise SnapshotError("invalid_calculation_ohlc")
+
+
+def _header(index_id: str, snapshot: dict) -> dict:
+    return {"index_id": index_id, "snapshot_id": snapshot["snapshot_id"], "formula_version": FORMULA_VERSION,
+        "calendar_version": snapshot["calendar_version"], "anchor_date": snapshot["window"]["anchor_date"],
+        "pit_grade": "latest_only", "unit": "点"}
+
+
+def _calculate_v1(index_id: str, snapshot: dict) -> Calculations:
+    _check_input(index_id, snapshot)
     daily = _series(index_id, snapshot, "daily")
     if daily["rows"][-1]["change_pct"]["value"] != snapshot["summary"]["daily_change_pct"]:
         raise SnapshotError("calculation_summary_mismatch")
-    return {"index_id": index_id, "snapshot_id": snapshot["snapshot_id"], "formula_version": FORMULA_VERSION,
-        "calendar_version": snapshot["calendar_version"], "anchor_date": snapshot["window"]["anchor_date"],
-        "pit_grade": "latest_only", "unit": "点", "daily": daily,
+    return {**_header(index_id, snapshot), "daily": daily,
         "weekly": _series(index_id, snapshot, "weekly"), "monthly": _series(index_id, snapshot, "monthly"),
         "performance": _performance(index_id, snapshot)}
+
+
+def calculate_overview(index_id: str, snapshot: dict, formula_version: str) -> dict:
+    """同输入、同公式的概况投影；完整前提校验，不生成未请求的周期逐行结果。"""
+    if index_id not in INDEX_IDS or formula_version != FORMULA_VERSION:
+        raise SnapshotError('calculation_parameters_invalid')
+    _check_input(index_id, snapshot)
+    return {**_header(index_id, snapshot), 'performance': _performance(index_id, snapshot)}
 
 
 def calculate(index_id: str, snapshot: dict, formula_version: str) -> Calculations:

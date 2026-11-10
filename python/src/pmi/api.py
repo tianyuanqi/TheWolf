@@ -9,9 +9,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from pmi.http_boundary import Boundary, Rejected, INDEX_SERIES_OPERATIONS, ACTIVITY_OPERATIONS
+from pmi.http_boundary import Boundary, Rejected, INDEX_SERIES_OPERATIONS, ACTIVITY_OPERATIONS, ETF_OPERATIONS
 from pmi.http_contract import response_value, verify_resources
-from pmi.market_data import ReadUnavailable, SnapshotError
+from pmi.market_data import ReadUnavailable, SnapshotError, StorageError
 from pmi.service_config import ServiceConfig
 from pmi.update_service import UpdateService
 
@@ -24,6 +24,8 @@ def _dispatch(boundary: Boundary, operation: str, paths: dict, query: dict, upda
 
 
 def _dispatch_value(boundary: Boundary, operation: str, paths: dict, query: dict, updates: UpdateService) -> Response:
+    if operation in ETF_OPERATIONS:
+        return _dispatch_etf(boundary, operation, paths, query)
     if operation in ACTIVITY_OPERATIONS:
         return _dispatch_activity(boundary, operation, paths, query)
     if operation in INDEX_SERIES_OPERATIONS:
@@ -58,7 +60,11 @@ def _dispatch_series(boundary: Boundary, operation: str, paths: dict, query: dic
     try:
         boundary.config.check_location()
         data = boundary.config.market_data
-        if operation == "overviewUpdateStatus":
+        if operation == "marketVersions":
+            component, value = "MarketVersions", data.market_versions()
+        elif operation == "storageStatus":
+            component, value = "StorageStatus", data.storage_status()
+        elif operation == "overviewUpdateStatus":
             component, value = "OverviewUpdateStatus", data.periodic_status()
         elif operation == "indexSeriesCatalog":
             component, value = "IndexSeriesCatalog", data.index_catalog(query.get("query"))
@@ -66,6 +72,9 @@ def _dispatch_series(boundary: Boundary, operation: str, paths: dict, query: dic
             component, value = "IndexSeriesUpdateStatus", updates.series_status(paths["index_id"])
         elif operation == "indexSeriesEvidence":
             component, value = "IndexSeriesEvidenceView", data.read_evidence(paths["index_id"], paths["snapshot_id"], paths["object_id"])
+        elif operation == "indexSeriesView":
+            component = 'StoredPriceOverview' if query['detail'] == 'overview' else 'StoredPriceRange'
+            value = data.price_view(paths['index_id'], boundary.config.index_config_id, query)
         elif operation == "indexSeriesCalculations":
             component, value = "IndexSeriesCalculations", data.read_index_calculations(
                 paths["index_id"], paths["snapshot_id"], query["formula_version"])
@@ -75,10 +84,15 @@ def _dispatch_series(boundary: Boundary, operation: str, paths: dict, query: dic
             component, value = "IndexSeriesView", data.read_daily(paths["index_id"], paths.get("snapshot_id", query.get("snapshot_id")))
         boundary.config.check_location()
     except (ReadUnavailable, SnapshotError, OSError, ValueError, KeyError, TypeError) as error:
-        prefix = str(error).split(":", 1)[0] if isinstance(error, SnapshotError) else ""
+        prefix = str(error).split(":", 1)[0] if isinstance(error, (SnapshotError, StorageError)) else ""
         if operation == "overviewUpdateStatus":
             message = "服务时钟回退，暂停取数；已有数据继续可读" if prefix == "periodic_clock_regressed" else "自动更新账本或状态暂时无法核验；保留已保存数据，不自动恢复账本"
             return _series_error(409, "index_series_invalid", message)
+        if isinstance(error, StorageError):
+            status = 422 if prefix in {'range_parameters_invalid', 'coverage_insufficient'} else 404 if prefix == 'storage_publication_not_found' else 409
+            public = prefix if prefix in {'range_parameters_invalid', 'coverage_insufficient', 'storage_publication_not_found',
+                'storage_observation_not_member', 'storage_activity_binding_invalid', 'storage_quarantined', 'storage_integrity_check_due', 'storage_maintenance_failed'} else 'index_series_invalid'
+            return _series_error(status, public, '固定版本或所请求范围暂不可用；不会切换版本或自动恢复')
         if prefix == "calculation_parameters_invalid":
             return JSONResponse(response_value("IndexSeriesCalculationError", {"detail": {
                 "code": prefix, "message": "计算参数或指数未准入"}}), status_code=422)
@@ -109,16 +123,14 @@ def _dispatch_activity(boundary: Boundary, operation: str, paths: dict, query: d
             component, value = "MarketActivityOperation", data.activity("lookup", query["series_id"], paths["request_id"], boundary.config.activity_config_id, boundary.instance)
         elif operation == "startMarketActivity":
             component, value = "MarketActivityOperation", data.activity("start", paths["series_id"], paths["request_id"], paths["activity_body"], boundary.config.activity_config_id, boundary.instance)
-        elif operation == "currentMarketActivity":
-            key = "anchor_date" if paths["series_id"] in (MARKET, "cn-a-turnover-sse-szse") else "price_snapshot_id"
+        elif operation == 'marketActivityView':
+            component = 'StoredMarketOverview' if query['detail'] == 'overview' else 'StoredActivityRange'
+            value = data.activity_view(paths['series_id'], boundary.config.activity_config_id, query)
+        elif operation == 'currentMarketActivity':
+            key = 'anchor_date' if paths['series_id'] in (MARKET, 'cn-a-turnover-sse-szse') else 'price_snapshot_id'
             if set(query) != {key}:
-                raise ActivityError("invalid_activity_parameters", 422)
-            if key == "anchor_date":
-                try:
-                    date.fromisoformat(query[key])
-                except ValueError as error:
-                    raise ActivityError("invalid_activity_parameters", 422) from error
-            component, value = "MarketActivityCurrent", data.activity("current", paths["series_id"], query[key])
+                raise ActivityError('invalid_activity_parameters', 422)
+            component, value = 'MarketActivityCurrent', data.activity('current', paths['series_id'], query[key])
         else:
             components = {"fixedMarketActivity": ("fixed", "MarketActivitySnapshot"),
                           "marketActivityCalculations": ("calculations", "MarketActivityCalculations"),
@@ -133,10 +145,46 @@ def _dispatch_activity(boundary: Boundary, operation: str, paths: dict, query: d
         if value is None:
             raise ActivityError("activity_not_found", 404)
         return JSONResponse(response_value(component, value))
+    except StorageError as error:
+        code = str(error)
+        status = 422 if code in {'range_parameters_invalid', 'coverage_insufficient'} else 404 if code == 'storage_publication_not_found' else 409
+        return JSONResponse(response_value('MarketActivityError', {'detail': {'code': code, 'message': '固定量额版本、绑定或请求范围不可用'}}), status_code=status)
     except ActivityError as error:
         return JSONResponse(response_value("MarketActivityError", {"detail": {"code": error.code, "message": "量额资料不可用；请核对来源准入、固定引用或更新状态"}}), status_code=error.status)
     except (ReadUnavailable, SnapshotError, OSError, ValueError, KeyError, TypeError):
         return JSONResponse(response_value("MarketActivityError", {"detail": {"code": "activity_invalid", "message": "量额资料不能安全重放；只读入口不会恢复"}}), status_code=409)
+
+
+def _dispatch_etf(boundary: Boundary, operation: str, paths: dict, query: dict) -> Response:
+    """ETF正式端点只调用公开数据用例；不存在假数据或隐式初始化后备。"""
+    from pmi.market_data import EtfError as FlowError, PeriodicBudgetError as BudgetError
+    try:
+        data, status = boundary.config.market_data, 200
+        if operation == "etfFlowReady":
+            descriptor = boundary.config.public_etf_descriptor()
+            descriptor.pop("endpoint")
+            component, value = "EtfReady", {**descriptor, "status": "ready", "instance_id": boundary.instance}
+        elif operation == "currentEtfFlow":
+            component, value = "EtfCurrent", data.etf_flow("current", boundary.instance)
+        elif operation == "etfFlowView":
+            component, value = "EtfView", data.etf_flow("view", paths["snapshot_id"], mode=query["mode"],
+                period=int(query["period"]), end=query.get("end"), group=query.get("group"))
+        elif operation == "etfFlowEvidence":
+            component, value = "EtfEvidence", data.etf_flow("evidence", paths["snapshot_id"], paths["object_id"])
+        elif operation == "etfFlowOperation":
+            component, value = "EtfOperation", data.etf_flow("operation", paths["request_id"], boundary.instance)
+        elif operation == "startEtfFlow":
+            status, value = data.etf_flow("start", paths["request_id"], paths["etf_body"], boundary.instance)
+            component = "EtfOperation"
+        else:
+            raise FlowError("etf_unknown_operation", 404)
+        return JSONResponse(response_value(component, value), status_code=status)
+    except (FlowError, BudgetError) as error:
+        return JSONResponse(response_value("EtfError", {"detail": {"code": error.code,
+            "message": "ETF资料或更新状态不可用；请核对配置、授权额度及原请求记录，读取不会自动取数或恢复"}}), status_code=error.status)
+    except (ReadUnavailable, SnapshotError, OSError, ValueError, KeyError, TypeError):
+        return JSONResponse(response_value("EtfError", {"detail": {"code": "etf_invalid_data",
+            "message": "ETF资料或引用无法安全核验；已保存版本保留，不用假数据代替"}}), status_code=409)
 
 
 def create_app(config: ServiceConfig) -> FastAPI:
@@ -149,6 +197,7 @@ def create_app(config: ServiceConfig) -> FastAPI:
     app.state.boundary = boundary
     updates = UpdateService(boundary)
     app.state.updates = updates
+    app.add_event_handler("startup", config.market_data.start_maintenance)
     app.add_event_handler("startup", updates.start_startup)
 
     async def close_index_workers() -> None:
@@ -181,7 +230,7 @@ def create_app(config: ServiceConfig) -> FastAPI:
                     "Access-Control-Max-Age": "0", "Vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"})
             else:
                 operation, paths, query, bound = await boundary.actual(request, headers)
-                ready = operation in {"sessionReady", "indexSeriesReady", "marketActivityReady"}
+                ready = operation in {"sessionReady", "indexSeriesReady", "marketActivityReady", "etfFlowReady"}
                 request.state.invocation = (operation, paths, query)
                 response = await call_next(request)
         except Rejected as error:

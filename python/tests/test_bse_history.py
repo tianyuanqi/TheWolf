@@ -9,6 +9,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
 from bse_history import History
 from test_three_market import ThreeMarketTests, ANCHOR, WINDOW, original
 from pmi.market_data.activity import fetch
+from sqlite_fixture import activity_budget_bytes, set_activity_budget
+from pmi.market_data.storage import state as sql_state
 from pmi.market_data.activity.model import ActivityError, MARKET, canonical
 
 
@@ -29,13 +31,15 @@ class HistoryTests(unittest.TestCase):
             with self.rt.store.lock(write=True):self.rt.store.write(('operations','unrelated.json'),canonical(pending))
             with self.assertRaisesRegex(ActivityError,'history_existing_operation_unresolved'):h.publish('history-publish')
             self.assertEqual(self.rt.store.json('operations','unrelated.json'),pending)
-            (self.act/'operations'/'unrelated.json').unlink() # 只删除本测试刚写的合成未决记录。
+            # 显式结束本测试未决操作；保留其历史，不删除业务记录。
+            with self.rt.store.lock(write=True):
+                self.rt.store.write(('operations','unrelated.json'),canonical({**pending,'state':'interrupted','reason':'activity_interrupted'}))
             result=h.publish('history-publish');self.assertEqual(result['state'],'completed')
             self.assertEqual(h.publish('history-publish'),result)
             (stage/'published.json').unlink() # 仅模拟自有合成暂存的提交后中断。
             self.assertEqual(h.publish('history-publish'),result)
         self.assertIsNotNone(self.rt.current(MARKET,ANCHOR))
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],2)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],2)
 
     def test_failure_no_implicit_retry_and_budget_no_reset(self):
         stage=self.root/'stage';stage.mkdir();h=History(self.rt,stage,ANCHOR);h.prepare()
@@ -48,7 +52,7 @@ class HistoryTests(unittest.TestCase):
         with patch.object(fetch,'fetch',side_effect=AssertionError('失败不可隐式重试')):
             with self.assertRaisesRegex(ActivityError,'history_attempt_unresolved'):History(self.rt,stage,ANCHOR).collect()
             with self.assertRaisesRegex(ActivityError,'history_incomplete'):h.publish('history-incomplete')
-        self.assertEqual(len(calls),2);self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],2)
+        self.assertEqual(len(calls),2);self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],2)
         self.assertIsNone(self.rt.current(MARKET,ANCHOR))
 
     def test_stage_tamper_and_archived_evidence(self):
@@ -59,7 +63,7 @@ class HistoryTests(unittest.TestCase):
         (stage/'raw'/research[0].object_id).write_bytes(b'changed')
         with patch.object(fetch,'fetch',side_effect=AssertionError('篡改不可联网')):
             with self.assertRaisesRegex(ActivityError,'history_stage_invalid'):h.collect()
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],0)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],0)
 
 
 
@@ -83,12 +87,12 @@ class HistoryPacingTests(unittest.TestCase):
             self.assertTrue(all(c.kwargs=={'history_batch_paced':True} for c in call.call_args_list))
         self.assertEqual(waits,[3]*19+[20])
         self.assertTrue(all(x['state']=='saved' for x in json.loads((stage/'attempts.json').read_bytes()).values()))
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],20)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],20)
         with patch.object(fetch,'fetch',side_effect=self.obtain) as call,patch.object(self.rt.cancel,'wait',side_effect=lambda s:waits.append(s) or False):
             self.assertEqual(History(self.rt,stage,ANCHOR).collect(bse_batch_pacing=True)['requests'],0)
             self.assertEqual(call.call_count,3)
         self.assertEqual(waits,[3]*19+[20,20,3,3])
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],23)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],23)
         with patch.object(fetch,'fetch',side_effect=AssertionError('不得重取')):
             self.assertEqual(h.collect(bse_batch_pacing=True)['requests'],0)
 
@@ -111,7 +115,7 @@ class HistoryPacingTests(unittest.TestCase):
             for key,kwargs in [('sse-a-json',{}),('bse-a-json',{'lease':object()})]:
                 with self.assertRaisesRegex(ActivityError,'invalid_history_pacing'):
                     fetch.fetch(key,[WINDOW.end],self.rt.options,self.rt.cancel,history_batch_paced=True,**kwargs)
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],2)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],2)
 
     def test_first_twenty_verified_then_next_batch_automatically(self):
         h,stage=self.prepare('continue',21);waits=[]
@@ -139,7 +143,7 @@ class HistoryPacingTests(unittest.TestCase):
         for n,failure in enumerate(cases):
             with self.subTest(case=n):
                 h,stage=self.prepare('failure-'+str(n),2);calls=[]
-                before=json.loads(self.ledger.read_bytes())['attempts']
+                before=json.loads(activity_budget_bytes(self.act))['attempts']
                 class Response(BytesIO):
                     status=200
                     def __init__(self,item):
@@ -156,14 +160,14 @@ class HistoryPacingTests(unittest.TestCase):
                 with patch.object(fetch,'build_opener',return_value=Opener()),patch.object(self.rt.cancel,'wait',return_value=False):
                     with self.assertRaises(ActivityError):h.collect(bse_batch_pacing=True)
                 self.assertEqual(len(calls),2)
-                self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],before+2)
+                self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],before+2)
                 with patch.object(fetch,'fetch',side_effect=AssertionError('失败不得重试')):
                     with self.assertRaisesRegex(ActivityError,'history_attempt_unresolved'):History(self.rt,stage,ANCHOR).collect(bse_batch_pacing=True)
                 self.assertIsNone(self.rt.current(MARKET,ANCHOR))
 
     def test_new_pacing_still_preflights_entire_remaining_batch(self):
         h,_=self.prepare('short-budget',2)
-        ledger=json.loads(self.ledger.read_bytes());ledger['limit_attempts']=1;self.ledger.write_bytes(canonical(ledger))
+        ledger=json.loads(activity_budget_bytes(self.act));ledger['limit_attempts']=1;set_activity_budget(self.act, canonical(ledger))
         with patch.object(fetch,'fetch',side_effect=AssertionError('不足不得开始')):
             with self.assertRaisesRegex(ActivityError,'activity_budget_exhausted'):h.collect(bse_batch_pacing=True)
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],0)
+        self.assertEqual(json.loads(activity_budget_bytes(self.act))['attempts'],0)

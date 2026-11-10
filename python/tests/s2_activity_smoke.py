@@ -13,11 +13,11 @@ import tempfile
 import time
 from unittest.mock import patch
 
-from pmi.market_data import index_series_store as prices
+from pmi.market_data.storage import index_store as prices
 from pmi.market_data.index_catalog import get_index
 from pmi.market_data.index_series_contract import build_manifest
 from pmi.market_data.index_history_calendar import complete_window, SHANGHAI
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import initialize, price_writer as writer_lock
 from pmi.market_data.activity import fetch
 from pmi.market_data.activity.model import INDEX_IDS, TWO_MARKET, MARKET_MAX_BYTES, Original, canonical
 from pmi.market_data.activity.sources import url
@@ -65,7 +65,7 @@ def isolated_service(root: Path, args: list[str]) -> None:
 
 def prepare(root: Path) -> None:
     for name in ('data','activity','runtime','cache','budget'):(root/name).mkdir(mode=0o700)
-
+    initialize(root/'data')
     with writer_lock(root/'data'):
         for sid in INDEX_IDS:
             index=get_index(sid);items=list(originals(index,WINDOW))
@@ -75,7 +75,8 @@ def prepare(root: Path) -> None:
                 items[0]=replace(items[0],content=canonical(raw))
             prices.prepare_directories(root/'data',index)
             prices.publish(root/'data',index,WINDOW,build_manifest(index,WINDOW,items),items,state(index))
-    (root/'budget/ledger.json').write_bytes(canonical({'cycle':'s2-smoke','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':160000000}))
+    from sqlite_fixture import set_activity_budget
+    set_activity_budget(root/'data', canonical({'cycle':'s2-smoke','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':160000000}))
     wrapper=root/'test-python'
     wrapper.write_text(f'''#!{REPO/'python/.venv/bin/python'}
 import sys,runpy
@@ -96,7 +97,7 @@ else:raise RuntimeError('invalid invocation')
         with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
     config=dict(python=str(wrapper),data_root=str(root/'data'),runtime_base=str(root/'runtime'),service_port=port(),browser_port=port(),
                 index=dict(write_ids=[],startup_ids=[],max_attempts=0,max_bytes=0),
-                activity=dict(root=str(root/'activity'),write_series=[*INDEX_IDS,TWO_MARKET],startup_series=[*INDEX_IDS,TWO_MARKET],blocked_series=[],budget_ledger=str(root/'budget/ledger.json'),budget_cycle='s2-smoke',max_attempts=2200,max_bytes=160000000))
+                activity=dict(root=str(root/'data'),write_series=[*INDEX_IDS,TWO_MARKET],startup_series=[*INDEX_IDS,TWO_MARKET],blocked_series=[],budget_ledger=str(root/'data/facts.sqlite'),budget_cycle='s2-smoke',max_attempts=2200,max_bytes=160000000))
     (root/'config.json').write_text(json.dumps(config));(root/'config.json').chmod(0o600)
 
 

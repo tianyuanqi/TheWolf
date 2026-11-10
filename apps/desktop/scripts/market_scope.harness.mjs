@@ -20,7 +20,7 @@ const { chromium } = await import(pathToFileURL(path.join(process.env.WOLF_PLAYW
 const env = { ...process.env };
 const record = { synthetic_only: true, root, children: [], requests: [], external_attempts: [], page_errors: [], cases: [] };
 const children = [], streams = [];
-let browser, service, host, before, initialCache;
+let browser, service, host, before, beforeB, initialCache;
 
 async function port() {
   const server = createServer();
@@ -83,6 +83,8 @@ async function startPair(kind, mode = 'valid') {
 try {
   initialCache = await readFile(path.join(repo, 'apps/desktop/tsconfig.tsbuildinfo')).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
   await cp(source, root + '/a', { recursive: true, errorOnExist: true }); await mkdir(root + '/b');
+  const initialized = spawnSync(py, ['-B','-c','from pathlib import Path;import sys;from sqlite_fixture import initialize;initialize(Path(sys.argv[1]))',root+'/b'],{cwd:repo,env,encoding:'utf8'});
+  assert.equal(initialized.status,0,initialized.stderr);beforeB=await hashes(root+'/b');
   before = await hashes(root + '/a');
   await writeFile(root + '/environment-before.json', JSON.stringify({ root, source, before, ports: record.ports, user_config_changes: false }, null, 2));
   // 使用正式构建与相同受控宿主，避免开发服务器重启时刷新页面掩盖状态缺陷。
@@ -118,11 +120,11 @@ try {
   await page.getByRole('button', { name: '重新读取', exact: true }).waitFor();
   await page.waitForFunction(() => !Array.from(document.querySelectorAll('button')).find(button => button.textContent === '重新读取').disabled);
   assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), values);
-  await page.getByText(/当前显示上次成功读取的快照/).waitFor();
-  assert.equal(await page.getByText(/当前显示上次成功读取的快照/).count(), 1);
+  await page.locator('.m-table tbody tr').first().getByText(/上次数据/).waitFor();
+  assert.equal(await page.locator('.m-price-chart canvas').count(),0);
   service = startService('a'); await ready(api + '/api/session/ready', { 'X-Wolf-Client': '1' }); await reconnect(); await loaded();
   assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), values);
-  assert.equal(await page.getByText(/当前显示上次成功读取的快照/).count(), 0);
+  assert.doesNotMatch(await page.locator('.m-table tbody').innerText(),/上次数据/);
   record.cases.push('same-root-offline-keeps-labelled-snapshot-and-reconnect-recovers');
 
   // 只延迟真实响应的正文完成时机，不改fetch、响应内容或数据来源。
@@ -130,7 +132,7 @@ try {
     const original = Response.prototype.json, held = [];
     Response.prototype.json = async function () {
       const value = await original.call(this);
-      if (this.url.startsWith(api + '/api/index-series/') && value.snapshot) await new Promise(resolve => held.push(resolve));
+      if (this.url.startsWith(api + '/api/index-series/') && value.instrument && value.index_id) await new Promise(resolve => held.push(resolve));
       return value;
     };
     window.__scopeHeld = held;
@@ -139,7 +141,7 @@ try {
   await page.getByRole('button', { name: '重新读取', exact: true }).click();
   await page.waitForFunction(() => window.__scopeHeld.length === 4);
   await switchRoot('b', 'missing'); assert.notEqual(record.a_scope, record.b_scope);
-  await page.getByText('指数连接未配置，请检查本地启动配置。', { exact: true }).waitFor();
+  await page.locator('.m-connection').getByText('指数连接未配置', { exact: true }).waitFor();
   await emptyOfA(); await page.evaluate(() => window.__scopeRelease());
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); await emptyOfA();
   record.cases.push('new-root-missing-v2-clears-all-a-display-and-rejects-four-late-bodies');
@@ -151,19 +153,19 @@ try {
     const original = Response.prototype.json, held = [];
     Response.prototype.json = async function () {
       const value = await original.call(this);
-      if (this.url.startsWith(api + '/api/index-series/') && value.formula_version === 'index-price-calculations-v1') await new Promise(resolve => held.push(resolve));
+      if (this.url.startsWith(api + '/api/index-series/') && value.series && value.index_id) await new Promise(resolve => held.push(resolve));
       return value;
     };
     window.__scopeHeld = held;
     window.__scopeRelease = () => { Response.prototype.json = original; held.forEach(resolve => resolve()); };
   }, api);
   await page.getByRole('button', { name: '重新读取', exact: true }).click();
-  await page.waitForFunction(() => window.__scopeHeld.length === 4);
+  await page.waitForFunction(() => window.__scopeHeld.length === 1);
   await switchRoot('b', 'missing');
-  await page.getByText('指数连接未配置，请检查本地启动配置。', { exact: true }).waitFor();
+  await page.locator('.m-connection').getByText('指数连接未配置', { exact: true }).waitFor();
   await emptyOfA(); await page.evaluate(() => window.__scopeRelease());
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); await emptyOfA();
-  record.cases.push('four-late-calculation-bodies-cannot-repopulate-new-root');
+  record.cases.push('late-range-body-cannot-repopulate-new-root');
   await switchRoot('a', 'valid'); await loaded(); assert.equal(await page.locator('.m-metric-value').count(), 4);
   await switchRoot('b', 'mismatch');
   await page.locator('.m-connection').getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
@@ -188,7 +190,7 @@ try {
   await page.locator('.m-connection').getByText('指数服务实例或冻结配置不匹配，请重新连接', { exact: true }).waitFor(); await emptyOfA();
   record.cases.push('new-root-v1-v2-instance-change-clears-all-a-display');
   await switchRoot('b', 'valid'); await loaded(); await emptyOfA();
-  assert.equal(await page.getByText(/暂无数据，尚未保存价格/).count(), 4);
+  assert.equal(await page.locator('.m-table .m-metric-value').count(),0);assert.match(await page.locator('.m-empty').innerText(),/暂无数据/);
   record.cases.push('same-b-root-valid-reconnect-is-truly-empty');
   await switchRoot('a', 'valid'); await loaded(); assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), values);
   assert.equal(await page.getByRole('button', {name:/沪深300资料|002245资料/}).count(),0);
@@ -204,7 +206,7 @@ finally {
   for (const stream of streams) stream.end();
   record.exits = children.map(child => ({ pid: child.pid, code: child.exitCode, signal: child.signalCode }));
   if (before) record.synthetic_a_unchanged = JSON.stringify(await hashes(root + '/a')) === JSON.stringify(before);
-  record.synthetic_b_empty = (await readdir(root + '/b').catch(() => [])).length === 0;
+  record.synthetic_b_empty = JSON.stringify(await hashes(root+'/b'))===JSON.stringify(beforeB);
   record.ports_closed = {};
   for (const number of record.ports) {
     try { await fetch(`http://127.0.0.1:${number}/`, { signal: AbortSignal.timeout(1000) }); record.ports_closed[number] = false; }

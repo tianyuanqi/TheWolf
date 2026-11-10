@@ -83,13 +83,14 @@ def prepare(root: Path) -> None:
     from test_index_series_runtime import state
     from pmi.market_data.index_catalog import get_index
     from pmi.market_data.index_series_contract import build_manifest
-    from pmi.market_data import index_series_store as store
-    from pmi.market_data.writer_lock import writer_lock
+    from pmi.market_data.storage import index_store as store
+    from sqlite_fixture import initialize, price_writer as writer_lock
     if root.exists() or root.resolve() != root or not str(root).startswith('/private/tmp/wolf-price-startup-'):
         raise ValueError('must be a new owned temporary root')
     root.mkdir(mode=0o700)
     for name in ('data','runtime','cache'):
         (root/name).mkdir(mode=0o700)
+    initialize(root/'data')
     with writer_lock(root/'data'):
         for index_id in IDS:
             index = get_index(index_id); items = originals(index, WINDOW)
@@ -150,8 +151,8 @@ def repeat_observation(root: Path) -> None:
     from test_index_series_runtime import state
     from pmi.market_data.index_catalog import get_index
     from pmi.market_data.index_series_contract import build_manifest
-    from pmi.market_data import index_series_store as store
-    from pmi.market_data.writer_lock import writer_lock
+    from pmi.market_data.storage import index_store as store
+    from sqlite_fixture import initialize, price_writer as writer_lock
     if root.resolve() != root or not str(root).startswith('/private/tmp/wolf-price-startup-'):
         raise ValueError('invalid fixture root')
     assert json.loads((root/'config.json').read_text())['data_root'] == str(root/'data')

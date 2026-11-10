@@ -927,6 +927,14 @@ class Detail8(BaseModel):
         'index_series_evidence_not_found',
         'index_range_invalid',
         'coverage_insufficient',
+        'range_parameters_invalid',
+        'range_coverage_insufficient',
+        'storage_publication_not_found',
+        'storage_observation_not_member',
+        'storage_activity_binding_invalid',
+        'storage_quarantined',
+        'storage_integrity_check_due',
+        'storage_maintenance_failed',
     ]
     message: StrictStr
 
@@ -1126,6 +1134,14 @@ class Detail9(BaseModel):
         'index_range_invalid',
         'coverage_insufficient',
         'calculation_parameters_invalid',
+        'range_parameters_invalid',
+        'range_coverage_insufficient',
+        'storage_publication_not_found',
+        'storage_observation_not_member',
+        'storage_activity_binding_invalid',
+        'storage_quarantined',
+        'storage_integrity_check_due',
+        'storage_maintenance_failed',
     ]
     message: StrictStr
 
@@ -1735,7 +1751,7 @@ class MarketActivityDescriptor(BaseModel):
     endpoint: StrictStr = Field(..., min_length=1)
     service_id: Literal['thewolf-local-service']
     service_version: StrictStr = Field(..., min_length=1)
-    contract_version: Literal['2.0.0']
+    contract_version: Literal['3.0.0']
     contract_sha256: PublicDigest
     data_scope_id: PublicDigest
     identity_format: Literal['wolf-activity-config-v1']
@@ -1777,6 +1793,1567 @@ class MarketActivityDescriptor(BaseModel):
     policy: MarketActivityPolicy
 
 
+class ReportDate(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class EtfBasis(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    url: StrictStr = Field(..., max_length=2048, min_length=1, pattern='^https://')
+    report_date: ReportDate | None
+    published_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    locator: StrictStr = Field(..., max_length=500, min_length=1)
+
+
+class IndexId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class DisabledDate(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class EtfMember(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    code: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    name: StrictStr = Field(..., max_length=200, min_length=1)
+    manager: StrictStr = Field(..., max_length=200, min_length=1)
+    exchange: StrictStr = Field(..., max_length=200, min_length=1)
+    tracking_index: StrictStr = Field(..., max_length=200, min_length=1)
+    index_id: IndexId | None
+    group: StrictStr = Field(..., max_length=80, min_length=1)
+    enabled_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    disabled_date: DisabledDate | None
+    basis: EtfBasis
+
+
+class PublishedAt(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class EtfSource(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    object_id: PublicDigest
+    publisher: StrictStr = Field(..., max_length=200, min_length=1)
+    channel: StrictStr = Field(..., max_length=200, min_length=1)
+    url: StrictStr = Field(..., max_length=2048, min_length=1, pattern='^https://')
+    retrieved_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    published_at: PublishedAt | None
+    locator: StrictStr = Field(..., max_length=1000, min_length=1)
+    original_unit: StrictStr = Field(..., max_length=200, min_length=1)
+    precision: StrictStr = Field(..., max_length=200, min_length=1)
+
+
+class Shares(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class ComparablePrevious(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Delta(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class ChangeRate(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Amount(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Nav(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Close(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Turnover(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Volume(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class NetAssets(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Premium(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class TurnoverRatio(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Reason(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[a-z_]{1,100}$')
+
+
+class EtfMetrics(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    shares: Shares | None
+    comparable_previous: ComparablePrevious | None
+    delta: Delta | None
+    change_rate: ChangeRate | None
+    amount: Amount | None
+    nav: Nav | None
+    close: Close | None
+    turnover: Turnover | None
+    volume: Volume | None
+    net_assets: NetAssets | None
+    premium: Premium | None
+    turnover_ratio: TurnoverRatio | None
+    date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    adjustment: StrictBool
+    reason: Reason | None
+
+
+class Mean(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class StandardDeviation(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Upper(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Lower(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class PositiveRatio(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class NegativeRatio(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Threshold(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class PositiveCount(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=0)
+
+
+class NegativeCount(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=0)
+
+
+class Denominator(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=0)
+
+
+class EtfCondition(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    mean: Mean | None
+    standard_deviation: StandardDeviation | None
+    upper: Upper | None
+    lower: Lower | None
+    positive_ratio: PositiveRatio | None
+    negative_ratio: NegativeRatio | None
+    threshold: Threshold | None
+    positive_count: PositiveCount | None
+    negative_count: NegativeCount | None
+    denominator: Denominator | None
+    state: Literal['insufficient', 'parameters_pending', 'evaluated']
+    reason: Reason | None
+    incoming: StrictBool | None
+    outgoing: StrictBool | None
+
+
+class EtfExclusion(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    member_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    reason: StrictStr = Field(..., pattern='^[a-z_]{1,100}$')
+
+
+class ValidId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class EtfEvaluation(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    result_id: PublicDigest
+    date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    state: Literal[
+        'insufficient',
+        'parameters_pending',
+        'abnormal_subscription',
+        'abnormal_redemption',
+        'not_triggered',
+    ]
+    amount: Amount | None
+    partial: StrictBool
+    active_count: StrictInt = Field(..., ge=0)
+    ready_count: StrictInt = Field(..., ge=0)
+    valid_count: StrictInt = Field(..., ge=0)
+    valid_ids: list[ValidId]
+    exclusions: list[EtfExclusion]
+    c1: EtfCondition
+    c2: EtfCondition
+    pool_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    rule_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    input_version: PublicDigest
+    calculated_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    selection_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    group_id: PublicDigest | None
+    mode: Literal['original', 'current']
+
+
+class EtfAdmission(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: PublicDigest
+    member_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    first_qualified_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    checked_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    start: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    end: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    required_days: StrictInt = Field(..., ge=321)
+    input_version: PublicDigest
+
+
+class Amount5(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Amount20(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class MemberId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class EtfGroup(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: PublicDigest
+    name: StrictStr = Field(..., max_length=80, min_length=1)
+    member_ids: list[MemberId]
+
+
+class Days(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=0)
+
+
+class EtfStreak(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    state: Literal['parameters_pending', 'insufficient', 'not_met', 'met']
+    direction: Literal['subscription', 'redemption'] | None
+    days: Days | None
+    amount: Amount | None
+
+
+class EtfSummary(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    evaluation: EtfEvaluation | None
+    amount_5: Amount5 | None
+    amount_20: Amount20 | None
+    streak: EtfStreak
+
+
+class Cumulative(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class EtfPoint(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    state: Literal[
+        'unrecorded',
+        'insufficient',
+        'parameters_pending',
+        'abnormal_subscription',
+        'abnormal_redemption',
+        'not_triggered',
+    ]
+    evaluation: EtfEvaluation | None
+    cumulative: Cumulative | None
+
+
+class Percentage(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Classification(RootModel[StrictStr]):
+    root: StrictStr = Field(..., max_length=200, min_length=1)
+
+
+class ClassificationBasis(RootModel[StrictStr]):
+    root: StrictStr = Field(..., max_length=1000, min_length=1)
+
+
+class EtfHolder(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: StrictStr = Field(..., max_length=200, min_length=1)
+    shares: Shares | None
+    percentage: Percentage | None
+    classification: Classification | None
+    classification_basis: ClassificationBasis | None
+
+
+class PublishedDate(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class EtfDisclosure(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    member_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    report_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    published_date: PublishedDate | None
+    source_id: PublicDigest
+    locator: StrictStr = Field(..., max_length=1000, min_length=1)
+    state: Literal['disclosed', 'not_disclosed']
+    holders: list[EtfHolder]
+    note: StrictStr = Field(..., max_length=1000, min_length=1)
+    url: StrictStr = Field(..., max_length=2048, min_length=1, pattern='^https://')
+    retrieved_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    known_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    knowledge: Literal['later_comparison', 'published_by_evaluation_day']
+    publication_unknown: StrictBool
+
+
+class OccurredStart(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class OccurredEnd(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class Subject(RootModel[StrictStr]):
+    root: StrictStr = Field(..., max_length=200, min_length=1)
+
+
+class EtfEvent(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    member_ids: list[MemberId]
+    occurred_start: OccurredStart | None
+    occurred_end: OccurredEnd | None
+    published_date: PublishedDate | None
+    source_id: PublicDigest
+    locator: StrictStr = Field(..., max_length=1000, min_length=1)
+    description: StrictStr = Field(..., max_length=2000, min_length=1)
+    subjects: list[Subject]
+    marker_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    marker_kind: Literal['occurrence', 'announcement']
+    url: StrictStr = Field(..., max_length=2048, min_length=1, pattern='^https://')
+    retrieved_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    known_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    knowledge: Literal['later_comparison', 'published_by_evaluation_day']
+    publication_unknown: StrictBool
+
+
+class ConfirmedAt(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class Confirmation(RootModel[StrictStr]):
+    root: StrictStr = Field(..., max_length=1000, min_length=1)
+
+
+class K(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class MinIn(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class MinOut(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class DirectionRatio(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class StreakDays(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=2)
+
+
+class EtfRule(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    effective_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    confirmed_at: ConfirmedAt | None
+    confirmation: Confirmation | None
+    window: StrictInt = Field(..., ge=2)
+    k: K | None
+    min_in: MinIn | None
+    min_out: MinOut | None
+    direction_ratio: DirectionRatio | None
+    streak_days: StreakDays | None
+
+
+class EtfPool(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    hash: PublicDigest
+    effective_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    confirmed_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    change: StrictStr = Field(..., max_length=1000, min_length=1)
+
+
+class Return1(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class Return5(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class EtfIndexContext(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    snapshot_id: PublicDigest
+    formula_version: StrictStr = Field(
+        ..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$'
+    )
+    date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    return_1: Return1 | None
+    return_5: Return5 | None
+    input_basis: Literal['posthoc_context']
+    calculated_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class Ratio20(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+
+
+class EtfMarketContext(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    series_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    activity_id: PublicDigest
+    formula_version: StrictStr = Field(
+        ..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$'
+    )
+    date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    scope_label: StrictStr = Field(..., max_length=200, min_length=1)
+    turnover: Turnover | None
+    ratio_20: Ratio20 | None
+    input_basis: Literal['posthoc_context']
+    calculated_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class EtfContext(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    indices: list[EtfIndexContext]
+    market: EtfMarketContext | None
+    reason: Reason | None
+
+
+class CompleteAmountThrough(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class EtfDataStatus(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    state: Literal[
+        'unrecorded',
+        'insufficient',
+        'parameters_pending',
+        'abnormal_subscription',
+        'abnormal_redemption',
+        'not_triggered',
+    ]
+    input_basis: Literal['recorded_inputs', 'posthoc_inputs']
+    evidence_version: StrictStr = Field(
+        ..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$'
+    )
+    history_first: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    history_last: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    original_recorded: StrictBool
+    parameters_confirmed: StrictBool
+    required_days: StrictInt = Field(..., ge=321)
+    complete_amount_through: CompleteAmountThrough | None
+
+
+class SelectedMemberId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class CalculatedAt(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class BatchId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[a-f0-9]{32}$')
+
+
+class EtfOperation(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    request_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    config_id: PublicDigest
+    instance_id: PublicInstanceId
+    operation_key: PublicDigest
+    plan_id: PublicDigest
+    expected_snapshot_id: PublicDigest | None
+    state: Literal['queued', 'running', 'completed', 'failed', 'interrupted']
+    reason: Reason | None
+    snapshot_id: PublicDigest | None
+    created_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    updated_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    batch_id: BatchId | None
+    lease_closed: StrictBool
+    recovered_from_instance: PublicInstanceId | None
+    serving_instance_id: PublicInstanceId
+    serving_config_id: PublicDigest
+    recovery_required: StrictBool
+
+
+class EtfUsage(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    grant_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    requests: StrictInt = Field(..., ge=0)
+    reserved_bytes: StrictInt = Field(..., ge=0)
+    actual_bytes: StrictInt = Field(..., ge=0)
+    unknown_attempts: StrictInt = Field(..., ge=0)
+    max_requests: StrictInt = Field(..., ge=0)
+    max_bytes: StrictInt = Field(..., ge=0)
+    expires_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class ReservedBytes(RootModel[StrictInt]):
+    root: StrictInt = Field(..., ge=0)
+
+
+class EtfPlan(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: PublicDigest
+    start: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    end: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    member_ids: list[MemberId]
+    request_count: StrictInt = Field(..., ge=0)
+    cached_request_count: StrictInt = Field(..., ge=0)
+    reserved_bytes: ReservedBytes | None
+
+
+class EtfUnresolved(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    request_id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    config_id: PublicDigest
+    instance_id: PublicInstanceId
+
+
+class SelectionAt(RootModel[StrictStr]):
+    root: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class End(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+
+
+class ConfigurationReason(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[a-z_]{1,100}$')
+
+
+class BlockedReason(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[a-z_]{1,100}$')
+
+
+class EtfCurrent(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    snapshot_id: PublicDigest | None
+    selection_at: SelectionAt | None
+    end: End | None
+    server_day: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    configuration_pending: StrictBool
+    configuration_reason: ConfigurationReason | None
+    members: list[EtfMember]
+    pool_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    rule_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    initialized: StrictBool
+    write_enabled: StrictBool
+    blocked_reason: BlockedReason | None
+    usage: EtfUsage | None
+    plan: EtfPlan
+    operation: EtfOperation | None
+    unresolved: list[EtfUnresolved]
+
+
+class EtfEvidence(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    snapshot_id: PublicDigest
+    object_id: PublicDigest
+    bytes: StrictInt = Field(..., ge=0)
+    references: list[EtfSource]
+
+
+class EtfUpdateBody(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    expected_snapshot_id: PublicDigest | None
+    plan_id: PublicDigest
+
+
+class Detail12(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    code: StrictStr = Field(..., pattern='^[a-z_]{1,100}$')
+    message: StrictStr = Field(..., max_length=500, min_length=1)
+
+
+class EtfError(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    detail: Detail12
+
+
+class GrantId(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class RefreshRevision(RootModel[StrictStr]):
+    root: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+
+
+class EtfDescriptor(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    endpoint: StrictStr = Field(..., pattern='^http://127\\.0\\.0\\.1:[1-9][0-9]{0,4}$')
+    service_id: Literal['thewolf-local-service']
+    service_version: StrictStr = Field(..., max_length=200, min_length=1)
+    contract_version: Literal['3.0.0']
+    contract_sha256: PublicDigest
+    data_scope_id: PublicDigest
+    feature_version: Literal['etf-flow-v1']
+    identity_version: Literal['wolf-etf-flow-config-v1']
+    etf_scope_id: PublicDigest
+    config_id: PublicDigest
+    configuration_hash: PublicDigest
+    evidence_version: StrictStr = Field(
+        ..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$'
+    )
+    write_enabled: StrictBool
+    grant_id: GrantId | None
+    refresh_revision: RefreshRevision | None
+
+
+class EtfReady(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    service_id: Literal['thewolf-local-service']
+    service_version: StrictStr = Field(..., max_length=200, min_length=1)
+    contract_version: Literal['3.0.0']
+    contract_sha256: PublicDigest
+    data_scope_id: PublicDigest
+    feature_version: Literal['etf-flow-v1']
+    identity_version: Literal['wolf-etf-flow-config-v1']
+    etf_scope_id: PublicDigest
+    config_id: PublicDigest
+    configuration_hash: PublicDigest
+    evidence_version: StrictStr = Field(
+        ..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$'
+    )
+    write_enabled: StrictBool
+    grant_id: GrantId | None
+    refresh_revision: RefreshRevision | None
+    status: Literal['ready']
+    instance_id: PublicInstanceId
+
+
+class EtfAdjustmentDetail(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    kind: Literal['normal', 'adjustment']
+    start: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    end: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    factor: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+    tail: StrictStr = Field(
+        ..., max_length=400, pattern='^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+    )
+    confirmed_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    confirmation: StrictStr = Field(..., max_length=1000, min_length=1)
+    source_ids: list[PublicDigest] = Field(..., min_length=1)
+
+
+class CompactIndexDefinition(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    unit: Literal['%', '点']
+    formula_version: Literal[
+        'adjacent-expected-close-pct-half-up-v1',
+        'period-close-pct-half-up-v1',
+        'trading-window-close-pct-v1',
+        'natural-year-close-pct-v1',
+        'close-sma-half-up-4-v1',
+    ]
+    parameters: IndexSeriesCalculationParameters
+
+
+class CompactIndexScalar(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    definition: Literal[
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+    ]
+    value: Value | None
+    reason: (
+        Literal[
+            'insufficient_samples', 'missing_previous_close', 'missing_year_baseline'
+        ]
+        | None
+    )
+    start: Day | None
+    end: Day
+
+
+class CompactActivityDefinition(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    unit: StrictStr
+    formula_version: Literal[
+        'market-activity-calculations-v1', 'market-activity-calculations-sse-szse-v1'
+    ]
+    parameters: Parameters
+
+
+class CompactActivityScalar(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    definition: Literal[
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+    ]
+    value: StrictStr | None
+    reason: StrictStr | None
+    start: Start | None
+    end: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    complete: StrictBool
+    incomplete_reasons: list[StrictStr]
+
+
+class CompactIndexBar(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    period_start: Day
+    period_end: Day
+    start: Day
+    end: Day
+    open: StrictStr = Field(
+        ..., max_length=45, pattern='^[0-9]+\\.[0-9]{2}([0-9]{2})?$'
+    )
+    high: StrictStr = Field(
+        ..., max_length=45, pattern='^[0-9]+\\.[0-9]{2}([0-9]{2})?$'
+    )
+    low: StrictStr = Field(..., max_length=45, pattern='^[0-9]+\\.[0-9]{2}([0-9]{2})?$')
+    close: StrictStr = Field(
+        ..., max_length=45, pattern='^[0-9]+\\.[0-9]{2}([0-9]{2})?$'
+    )
+    sample_count: StrictInt
+    complete: StrictBool
+    incomplete_reasons: list[
+        Literal['window_start_truncated', 'period_in_progress', 'calendar_unknown']
+    ] = Field(..., max_length=3)
+    formula_version: Literal['raw-daily-price-v1', 'calendar-ohlc-v1']
+    change_pct: CompactIndexScalar
+    ma: list[CompactIndexScalar] = Field(..., max_length=8)
+
+
+class CompactIndexSeries(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    frequency: Literal['daily', 'weekly', 'monthly']
+    ma_availability: list[IndexSeriesCalculationAvailability] = Field(..., max_length=8)
+    rows: list[CompactIndexBar] = Field(..., max_length=1100)
+
+
+class Performance1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: CompactIndexScalar
+    day_20: CompactIndexScalar
+    day_60: CompactIndexScalar
+    year_1: CompactIndexScalar
+
+
+class CompactIndexCalculations(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    snapshot_id: ObjectId
+    formula_version: Literal['index-price-calculations-v1']
+    calendar_version: Literal['cn-indices-sse-szse-2023-2026-v1']
+    anchor_date: Day
+    pit_grade: Literal['latest_only']
+    unit: Literal['点']
+    daily: CompactIndexSeries
+    weekly: CompactIndexSeries
+    monthly: CompactIndexSeries
+    performance: Performance1
+    definitions: list[CompactIndexDefinition] = Field(..., max_length=32, min_length=1)
+
+
+class Row6(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    start: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    end: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    period_start: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    period_end: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    sample_count: StrictInt
+    total: CompactActivityScalar
+    change_pct: CompactActivityScalar
+    ma: list[CompactActivityScalar]
+
+
+class Series1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    frequency: Literal['daily', 'weekly', 'monthly']
+    field: Literal['volume', 'amount']
+    rows: list[Row6]
+    ma_availability: list[MaAvailabilityItem]
+
+
+class Day51(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: CompactActivityScalar
+    comparison: CompactActivityScalar
+    sample_count: StrictInt
+
+
+class Day201(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: CompactActivityScalar
+    comparison: CompactActivityScalar
+    sample_count: StrictInt
+
+
+class Day601(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: CompactActivityScalar
+    comparison: CompactActivityScalar
+    sample_count: StrictInt
+
+
+class Year11(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: CompactActivityScalar
+    comparison: CompactActivityScalar
+    sample_count: StrictInt
+
+
+class Comparisons1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: Day51
+    day_20: Day201
+    day_60: Day601
+    year_1: Year11
+
+
+class CompactActivityCalculations(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    series_id: Literal[
+        'sse:000001:price',
+        'szse:399001:price',
+        'szse:399006:price',
+        'sse:000688:price',
+        'cn-a-turnover',
+        'cn-a-turnover-sse-szse',
+    ]
+    activity_id: ObjectId
+    price_snapshot_id: ObjectId | None
+    formula_version: Literal[
+        'market-activity-calculations-v1', 'market-activity-calculations-sse-szse-v1'
+    ]
+    pit_grade: Literal['latest_only']
+    series: list[Series1]
+    comparisons: Comparisons1 | None
+    definitions: list[CompactActivityDefinition] = Field(
+        ..., max_length=64, min_length=1
+    )
+
+
+class IndexSeriesCombinedView(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    view: IndexSeriesView
+    calculations: CompactIndexCalculations
+
+
+class Performance2(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: IndexSeriesCalculationScalar
+    day_20: IndexSeriesCalculationScalar
+    day_60: IndexSeriesCalculationScalar
+    year_1: IndexSeriesCalculationScalar
+
+
+class IndexSeriesOverviewCalculations(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    snapshot_id: ObjectId
+    formula_version: Literal['index-price-calculations-v1']
+    calendar_version: Literal['cn-indices-sse-szse-2023-2026-v1']
+    anchor_date: Day
+    pit_grade: Literal['latest_only']
+    unit: Literal['点']
+    performance: Performance2
+
+
+class Performance3(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: CompactIndexScalar
+    day_20: CompactIndexScalar
+    day_60: CompactIndexScalar
+    year_1: CompactIndexScalar
+
+
+class CompactIndexOverviewCalculations(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    snapshot_id: ObjectId
+    formula_version: Literal['index-price-calculations-v1']
+    calendar_version: Literal['cn-indices-sse-szse-2023-2026-v1']
+    anchor_date: Day
+    pit_grade: Literal['latest_only']
+    unit: Literal['点']
+    performance: Performance3
+    definitions: list[CompactIndexDefinition] = Field(..., max_length=32, min_length=1)
+
+
+class IndexSeriesOverviewView(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    view: IndexSeriesView
+    calculations: CompactIndexOverviewCalculations
+
+
+class IndexSeriesViewResponse(
+    RootModel[IndexSeriesCombinedView | IndexSeriesOverviewView]
+):
+    root: IndexSeriesCombinedView | IndexSeriesOverviewView
+
+
+class StoredDateRange(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    start: Day
+    end: Day
+
+
+class StoredVersion(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    publication_id: ObjectId
+    observation_id: ObjectId | None
+    first_observation_id: ObjectId | None
+    source_coverage: StoredDateRange
+    binding: StrictStr
+
+
+class Indice(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    price: StoredVersion | None
+    activity: StoredVersion | None
+
+
+class Market(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    series_id: MarketActivitySeriesId
+    activity: StoredVersion | None
+
+
+class MarketVersions(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    store_id: StrictStr = Field(..., pattern='^[0-9a-f]{32}$')
+    indices: list[Indice]
+    markets: list[Market]
+    etf: StoredVersion | None
+
+
+class StorageStatus(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    quarantined: StrictBool
+    reason: StrictStr | None
+    last_structure: StrictStr | None
+    last_full: StrictStr | None
+    structure_due: StrictBool
+    full_due: StrictBool
+    available: StrictBool
+
+
+class Performance4(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: IndexSeriesCalculationScalar
+    day_20: IndexSeriesCalculationScalar
+    day_60: IndexSeriesCalculationScalar
+    year_1: IndexSeriesCalculationScalar
+
+
+class Bar1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    trade_date: Day
+    open: IndexSeriesPoint
+    high: IndexSeriesPoint
+    low: IndexSeriesPoint
+    close: IndexSeriesPoint
+
+
+class StoredPriceOverview(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    snapshot_id: ObjectId
+    formula_version: Literal['index-price-calculations-v1']
+    calendar_version: Literal['cn-indices-sse-szse-2023-2026-v1']
+    anchor_date: Day
+    pit_grade: Literal['latest_only']
+    unit: Literal['点']
+    storage_decimals: Literal[2, 4]
+    verification: IndexSeriesVerification
+    observation_id: ObjectId
+    source_coverage: StoredDateRange
+    requested_range: StoredDateRange
+    returned_range: StoredDateRange | None
+    calculation_input_range: StoredDateRange | None
+    sources: list[IndexSeriesRetrievalSource]
+    instrument: IndexSeriesInstrument
+    source_policy_version: IndexSeriesSourcePolicy
+    summary: IndexSeriesSummary
+    performance: Performance4
+    observed_at: StrictStr
+    bars: list[Bar1]
+
+
+class StoredPriceRange(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index_id: IndexSeriesId
+    snapshot_id: ObjectId
+    formula_version: Literal['index-price-calculations-v1']
+    calendar_version: Literal['cn-indices-sse-szse-2023-2026-v1']
+    anchor_date: Day
+    pit_grade: Literal['latest_only']
+    unit: Literal['点']
+    storage_decimals: Literal[2, 4]
+    verification: IndexSeriesVerification
+    observation_id: ObjectId
+    source_coverage: StoredDateRange
+    requested_range: StoredDateRange
+    returned_range: StoredDateRange | None
+    calculation_input_range: StoredDateRange | None
+    sources: list[IndexSeriesRetrievalSource]
+    frequency: Literal['daily', 'weekly', 'monthly']
+    ma_periods: list[Literal[5, 10, 20, 30, 60, 120, 180, 250]] = Field(
+        ..., max_length=8
+    )
+    series: IndexSeriesCalculationSeries
+    navigation_periods: list[StoredDateRange] = Field(
+        ...,
+        description='固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。',
+        max_length=1100,
+        min_length=1,
+    )
+
+
+class StoredPriceView(RootModel[StoredPriceOverview | StoredPriceRange]):
+    root: StoredPriceOverview | StoredPriceRange
+
+
+class Row7(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    start: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    end: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    period_start: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    period_end: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    sample_count: StrictInt
+    total: MarketActivityScalar
+    change_pct: MarketActivityScalar
+    ma: list[MarketActivityScalar]
+
+
+class StoredActivitySeries(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    frequency: Literal['daily', 'weekly', 'monthly']
+    field: Literal['volume', 'amount']
+    rows: list[Row7]
+    ma_availability: list[MaAvailabilityItem]
+
+
+class Binding2(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    version: StrictStr
+    price_object_id: ObjectId
+    activity_object_id: ObjectId
+    relation: Literal['same_source_object', 'different_source_objects']
+    comparison: Literal['exact_available_values_match']
+
+
+class StoredActivityRange(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    series_id: Literal[
+        'sse:000001:price',
+        'szse:399001:price',
+        'szse:399006:price',
+        'sse:000688:price',
+        'cn-a-turnover',
+        'cn-a-turnover-sse-szse',
+    ]
+    activity_id: ObjectId
+    price_snapshot_id: ObjectId | None
+    formula_version: Literal[
+        'market-activity-calculations-v1', 'market-activity-calculations-sse-szse-v1'
+    ]
+    pit_grade: Literal['latest_only']
+    observation_id: ObjectId
+    anchor_date: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    calendar_version: StrictStr
+    source_policy_version: StrictStr
+    source_coverage: StoredDateRange
+    requested_range: StoredDateRange
+    returned_range: StoredDateRange | None
+    calculation_input_range: StoredDateRange | None
+    sources: list[MarketActivityObservedSource]
+    frequency: Literal['daily', 'weekly', 'monthly']
+    ma_periods: list[Literal[5, 10, 20, 30, 60, 120, 180, 250]] = Field(
+        ..., max_length=8
+    )
+    field: Literal['volume', 'amount']
+    series: StoredActivitySeries
+    source_scope: StrictStr
+    source_revision_relation: Literal['unknown']
+    binding: Binding2 | None
+    navigation_periods: list[StoredDateRange] = Field(
+        ...,
+        description='固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。',
+        max_length=1100,
+        min_length=1,
+    )
+
+
+class Day52(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: MarketActivityScalar
+    comparison: MarketActivityScalar
+    sample_count: StrictInt
+
+
+class Day202(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: MarketActivityScalar
+    comparison: MarketActivityScalar
+    sample_count: StrictInt
+
+
+class Day602(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: MarketActivityScalar
+    comparison: MarketActivityScalar
+    sample_count: StrictInt
+
+
+class Year12(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseline: MarketActivityScalar
+    comparison: MarketActivityScalar
+    sample_count: StrictInt
+
+
+class Comparisons2(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    day_5: Day52
+    day_20: Day202
+    day_60: Day602
+    year_1: Year12
+
+
+class StoredMarketOverview(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    series_id: Literal[
+        'sse:000001:price',
+        'szse:399001:price',
+        'szse:399006:price',
+        'sse:000688:price',
+        'cn-a-turnover',
+        'cn-a-turnover-sse-szse',
+    ]
+    activity_id: ObjectId
+    price_snapshot_id: ObjectId | None
+    formula_version: Literal[
+        'market-activity-calculations-v1', 'market-activity-calculations-sse-szse-v1'
+    ]
+    pit_grade: Literal['latest_only']
+    observation_id: ObjectId
+    anchor_date: StrictStr = Field(..., pattern='^\\d{4}-\\d{2}-\\d{2}$')
+    calendar_version: StrictStr
+    source_policy_version: StrictStr
+    source_coverage: StoredDateRange
+    requested_range: StoredDateRange
+    returned_range: StoredDateRange | None
+    calculation_input_range: StoredDateRange | None
+    sources: list[MarketActivityObservedSource]
+    series: StoredActivitySeries
+    comparisons: Comparisons2 | None
+    source_scope: StrictStr
+    source_revision_relation: Literal['unknown']
+    binding: Binding2 | None
+    navigation_periods: list[StoredDateRange] = Field(
+        ...,
+        description='固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。',
+        max_length=1100,
+        min_length=1,
+    )
+
+
+class StoredActivityView(RootModel[StoredActivityRange | StoredMarketOverview]):
+    root: StoredActivityRange | StoredMarketOverview
+
+
 class Ready(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -1784,7 +3361,7 @@ class Ready(BaseModel):
     status: Literal['ready']
     service_id: Literal['thewolf-local-service']
     service_version: StrictStr = Field(..., min_length=1)
-    contract_version: Literal['2.0.0']
+    contract_version: Literal['3.0.0']
     contract_sha256: PublicDigest
     instance_id: PublicInstanceId
     data_scope_id: PublicDigest
@@ -1814,7 +3391,7 @@ class IndexSeriesReady(BaseModel):
     status: Literal['ready']
     service_id: Literal['thewolf-local-service']
     service_version: StrictStr = Field(..., min_length=1)
-    contract_version: Literal['2.0.0']
+    contract_version: Literal['3.0.0']
     contract_sha256: PublicDigest
     instance_id: PublicInstanceId
     data_scope_id: PublicDigest
@@ -1855,7 +3432,7 @@ class MarketActivityReady(BaseModel):
     )
     service_id: Literal['thewolf-local-service']
     service_version: StrictStr = Field(..., min_length=1)
-    contract_version: Literal['2.0.0']
+    contract_version: Literal['3.0.0']
     contract_sha256: PublicDigest
     data_scope_id: PublicDigest
     identity_format: Literal['wolf-activity-config-v1']
@@ -2001,7 +3578,7 @@ class IndexSeriesDescriptor(BaseModel):
     endpoint: StrictStr = Field(..., min_length=1)
     service_id: Literal['thewolf-local-service']
     service_version: StrictStr = Field(..., min_length=1)
-    contract_version: Literal['2.0.0']
+    contract_version: Literal['3.0.0']
     contract_sha256: PublicDigest
     data_scope_id: PublicDigest
     config_id: PublicDigest
@@ -2010,6 +3587,81 @@ class IndexSeriesDescriptor(BaseModel):
     write_indices: list[IndexSeriesId] = Field(..., max_length=6)
     startup_indices: list[IndexSeriesId] = Field(..., max_length=6)
     policy: IndexSeriesPolicy
+
+
+class EtfMemberPoint(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    metrics: EtfMetrics
+    source_ids: list[PublicDigest]
+    adjustment_detail: EtfAdjustmentDetail | None
+
+
+class EtfMemberView(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    code: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    name: StrictStr = Field(..., max_length=200, min_length=1)
+    manager: StrictStr = Field(..., max_length=200, min_length=1)
+    exchange: StrictStr = Field(..., max_length=200, min_length=1)
+    tracking_index: StrictStr = Field(..., max_length=200, min_length=1)
+    index_id: IndexId | None
+    group: StrictStr = Field(..., max_length=80, min_length=1)
+    enabled_date: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    disabled_date: DisabledDate | None
+    basis: EtfBasis
+    group_id: PublicDigest
+    active: StrictBool
+    admission: EtfAdmission | None
+    reason: Reason | None
+    metrics: EtfMetrics
+    amount_5: Amount5 | None
+    amount_20: Amount20 | None
+    series: list[EtfMemberPoint]
+    input_basis: Literal['recorded_inputs', 'posthoc_inputs']
+    input_version: PublicDigest
+    input_selected_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+
+
+class EtfView(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    schema_version: Literal['etf-flow-view-v2']
+    snapshot_id: PublicDigest
+    formula_version: Literal['etf-flow-v1']
+    mode: Literal['original', 'current']
+    end: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    period: Literal[20, 60, 120, 260]
+    group_id: PublicDigest | None
+    selection_at: StrictStr = Field(
+        ...,
+        pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$',
+    )
+    selected_member_ids: list[SelectedMemberId]
+    pool_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    rule_version: StrictStr = Field(..., pattern='^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$')
+    input_version: PublicDigest
+    calculated_at: CalculatedAt | None
+    server_day: StrictStr = Field(..., pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    groups: list[EtfGroup]
+    members: list[EtfMemberView]
+    summary: EtfSummary
+    series: list[EtfPoint]
+    history: list[EtfEvaluation]
+    disclosures: list[EtfDisclosure]
+    events: list[EtfEvent]
+    sources: list[EtfSource]
+    context: EtfContext
+    data_status: EtfDataStatus
+    rule: EtfRule
+    pool: EtfPool
 
 
 class MarketActivitySnapshot(
@@ -2024,3 +3676,12 @@ class MarketActivitySnapshot(
         | MarketActivityMarketSnapshot
         | MarketActivityTwoMarketSnapshot
     )
+
+
+class MarketActivityCombinedView(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    current: MarketActivityCurrent
+    snapshot: MarketActivitySnapshot
+    calculations: CompactActivityCalculations

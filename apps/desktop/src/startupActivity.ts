@@ -6,7 +6,8 @@ import { createStartupPriceObservation, type StartupPriceObservation } from "./s
 export async function watchStartupActivity(client: ActivityClient, targets: ReadonlyMap<ActivityId, string>,
   initial: ReadonlyMap<ActivityId, string>, signal: AbortSignal,
   load: (id: ActivityId) => Promise<string>, failed: (id: ActivityId, error: unknown) => void,
-  notice: (value: string) => void, state: StartupPriceObservation = createStartupPriceObservation()): Promise<void> {
+  notice: (value: string) => void, state: StartupPriceObservation = createStartupPriceObservation(),
+  demanded: (id: ActivityId) => boolean = () => true): Promise<void> {
   const active = [...targets].filter(([id]) => client.expected.startup_series.includes(id));
   if (!active.length || signal.aborted || client.closed) return;
   const versions = new Map(initial);
@@ -25,6 +26,7 @@ export async function watchStartupActivity(client: ActivityClient, targets: Read
     notice("正在跟进服务端量额启动结果；页面只读，不发起采集。");
     for (const [id, target] of active) {
       if (expired()) break;
+      if (!demanded(id)) continue;
       try {
         const next = await client.currentVersion(id, target, signal);
         // 当前请求可以跨过截止点返回，但不得再启动固定读取或下一系列GET。

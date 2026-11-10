@@ -2,7 +2,7 @@ import type { components } from "../../../contracts/generated/http";
 import type { IndexSeriesClient } from "./indexSeriesClient";
 import type { ActivityClient } from "./activityClient";
 import { OVERVIEW_INDICES, type OverviewIndexId } from "./indexSeriesTypes";
-import { MARKET, LEGACY_MARKET, isMarket, type ActivityId } from "./activityTypes";
+import { LEGACY_MARKET, isMarket, type ActivityId } from "./activityTypes";
 
 type Status = components["schemas"]["OverviewUpdateStatus"];
 type Policy = components["schemas"]["OverviewPeriodicPolicy"];
@@ -45,7 +45,8 @@ export async function watchPeriodicUpdates(price: IndexSeriesClient, activity: A
   loadPrice: (id: OverviewIndexId) => Promise<string>,
   loadActivity: (id: ActivityId, anchor: string) => Promise<string>,
   notice: (message: string) => void, failed: (id: ActivityId, error: unknown) => void,
-  connectActivity?: () => Promise<ActivityClient | undefined>): Promise<void> {
+  connectActivity?: () => Promise<ActivityClient | undefined>,
+  activityDemand: () => readonly ActivityId[] = () => [...OVERVIEW_INDICES.map(item => item.id), LEGACY_MARKET]): Promise<void> {
   const policy = price.expected.policy.periodic;
   if (!policy) return;
   let revision = -1, serverDay = "", nextDelay = 0, mayConnect = false;
@@ -75,13 +76,14 @@ export async function watchPeriodicUpdates(price: IndexSeriesClient, activity: A
       // 首轮失败后至少经过一次观察间隔；已关闭的身份失配客户端不自动重建。
       if (!activity && connectActivity && mayConnect) {
         try { activity = await connectActivity(); }
-        catch (error) { if (!signal.aborted) failed(MARKET, error); }
+        catch (error) { if (!signal.aborted) failed(LEGACY_MARKET, error); }
         if (signal.aborted || price.closed) return;
       }
       mayConnect = true;
       if (activity && !activity.closed) {
-        for (const id of [...OVERVIEW_INDICES.map(item => item.id), MARKET, LEGACY_MARKET] as ActivityId[]) {
-          const target = isMarket(id) ? (state.market_anchors ? state.market_anchors[id === MARKET ? "sse_szse" : "sse_szse_bse"] : state.market_anchor_date) : prices.get(id);
+        // 仅观察总览可见量额，隐藏两市的日常采集仍由服务配置独立决定。
+        for (const id of [...new Set(activityDemand())]) {
+          const target = isMarket(id) ? (state.market_anchors ? state.market_anchors.sse_szse_bse : state.market_anchor_date) : prices.get(id);
           if (!target) continue;
           try {
             const version = await activity.currentVersion(id, target, signal);

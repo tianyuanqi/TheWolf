@@ -7,9 +7,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from pmi.market_data import index_series_store as price_store
+from pmi.market_data.storage import index_store as price_store
 from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite
 from pmi.market_data.activity import facts, model, sources
 from pmi.market_data.activity.model import ActivityError, Original
 from test_market_activity import Client, INDEX, SID, synthetic
@@ -23,8 +23,8 @@ class SingleOfficialSourceTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='wolf-s2-admission-')
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()
-        self.price, self.activity = self.base/'price', self.base/'activity'
-        self.price.mkdir(); self.activity.mkdir()
+        self.price = self.activity = self.base/'data'
+        self.price.mkdir(); initialize_sqlite(self.price)
         self.items = synthetic()
         with writer_lock(self.price):
             price_store.prepare_directories(self.price, INDEX)
@@ -36,7 +36,7 @@ class SingleOfficialSourceTests(unittest.TestCase):
     def test_sse_admitted_without_test_policy_override_and_zero_network(self):
         client = Client(self.price, self.activity, write_series=(SID,))
         self.addCleanup(client.app.state.updates.close)
-        before = disk(self.price)
+        before = price_store.read_snapshot(self.price, INDEX)
         with patch('urllib.request.OpenerDirector.open', side_effect=AssertionError('禁止外网')) as network:
             result = client.update(self.snapshot['snapshot_id'])
             self.assertEqual(result.status, 200, result.body)
@@ -47,7 +47,7 @@ class SingleOfficialSourceTests(unittest.TestCase):
             self.assertEqual(fixed.json()['source_policy_version'], 'activity-source-policy-v2')
             self.assertEqual(fixed.json()['binding']['relation'], 'same_source_object')
             network.assert_not_called()
-        self.assertEqual(before, disk(self.price))
+        self.assertEqual(before, price_store.read_snapshot(self.price, INDEX))
 
     def test_old_policy_replays_null_and_unknown_version_is_rejected(self):
         old = facts.index_manifest(SID, self.snapshot, self.original, policy_version='activity-source-policy-v1')

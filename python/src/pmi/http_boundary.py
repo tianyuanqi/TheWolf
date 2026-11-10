@@ -12,14 +12,16 @@ from jsonschema import Draft202012Validator
 
 from pmi.service_config import ServiceConfig
 
-INDEX_SERIES_OPERATIONS = frozenset({"overviewUpdateStatus", "indexSeriesReady", "indexSeriesCatalog", "currentIndexSeries",
-    "fixedIndexSeries", "indexSeriesCalculations", "indexSeriesEvidence", "indexSeriesRange", "indexSeriesStatus",
+INDEX_SERIES_OPERATIONS = frozenset({"marketVersions", "storageStatus", "overviewUpdateStatus", "indexSeriesReady", "indexSeriesCatalog", "currentIndexSeries",
+    "fixedIndexSeries", "indexSeriesView", "indexSeriesCalculations", "indexSeriesEvidence", "indexSeriesRange", "indexSeriesStatus",
     "startIndexSeries", "indexSeriesOperationResult"})
 
 
 ACTIVITY_OPERATIONS = frozenset({"marketActivityReady", "currentMarketActivity", "fixedMarketActivity",
-    "marketActivityCalculations", "marketActivityEvidence", "startMarketActivity", "marketActivityOperation"})
+    "marketActivityView", "marketActivityCalculations", "marketActivityEvidence", "startMarketActivity", "marketActivityOperation"})
 
+
+ETF_OPERATIONS = frozenset({"etfFlowReady", "currentEtfFlow", "etfFlowView", "etfFlowEvidence", "startEtfFlow", "etfFlowOperation"})
 
 @dataclass
 class Rejected(Exception):
@@ -55,6 +57,8 @@ class Boundary:
 
     def configuration_id(self, operation: str) -> str:
         """由可信路由选择新特性摘要；不让客户端选择权限配置。"""
+        if operation in ETF_OPERATIONS:
+            return self.config.etf_config_id
         if operation in ACTIVITY_OPERATIONS:
             return self.config.activity_config_id
         return self.config.index_config_id if operation in INDEX_SERIES_OPERATIONS else self.config.config_id
@@ -66,6 +70,10 @@ class Boundary:
                 if item.get(method, {}).get("operationId") != operation:
                     continue
                 schema = self.projection["paths"][path][method]["responses"][str(status)]["content"]["application/json"]["schema"]
+                if operation in {"indexSeriesView", "marketActivityView"}:
+                    from pmi.http_contract import validate_combined_schema
+                    if validate_combined_schema(schema, value):
+                        return
                 Draft202012Validator({**self.schemas, **schema}).validate(value)
                 return
         raise ValueError("未知响应操作")
@@ -176,6 +184,8 @@ class Boundary:
                 raise Rejected(422, "invalid_request", "请求标识无效")
         if method == "post" and operation == "startMarketActivity":
             await self.activity_body(request, headers, paths)
+        elif method == "post" and operation == "startEtfFlow":
+            await self.etf_body(request, headers, paths)
         elif method == "post":
             if headers.get("origin") is None:
                 raise Rejected(403, "bad_origin", "写请求必须提供许可来源")
@@ -199,7 +209,7 @@ class Boundary:
             if operation != "startIndexSeries" or paths["index_id"] not in self.config.index_write_ids:
                 raise Rejected(403, "index_update_disabled", "此操作未启用更新")
             paths["request_id"] = headers["x-wolf-request-id"]
-        bound = operation not in {"health", "sessionReady", "indexSeriesReady", "marketActivityReady"}
+        bound = operation not in {"health", "sessionReady", "indexSeriesReady", "marketActivityReady", "etfFlowReady"}
         if bound:
             instance, config = headers.get("x-wolf-expected-instance"), headers.get("x-wolf-expected-config")
             if instance is None or config is None:
@@ -244,3 +254,27 @@ class Boundary:
             raise Rejected(403, "index_update_disabled", "量额操作未启写")
         paths["request_id"] = headers["x-wolf-request-id"]
         paths["activity_body"] = value
+
+    async def etf_body(self, request: Request, headers: dict, paths: dict) -> None:
+        """ETF只接受受控计划hash及CAS；不接受浏览器传成员、日期、来源或额度。"""
+        from pmi.market_data import decode_etf_request as decode, etf_request_id as identifier
+        if headers.get("origin") is None:
+            raise Rejected(403, "bad_origin", "写请求必须提供许可来源")
+        if headers.get("content-type", "").replace(" ", "").lower() not in {"application/json", "application/json;charset=utf-8"}:
+            raise Rejected(415, "unsupported_media_type", "需要JSON媒体类型")
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > 4096:
+                raise Rejected(422, "invalid_request", "ETF更新正文超限")
+        try:
+            value = decode(body)
+            request_id = identifier(headers.get("x-wolf-request-id"))
+        except ValueError:
+            raise Rejected(422, "invalid_request", "ETF正文或请求标识无效") from None
+        if not self.valid("EtfUpdateBody", value):
+            raise Rejected(422, "invalid_request", "ETF更新参数无效")
+        if self.config.etf_options is None or not self.config.etf_options.write_enabled:
+            raise Rejected(403, "update_disabled", "ETF操作未启写")
+        paths["request_id"] = request_id
+        paths["etf_body"] = value

@@ -11,6 +11,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .local-data/
+.local-releases/
 *.egg-info/
 /python/build/
 /.workbuddy/

@@ -118,10 +118,13 @@ def main() -> None:
         record = json.loads(buffer)
         expected = {'version':1,'run_id':run_id,'instance_id':record.get('instance_id'),'config_id':config.config_id,
                     'index_config_id':config.index_config_id,'activity_config_id':config.activity_config_id if config.activity_options else None}
+        if config.etf_options:
+            expected['etf_config_id'] = config.etf_config_id
         if record != expected or str(uuid.UUID(record['instance_id'])) != record['instance_id']: raise ValueError('自有控制记录不匹配')
         descriptors = [(config.public_descriptor(),'/api/session/ready','connection.json'),
                        (config.public_index_descriptor(),'/api/index-series/session','index.json')]
         if config.activity_options: descriptors.append((config.public_activity_descriptor(),'/api/market-activity/session','activity.json'))
+        if config.etf_options: descriptors.append((config.public_etf_descriptor(),'/api/etf-flow/session','etf.json'))
         def service_ready():
             for descriptor,path,_ in descriptors:
                 body,headers = request(descriptor['endpoint']+path)
@@ -152,6 +155,7 @@ def main() -> None:
                          'WOLF_INDEX_BROWSER_CONFIG':str(run/'index.json'),'WOLF_VITE_CACHE':str(run/'vite-cache'),
                          'WOLF_MANAGED_RUN':str(run),'WOLF_MANAGED_WATCH_FD':str(read_fd),'WOLF_MANAGED_PGID':str(os.getpid())}
         if config.activity_options: vite_env['WOLF_ACTIVITY_BROWSER_CONFIG']=str(run/'activity.json')
+        if config.etf_options: vite_env['WOLF_ETF_BROWSER_CONFIG']=str(run/'etf.json')
         vite = subprocess.Popen([node,str(repo/'apps/desktop/scripts/managed_vite.mjs')],cwd=repo,env=vite_env,pass_fds=(read_fd,),stdin=subprocess.DEVNULL,stdout=stream,stderr=stream)
         children.append(vite);os.close(read_fd)
         origin=f"http://127.0.0.1:{value['browser_port']}"

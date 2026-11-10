@@ -8,7 +8,7 @@ const hash=x=>createHash('sha256').update(x).digest('hex');
 test('pinned selection and fail-closed integrity without touching real config',()=>{
  const repo=mkdtempSync('/private/tmp/wolf-release-test-');
  try {
-  const release=join(repo,'.local-data/releases/fixture'), config=join(repo,'private.json');
+  const release=join(repo,'.local-releases/fixture'), config=join(repo,'private.json');
   const files={'apps/desktop/scripts/start_daily.mjs':'// fixed','apps/desktop/package-lock.json':'{}','contracts/generated/manifest.json':'{"fixed":true}'};
   for(const [name,body] of Object.entries(files)){mkdirSync(join(release,name,'..'),{recursive:true});writeFileSync(join(release,name),body);}
   mkdirSync(join(repo,'apps/desktop/node_modules'),{recursive:true});writeFileSync(join(repo,'apps/desktop/package-lock.json'),'{}');
@@ -19,6 +19,15 @@ test('pinned selection and fail-closed integrity without touching real config',(
   mkdirSync(join(repo,'.local-data/daily'),{recursive:true}); const pp=join(repo,'.local-data/daily/runtime-release.json');writeFileSync(pp,JSON.stringify(pointer));
   assert.match(dailyRelease(repo,['--config',config]),/fixture\/apps\/desktop\/scripts\/start_daily.mjs$/);
   assert.equal(dailyRelease(repo,['--config',join(repo,'isolated.json')]),undefined);
+  // 应用包与业务数据目录分离；旧数据目录、近似前缀和链接都不能成为选包入口。
+  for (const invalid of [join(repo,'.local-data/releases/fixture'),join(repo,'.local-releases-other/fixture')]) {
+   mkdirSync(invalid,{recursive:true});writeFileSync(pp,JSON.stringify({...pointer,release:invalid}));
+   assert.throws(()=>dailyRelease(repo,['--config',config]),/目录无效/);
+  }
+  const linked=join(repo,'.local-releases/linked');symlinkSync(release,linked);
+  writeFileSync(pp,JSON.stringify({...pointer,release:linked}));assert.throws(()=>dailyRelease(repo,['--config',config]),/目录无效/);
+  writeFileSync(pp,JSON.stringify({...pointer,release:release+'/../fixture'}));assert.throws(()=>dailyRelease(repo,['--config',config]),/目录无效/);
+  writeFileSync(pp,JSON.stringify(pointer));assert.ok(dailyRelease(repo,['--config',config]));
   // Shared development contract drift cannot change pinned entry or content.
   mkdirSync(join(repo,'contracts/generated'),{recursive:true});writeFileSync(join(repo,'contracts/generated/manifest.json'),'new development');
   assert.ok(dailyRelease(repo,['--config',config]));

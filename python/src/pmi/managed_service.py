@@ -16,6 +16,8 @@ def serve(app, config, run_id: str, control_fd: int, watch_fd: int) -> None:
         raise ValueError('托管服务身份无效')
     record={'version':1,'run_id':run_id,'instance_id':app.state.boundary.instance,'config_id':config.config_id,
             'index_config_id':config.index_config_id,'activity_config_id':config.activity_config_id if config.activity_options else None}
+    if config.etf_options:
+        record['etf_config_id'] = config.etf_config_id
     os.write(control_fd,(json.dumps(record)+'\n').encode());os.close(control_fd)
     server=uvicorn.Server(uvicorn.Config(app,host='127.0.0.1',port=config.port,workers=1,reload=False,
                                        proxy_headers=False,server_header=False,access_log=False))

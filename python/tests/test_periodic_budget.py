@@ -10,6 +10,8 @@ import unittest
 
 from pmi.market_data.periodic_budget import Budget, BudgetError, PeriodicOptions, MIB, initialize
 from pmi.market_data.index_history_calendar import SHANGHAI
+from pmi.market_data.storage.database import Database
+from pmi.market_data.storage import state as states
 
 
 class Clock:
@@ -23,8 +25,8 @@ class PeriodicBudgetTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='wolf-periodic-unit-')
         self.root = Path(self.temp.name).resolve()
-        self.price = self.root/'price'; self.activity = self.root/'activity'
-        self.price.mkdir(); self.activity.mkdir(); initialize(self.price, self.activity)
+        self.price = self.root/'store'; self.activity = self.price
+        self.price.mkdir(); Database(self.price).initialize(); initialize(self.price, self.activity)
         self.clock = Clock()
         self.options = PeriodicOptions()
         self.budget = Budget(self.price, self.activity, self.options, self.clock)
@@ -134,8 +136,10 @@ __import__('os')._exit(0)
         lease.finish();self.assertTrue(budget.status()['warning'])
 
     def test_ledger_tamper_rejected_not_repaired(self):
-        data=json.loads(self.budget.path.read_bytes());data['days']={'2026-10-30':{'requests':0,'bytes':0}}
-        self.budget.path.write_text(json.dumps(data));before=self.budget.path.read_bytes()
+        data=self.budget.read();data['days']={'2026-10-30':{'requests':0,'bytes':0}}
+        with self.budget.database.writer(), self.budget.database.transaction() as connection:
+            states.write(connection, 'periodic', 'ledger', data)
+        before=self.budget.path.read_bytes()
         with self.assertRaisesRegex(BudgetError,'ledger_invalid'):self.budget.status()
         self.assertEqual(before,self.budget.path.read_bytes())
 

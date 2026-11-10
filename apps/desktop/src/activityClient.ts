@@ -7,9 +7,9 @@ import { MarketActivityDescriptor as validDescriptor, MarketActivityReady as val
 import generation from "../../../contracts/generated/manifest.json";
 import type { IndexDescriptor } from "./indexSeriesClient";
 
-import { isMarket, activityFormula, activityGate, activityReason, checkActivityPolicy, parseActivitySnapshot, parseActivityCalculations, type ActivityId } from "./activityTypes";
-import { validDay, type SeriesSnapshot } from "./indexSeriesTypes";
-import type { Calculations } from "./indexCalculationTypes";
+import { isMarket, activityFormula, activityGate, activityReason, type ActivityId } from "./activityTypes";
+import { validDay } from "./indexSeriesTypes";
+
 
 import type { Identity } from "./operationSession";
 import { identityKey } from "./operationSession";
@@ -128,20 +128,10 @@ export class ActivityClient {
     }
   }
 
-  /** 只读current后固定A/P；没有重试、写入、源切换或以其他价格兜底。 */
-  async load(id: ActivityId, anchor: string, price: SeriesSnapshot | undefined, calculations: Calculations | undefined, signal: AbortSignal) {
+  async storedView(id: ActivityId, query: Record<string, string>, signal: AbortSignal): Promise<unknown> {
     const gate = activityGate(this.expected, id);
     if (gate) throw new Error(gate);
-    if (!validDay(anchor) || (!isMarket(id) && (!price || price.instrument.id !== id))) throw new Error("量额查询目标无效");
-    const query = price ? "price_snapshot_id=" + price.snapshot_id : "anchor_date=" + anchor;
-    const current = await this.request(`/api/market-activity/${encodeURIComponent(id)}?${query}`, signal);
-    if (!validCurrent(current) || current.series_id !== id || current.price_snapshot_id !== (price?.snapshot_id ?? null) || current.anchor_date !== anchor) throw new Error("量额current归属无效");
-    const snapshot = parseActivitySnapshot(await this.read(id, current.activity_id, current.price_snapshot_id, "fixed", signal), id, current.activity_id, anchor, price);
-    checkActivityPolicy(snapshot, this.expected);
-    if (current.coverage_start !== snapshot.window.start || current.coverage_end !== snapshot.window.end
-        || !snapshot.observations.some(item => item.observation_id === current.observation_id)) throw new Error("量额current与固定观察不符");
-    const result = parseActivityCalculations(await this.read(id, current.activity_id, current.price_snapshot_id, "calculations", signal), snapshot, calculations);
-    return { snapshot, calculations: result };
+    return this.request(`/api/market-activity/${encodeURIComponent(id)}/view?${new URLSearchParams(query)}`, signal);
   }
 
   private constructor(readonly expected: Descriptor, readonly instance: string, readonly marketAnchor: string, readonly marketAnchors?: components["schemas"]["MarketActivityAnchors"]) {}

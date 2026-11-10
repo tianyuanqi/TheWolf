@@ -73,7 +73,7 @@ export function monthsBefore(day: string, months: number): string {
 }
 
 /** 观察窗口仅选取已有收盘点；区间收益由固定快照计算接口提供。 */
-export function trendBars(bars: SeriesBar[], window: string): SeriesBar[] {
+export function trendBars<T extends Pick<SeriesBar, "trade_date" | "close">>(bars: T[], window: string): T[] {
   if (window !== "1y") return bars.slice(-Number(window) - 1);
   const boundary = monthsBefore(bars.at(-1)!.trade_date, 12);
   let index = bars.length - 1;

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pmi.market_data.activity import fetch, three_market
 from pmi.market_data.activity.model import ActivityError, MARKET, MARKET_IDS, MARKET_MAX_BYTES, Original, canonical, digest
-from pmi.market_data.activity.store import Store
+from bse_stage import Stage
 from pmi.market_data.index_history_calendar import complete_window, SHANGHAI
 
 
@@ -38,7 +38,7 @@ def _validate(item, market, day):
 class History:
     """私有暂存锁、防重复、每份原件回执；不把未提交缓存供日常接口读取。"""
     def __init__(self, runtime, stage: Path, anchor: str):
-        self.runtime, self.stage, self.anchor = runtime, Store(stage), anchor
+        self.runtime, self.stage, self.anchor = runtime, Stage(stage), anchor
         if stage == runtime.options.root or stage.is_relative_to(runtime.options.root) or runtime.options.root.is_relative_to(stage):
             raise ValueError('历史暂存与量额根必须分离')
 
@@ -161,14 +161,10 @@ class History:
             items=self._read(self.stage.json('receipts.json') or {},expected)
             if set(items) != set(expected):raise ActivityError('history_incomplete')
             # 本次历史补齐不替其他旧任务执行恢复；有未决记录先交回具体处置。
-            from pmi.market_data.read_only import checked_path
-            operations=checked_path(self.runtime.options.root/'operations')
             with self.runtime.store.lock(write=False):
-                if operations.exists():
-                    for path in operations.iterdir():
-                        op=self.runtime._operation(path.stem)
-                        if op and op['state']=='preparing' and op['request_id']!=request_id:
-                            raise ActivityError('history_existing_operation_unresolved')
+                for op in self.runtime.store.operations():
+                    if op['state']=='preparing' and op['request_id']!=request_id:
+                        raise ActivityError('history_existing_operation_unresolved')
             pointer=self.runtime.store.current(MARKET,self.anchor)
             from pmi.market_data.activity.runtime import Runtime
             offline=Runtime(self.runtime.parent,replace(self.runtime.options,max_attempts=0,max_bytes=0))

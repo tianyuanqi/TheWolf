@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "TheWolf market overview",
-    "version": "2.0.0",
-    "description": "Independent local service and browser market overview. Retired single-stock, CSI v1 and native-host interfaces are not served."
+    "version": "3.0.0",
+    "description": "Single SQLite storage and explicit fixed-version range reads. Old data is preserved offline; no legacy read fallback."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "paths": {
@@ -5937,6 +5937,3411 @@
         },
         "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
       }
+    },
+    "/api/etf-flow/session": {
+      "parameters": [],
+      "options": {
+        "operationId": "preflightetfFlowReady",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "get": {
+        "operationId": "etfFlowReady",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfReady"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。"
+      }
+    },
+    "/api/etf-flow/current": {
+      "parameters": [],
+      "options": {
+        "operationId": "preflightcurrentEtfFlow",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "get": {
+        "operationId": "currentEtfFlow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfCurrent"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。"
+      }
+    },
+    "/api/etf-flow/snapshots/{snapshot_id}": {
+      "parameters": [
+        {
+          "name": "snapshot_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/PublicDigest"
+          }
+        }
+      ],
+      "options": {
+        "operationId": "preflightetfFlowView",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "get": {
+        "operationId": "etfFlowView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "original",
+                "current"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "20",
+                "60",
+                "120",
+                "260"
+              ]
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PublicDigest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfView"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。"
+      }
+    },
+    "/api/etf-flow/snapshots/{snapshot_id}/evidence/{object_id}": {
+      "parameters": [
+        {
+          "name": "snapshot_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/PublicDigest"
+          }
+        },
+        {
+          "name": "object_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/PublicDigest"
+          }
+        }
+      ],
+      "options": {
+        "operationId": "preflightetfFlowEvidence",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "get": {
+        "operationId": "etfFlowEvidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfEvidence"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。"
+      }
+    },
+    "/api/etf-flow/update": {
+      "parameters": [],
+      "options": {
+        "operationId": "preflightstartEtfFlow",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "POST"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "post": {
+        "operationId": "startEtfFlow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfOperation"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "202": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfOperation"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "415": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError415"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EtfUpdateBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/etf-flow/operations/{request_id}": {
+      "parameters": [
+        {
+          "name": "request_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          }
+        }
+      ],
+      "options": {
+        "operationId": "preflightetfFlowOperation",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      },
+      "get": {
+        "operationId": "etfFlowOperation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtfOperation"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "ETF固定身份响应；缺数据与未记录不会伪装为零或正常。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EtfError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-etf-flow-config-v1：独立可信配置、当前连接身份及原持久请求身份分别核对。"
+      }
+    },
+    "/api/index-series/{index_id}/view": {
+      "get": {
+        "operationId": "indexSeriesView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          },
+          {
+            "name": "snapshot_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "observation_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "formula_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "index-price-calculations-v1"
+            }
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "overview",
+                "range"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Day"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Day"
+            }
+          },
+          {
+            "name": "frequency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ]
+            }
+          },
+          {
+            "name": "ma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(none|(?:5|10|20|30|60|120|180|250)(?:,(?:5|10|20|30|60|120|180|250))*)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredPriceView"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "新特性身份格式wolf-index-config-v2；X-Wolf-Expected-Config与X-Wolf-Config使用新index_config_id。成功与已接受上下文的业务错误须有实际同instance及新config响应头；边界/未处理错误不作归属证明。session仅公开元数据，不作为调用者可信预期。",
+        "description": "按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。"
+      },
+      "parameters": [
+        {
+          "name": "index_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          }
+        }
+      ],
+      "options": {
+        "operationId": "preflightindexSeriesView",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      }
+    },
+    "/api/market-activity/{series_id}/view": {
+      "get": {
+        "operationId": "marketActivityView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          },
+          {
+            "name": "activity_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "observation_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "price_snapshot_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "anchor_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Day"
+            }
+          },
+          {
+            "name": "formula_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "market-activity-calculations-v1",
+                "market-activity-calculations-sse-szse-v1"
+              ]
+            }
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "overview",
+                "range"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Day"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Day"
+            }
+          },
+          {
+            "name": "frequency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ]
+            }
+          },
+          {
+            "name": "ma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(none|(?:5|10|20|30|60|120|180|250)(?:,(?:5|10|20|30|60|120|180|250))*)$"
+            }
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "volume",
+                "amount"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredActivityView"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketActivityError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError400"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketActivityError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError403"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketActivityError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketActivityError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "B量额身份校验后的响应；来源缺口不代表有效数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketActivityError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "wolf-activity-config-v1：独立预期、固定实例及量额配置；旧v1/v2不能授权。",
+        "description": "固定价格/anchor与活动版本绑定，按需读取单字段单周期；普通读取不重验原件。"
+      },
+      "parameters": [
+        {
+          "name": "series_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ]
+          }
+        }
+      ],
+      "options": {
+        "operationId": "preflightmarketActivityView",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      }
+    },
+    "/api/storage/versions": {
+      "get": {
+        "operationId": "marketVersions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketVersions"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "新特性身份格式wolf-index-config-v2；X-Wolf-Expected-Config与X-Wolf-Config使用新index_config_id。成功与已接受上下文的业务错误须有实际同instance及新config响应头；边界/未处理错误不作归属证明。session仅公开元数据，不作为调用者可信预期。",
+        "description": "按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。"
+      },
+      "options": {
+        "operationId": "preflightmarketVersions",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      }
+    },
+    "/api/storage/status": {
+      "get": {
+        "operationId": "storageStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientMarker"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedInstance"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedConfig"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageStatus"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "400": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "403": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "404": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError404"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "409": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError409"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "422": {
+            "description": "新指数特性响应；身份已接受的业务响应携带实例与新配置摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IndexSeriesError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BoundaryError422"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          },
+          "500": {
+            "description": "未处理异常不泄露内部资料；写入结果不能据此推定回滚。",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              },
+              "X-Wolf-Instance": {
+                "$ref": "#/components/headers/ResponseInstance"
+              },
+              "X-Wolf-Config": {
+                "$ref": "#/components/headers/ResponseConfig"
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "新特性身份格式wolf-index-config-v2；X-Wolf-Expected-Config与X-Wolf-Config使用新index_config_id。成功与已接受上下文的业务错误须有实际同instance及新config响应头；边界/未处理错误不作归属证明。session仅公开元数据，不作为调用者可信预期。",
+        "description": "按固定发布/观察返回概况或所请求范围，普通读取仅查询SQLite。"
+      },
+      "options": {
+        "operationId": "preflightstorageStatus",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Access-Control-Request-Method",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET"
+              ]
+            }
+          },
+          {
+            "name": "Access-Control-Request-Headers",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Valid metadata-only preflight. No body or business I/O.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Max-Age": {
+                "schema": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string",
+                  "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed preflight.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host, Origin or metadata denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError404"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Preflight route/method fallback; no business I/O.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundaryError405"
+                }
+              }
+            }
+          }
+        },
+        "x-wolf-response-context": "只校验新特性预检元数据，不读取业务、不核对实例/配置值；max-age为0。"
+      }
     }
   },
   "components": {
@@ -6559,7 +9964,7 @@
             "minLength": 1
           },
           "contract_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "type": "string"
           },
           "contract_sha256": {
@@ -7087,7 +10492,7 @@
             "minLength": 1
           },
           "contract_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "type": "string"
           },
           "contract_sha256": {
@@ -8412,7 +11817,15 @@
                   "index_series_invalid",
                   "index_series_evidence_not_found",
                   "index_range_invalid",
-                  "coverage_insufficient"
+                  "coverage_insufficient",
+                  "range_parameters_invalid",
+                  "range_coverage_insufficient",
+                  "storage_publication_not_found",
+                  "storage_observation_not_member",
+                  "storage_activity_binding_invalid",
+                  "storage_quarantined",
+                  "storage_integrity_check_due",
+                  "storage_maintenance_failed"
                 ]
               },
               "message": {
@@ -8996,7 +12409,15 @@
                   "index_series_evidence_not_found",
                   "index_range_invalid",
                   "coverage_insufficient",
-                  "calculation_parameters_invalid"
+                  "calculation_parameters_invalid",
+                  "range_parameters_invalid",
+                  "range_coverage_insufficient",
+                  "storage_publication_not_found",
+                  "storage_observation_not_member",
+                  "storage_activity_binding_invalid",
+                  "storage_quarantined",
+                  "storage_integrity_check_due",
+                  "storage_maintenance_failed"
                 ]
               },
               "message": {
@@ -9987,7 +13408,7 @@
             "minLength": 1
           },
           "contract_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "type": "string"
           },
           "contract_sha256": {
@@ -11261,7 +14682,7 @@
             "minLength": 1
           },
           "contract_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "type": "string"
           },
           "contract_sha256": {
@@ -11402,7 +14823,7 @@
             "minLength": 1
           },
           "contract_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "type": "string"
           },
           "contract_sha256": {
@@ -11455,6 +14876,4746 @@
           "policy"
         ],
         "additionalProperties": false
+      },
+      "EtfBasis": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "report_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "url",
+          "report_date",
+          "published_date",
+          "locator"
+        ],
+        "additionalProperties": false
+      },
+      "EtfMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "manager": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "exchange": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "tracking_index": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "index_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "group": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "enabled_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "disabled_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "$ref": "#/components/schemas/EtfBasis"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "manager",
+          "exchange",
+          "tracking_index",
+          "index_id",
+          "group",
+          "enabled_date",
+          "disabled_date",
+          "basis"
+        ],
+        "additionalProperties": false
+      },
+      "EtfSource": {
+        "type": "object",
+        "properties": {
+          "object_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "original_unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "precision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "object_id",
+          "publisher",
+          "channel",
+          "url",
+          "retrieved_at",
+          "published_at",
+          "locator",
+          "original_unit",
+          "precision"
+        ],
+        "additionalProperties": false
+      },
+      "EtfMetrics": {
+        "type": "object",
+        "properties": {
+          "shares": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comparable_previous": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_rate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nav": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "close": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turnover": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "net_assets": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "premium": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turnover_ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "adjustment": {
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "shares",
+          "comparable_previous",
+          "delta",
+          "change_rate",
+          "amount",
+          "nav",
+          "close",
+          "turnover",
+          "volume",
+          "net_assets",
+          "premium",
+          "turnover_ratio",
+          "date",
+          "adjustment",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "EtfCondition": {
+        "type": "object",
+        "properties": {
+          "mean": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "standard_deviation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upper": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lower": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positive_ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "negative_ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positive_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "negative_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "insufficient",
+              "parameters_pending",
+              "evaluated"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incoming": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outgoing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mean",
+          "standard_deviation",
+          "upper",
+          "lower",
+          "positive_ratio",
+          "negative_ratio",
+          "threshold",
+          "positive_count",
+          "negative_count",
+          "denominator",
+          "state",
+          "reason",
+          "incoming",
+          "outgoing"
+        ],
+        "additionalProperties": false
+      },
+      "EtfExclusion": {
+        "type": "object",
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "reason": {
+            "type": "string",
+            "pattern": "^[a-z_]{1,100}$"
+          }
+        },
+        "required": [
+          "member_id",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "EtfEvaluation": {
+        "type": "object",
+        "properties": {
+          "result_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "insufficient",
+              "parameters_pending",
+              "abnormal_subscription",
+              "abnormal_redemption",
+              "not_triggered"
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "active_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ready_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+            }
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfExclusion"
+            }
+          },
+          "c1": {
+            "$ref": "#/components/schemas/EtfCondition"
+          },
+          "c2": {
+            "$ref": "#/components/schemas/EtfCondition"
+          },
+          "pool_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "rule_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "input_version": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "calculated_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "selection_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "original",
+              "current"
+            ]
+          }
+        },
+        "required": [
+          "result_id",
+          "date",
+          "state",
+          "amount",
+          "partial",
+          "active_count",
+          "ready_count",
+          "valid_count",
+          "valid_ids",
+          "exclusions",
+          "c1",
+          "c2",
+          "pool_version",
+          "rule_version",
+          "input_version",
+          "calculated_at",
+          "selection_at",
+          "group_id",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "EtfAdmission": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "member_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "first_qualified_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "checked_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "required_days": {
+            "type": "integer",
+            "minimum": 321
+          },
+          "input_version": {
+            "$ref": "#/components/schemas/PublicDigest"
+          }
+        },
+        "required": [
+          "id",
+          "member_id",
+          "first_qualified_at",
+          "checked_at",
+          "start",
+          "end",
+          "required_days",
+          "input_version"
+        ],
+        "additionalProperties": false
+      },
+      "EtfMemberPoint": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "$ref": "#/components/schemas/EtfMetrics"
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDigest"
+            }
+          },
+          "adjustment_detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfAdjustmentDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "metrics",
+          "source_ids",
+          "adjustment_detail"
+        ],
+        "additionalProperties": false
+      },
+      "EtfMemberView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "manager": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "exchange": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "tracking_index": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "index_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "group": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "enabled_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "disabled_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "$ref": "#/components/schemas/EtfBasis"
+          },
+          "group_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "admission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfAdmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/EtfMetrics"
+          },
+          "amount_5": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_20": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfMemberPoint"
+            }
+          },
+          "input_basis": {
+            "type": "string",
+            "enum": [
+              "recorded_inputs",
+              "posthoc_inputs"
+            ]
+          },
+          "input_version": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "input_selected_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "manager",
+          "exchange",
+          "tracking_index",
+          "index_id",
+          "group",
+          "enabled_date",
+          "disabled_date",
+          "basis",
+          "group_id",
+          "active",
+          "admission",
+          "reason",
+          "metrics",
+          "amount_5",
+          "amount_20",
+          "series",
+          "input_basis",
+          "input_version",
+          "input_selected_at"
+        ],
+        "additionalProperties": false
+      },
+      "EtfGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "member_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "member_ids"
+        ],
+        "additionalProperties": false
+      },
+      "EtfStreak": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "parameters_pending",
+              "insufficient",
+              "not_met",
+              "met"
+            ]
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "subscription",
+                  "redemption"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "direction",
+          "days",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "EtfSummary": {
+        "type": "object",
+        "properties": {
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_5": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_20": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "streak": {
+            "$ref": "#/components/schemas/EtfStreak"
+          }
+        },
+        "required": [
+          "evaluation",
+          "amount_5",
+          "amount_20",
+          "streak"
+        ],
+        "additionalProperties": false
+      },
+      "EtfPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "unrecorded",
+              "insufficient",
+              "parameters_pending",
+              "abnormal_subscription",
+              "abnormal_redemption",
+              "not_triggered"
+            ]
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cumulative": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "state",
+          "evaluation",
+          "cumulative"
+        ],
+        "additionalProperties": false
+      },
+      "EtfHolder": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "shares": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classification_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "shares",
+          "percentage",
+          "classification",
+          "classification_basis"
+        ],
+        "additionalProperties": false
+      },
+      "EtfDisclosure": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "member_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "report_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "published_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "disclosed",
+              "not_disclosed"
+            ]
+          },
+          "holders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfHolder"
+            }
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "known_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "knowledge": {
+            "type": "string",
+            "enum": [
+              "later_comparison",
+              "published_by_evaluation_day"
+            ]
+          },
+          "publication_unknown": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "member_id",
+          "report_date",
+          "published_date",
+          "source_id",
+          "locator",
+          "state",
+          "holders",
+          "note",
+          "url",
+          "retrieved_at",
+          "known_date",
+          "knowledge",
+          "publication_unknown"
+        ],
+        "additionalProperties": false
+      },
+      "EtfEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "member_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+            }
+          },
+          "occurred_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "occurred_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "marker_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "marker_kind": {
+            "type": "string",
+            "enum": [
+              "occurrence",
+              "announcement"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^https://"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "known_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "knowledge": {
+            "type": "string",
+            "enum": [
+              "later_comparison",
+              "published_by_evaluation_day"
+            ]
+          },
+          "publication_unknown": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "member_ids",
+          "occurred_start",
+          "occurred_end",
+          "published_date",
+          "source_id",
+          "locator",
+          "description",
+          "subjects",
+          "marker_date",
+          "marker_kind",
+          "url",
+          "retrieved_at",
+          "known_date",
+          "knowledge",
+          "publication_unknown"
+        ],
+        "additionalProperties": false
+      },
+      "EtfRule": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "effective_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "window": {
+            "type": "integer",
+            "minimum": 2
+          },
+          "k": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_in": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_out": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction_ratio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "streak_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 2
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "effective_date",
+          "confirmed_at",
+          "confirmation",
+          "window",
+          "k",
+          "min_in",
+          "min_out",
+          "direction_ratio",
+          "streak_days"
+        ],
+        "additionalProperties": false
+      },
+      "EtfPool": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "hash": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "effective_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "confirmed_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "change": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "version",
+          "hash",
+          "effective_date",
+          "confirmed_at",
+          "change"
+        ],
+        "additionalProperties": false
+      },
+      "EtfIndexContext": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "formula_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "return_1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_5": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_basis": {
+            "type": "string",
+            "const": "posthoc_context"
+          },
+          "calculated_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "date",
+          "return_1",
+          "return_5",
+          "input_basis",
+          "calculated_at"
+        ],
+        "additionalProperties": false
+      },
+      "EtfMarketContext": {
+        "type": "object",
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "activity_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "formula_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "scope_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "turnover": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratio_20": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_basis": {
+            "type": "string",
+            "const": "posthoc_context"
+          },
+          "calculated_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          }
+        },
+        "required": [
+          "series_id",
+          "activity_id",
+          "formula_version",
+          "date",
+          "scope_label",
+          "turnover",
+          "ratio_20",
+          "input_basis",
+          "calculated_at"
+        ],
+        "additionalProperties": false
+      },
+      "EtfContext": {
+        "type": "object",
+        "properties": {
+          "indices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfIndexContext"
+            }
+          },
+          "market": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfMarketContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "indices",
+          "market",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "EtfDataStatus": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "unrecorded",
+              "insufficient",
+              "parameters_pending",
+              "abnormal_subscription",
+              "abnormal_redemption",
+              "not_triggered"
+            ]
+          },
+          "input_basis": {
+            "type": "string",
+            "enum": [
+              "recorded_inputs",
+              "posthoc_inputs"
+            ]
+          },
+          "evidence_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "history_first": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "history_last": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "original_recorded": {
+            "type": "boolean"
+          },
+          "parameters_confirmed": {
+            "type": "boolean"
+          },
+          "required_days": {
+            "type": "integer",
+            "minimum": 321
+          },
+          "complete_amount_through": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "input_basis",
+          "evidence_version",
+          "history_first",
+          "history_last",
+          "original_recorded",
+          "parameters_confirmed",
+          "required_days",
+          "complete_amount_through"
+        ],
+        "additionalProperties": false
+      },
+      "EtfView": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "etf-flow-view-v2"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "etf-flow-v1"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "original",
+              "current"
+            ]
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "period": {
+            "type": "integer",
+            "enum": [
+              20,
+              60,
+              120,
+              260
+            ]
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selection_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "selected_member_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+            }
+          },
+          "pool_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "rule_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "input_version": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "calculated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "server_day": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfGroup"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfMemberView"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EtfSummary"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfPoint"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfEvaluation"
+            }
+          },
+          "disclosures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfDisclosure"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfEvent"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfSource"
+            }
+          },
+          "context": {
+            "$ref": "#/components/schemas/EtfContext"
+          },
+          "data_status": {
+            "$ref": "#/components/schemas/EtfDataStatus"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/EtfRule"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/EtfPool"
+          }
+        },
+        "required": [
+          "schema_version",
+          "snapshot_id",
+          "formula_version",
+          "mode",
+          "end",
+          "period",
+          "group_id",
+          "selection_at",
+          "selected_member_ids",
+          "pool_version",
+          "rule_version",
+          "input_version",
+          "calculated_at",
+          "server_day",
+          "groups",
+          "members",
+          "summary",
+          "series",
+          "history",
+          "disclosures",
+          "events",
+          "sources",
+          "context",
+          "data_status",
+          "rule",
+          "pool"
+        ],
+        "additionalProperties": false
+      },
+      "EtfOperation": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "config_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "instance_id": {
+            "$ref": "#/components/schemas/PublicInstanceId"
+          },
+          "operation_key": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "expected_snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "interrupted"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "updated_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lease_closed": {
+            "type": "boolean"
+          },
+          "recovered_from_instance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicInstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "serving_instance_id": {
+            "$ref": "#/components/schemas/PublicInstanceId"
+          },
+          "serving_config_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "recovery_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request_id",
+          "config_id",
+          "instance_id",
+          "operation_key",
+          "plan_id",
+          "expected_snapshot_id",
+          "state",
+          "reason",
+          "snapshot_id",
+          "created_at",
+          "updated_at",
+          "batch_id",
+          "lease_closed",
+          "recovered_from_instance",
+          "serving_instance_id",
+          "serving_config_id",
+          "recovery_required"
+        ],
+        "additionalProperties": false
+      },
+      "EtfUsage": {
+        "type": "object",
+        "properties": {
+          "grant_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reserved_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "actual_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown_attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expires_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          }
+        },
+        "required": [
+          "grant_id",
+          "requests",
+          "reserved_bytes",
+          "actual_bytes",
+          "unknown_attempts",
+          "max_requests",
+          "max_bytes",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "EtfPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "member_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+            }
+          },
+          "request_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cached_request_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reserved_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "member_ids",
+          "request_count",
+          "cached_request_count",
+          "reserved_bytes"
+        ],
+        "additionalProperties": false
+      },
+      "EtfUnresolved": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "config_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "instance_id": {
+            "$ref": "#/components/schemas/PublicInstanceId"
+          }
+        },
+        "required": [
+          "request_id",
+          "config_id",
+          "instance_id"
+        ],
+        "additionalProperties": false
+      },
+      "EtfCurrent": {
+        "type": "object",
+        "properties": {
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selection_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "server_day": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "configuration_pending": {
+            "type": "boolean"
+          },
+          "configuration_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfMember"
+            }
+          },
+          "pool_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "rule_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "write_enabled": {
+            "type": "boolean"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "$ref": "#/components/schemas/EtfPlan"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EtfOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unresolved": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfUnresolved"
+            }
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "selection_at",
+          "end",
+          "server_day",
+          "configuration_pending",
+          "configuration_reason",
+          "members",
+          "pool_version",
+          "rule_version",
+          "initialized",
+          "write_enabled",
+          "blocked_reason",
+          "usage",
+          "plan",
+          "operation",
+          "unresolved"
+        ],
+        "additionalProperties": false
+      },
+      "EtfEvidence": {
+        "type": "object",
+        "properties": {
+          "snapshot_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "object_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtfSource"
+            }
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "object_id",
+          "bytes",
+          "references"
+        ],
+        "additionalProperties": false
+      },
+      "EtfUpdateBody": {
+        "type": "object",
+        "properties": {
+          "expected_snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDigest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          }
+        },
+        "required": [
+          "expected_snapshot_id",
+          "plan_id"
+        ],
+        "additionalProperties": false
+      },
+      "EtfError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "pattern": "^[a-z_]{1,100}$"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "additionalProperties": false
+      },
+      "EtfDescriptor": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "pattern": "^http://127\\.0\\.0\\.1:[1-9][0-9]{0,4}$"
+          },
+          "service_id": {
+            "type": "string",
+            "const": "thewolf-local-service"
+          },
+          "service_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "contract_version": {
+            "type": "string",
+            "const": "3.0.0"
+          },
+          "contract_sha256": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "data_scope_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "feature_version": {
+            "type": "string",
+            "const": "etf-flow-v1"
+          },
+          "identity_version": {
+            "type": "string",
+            "const": "wolf-etf-flow-config-v1"
+          },
+          "etf_scope_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "config_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "configuration_hash": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "evidence_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "write_enabled": {
+            "type": "boolean"
+          },
+          "grant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refresh_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "endpoint",
+          "service_id",
+          "service_version",
+          "contract_version",
+          "contract_sha256",
+          "data_scope_id",
+          "feature_version",
+          "identity_version",
+          "etf_scope_id",
+          "config_id",
+          "configuration_hash",
+          "evidence_version",
+          "write_enabled",
+          "grant_id",
+          "refresh_revision"
+        ],
+        "additionalProperties": false
+      },
+      "EtfReady": {
+        "type": "object",
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "const": "thewolf-local-service"
+          },
+          "service_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "contract_version": {
+            "type": "string",
+            "const": "3.0.0"
+          },
+          "contract_sha256": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "data_scope_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "feature_version": {
+            "type": "string",
+            "const": "etf-flow-v1"
+          },
+          "identity_version": {
+            "type": "string",
+            "const": "wolf-etf-flow-config-v1"
+          },
+          "etf_scope_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "config_id": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "configuration_hash": {
+            "$ref": "#/components/schemas/PublicDigest"
+          },
+          "evidence_version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+          },
+          "write_enabled": {
+            "type": "boolean"
+          },
+          "grant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refresh_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "const": "ready"
+          },
+          "instance_id": {
+            "$ref": "#/components/schemas/PublicInstanceId"
+          }
+        },
+        "required": [
+          "service_id",
+          "service_version",
+          "contract_version",
+          "contract_sha256",
+          "data_scope_id",
+          "feature_version",
+          "identity_version",
+          "etf_scope_id",
+          "config_id",
+          "configuration_hash",
+          "evidence_version",
+          "write_enabled",
+          "grant_id",
+          "refresh_revision",
+          "status",
+          "instance_id"
+        ],
+        "additionalProperties": false
+      },
+      "EtfAdjustmentDetail": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "adjustment"
+            ]
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "maxLength": 400
+          },
+          "tail": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "maxLength": 400
+          },
+          "confirmed_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          "confirmation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDigest"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "kind",
+          "start",
+          "end",
+          "factor",
+          "tail",
+          "confirmed_at",
+          "confirmation",
+          "source_ids"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexDefinition": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "%",
+              "点"
+            ]
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "adjacent-expected-close-pct-half-up-v1",
+              "period-close-pct-half-up-v1",
+              "trading-window-close-pct-v1",
+              "natural-year-close-pct-v1",
+              "close-sma-half-up-4-v1"
+            ]
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/IndexSeriesCalculationParameters"
+          }
+        },
+        "required": [
+          "unit",
+          "formula_version",
+          "parameters"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexScalar": {
+        "type": "object",
+        "properties": {
+          "definition": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "insufficient_samples",
+                  "missing_previous_close",
+                  "missing_year_baseline"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Day"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "$ref": "#/components/schemas/Day"
+          }
+        },
+        "required": [
+          "definition",
+          "value",
+          "reason",
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
+      },
+      "CompactActivityDefinition": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "market-activity-calculations-v1",
+              "market-activity-calculations-sse-szse-v1"
+            ]
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "frequency": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "period": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "frequency",
+              "operation",
+              "period"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "unit",
+          "formula_version",
+          "parameters"
+        ],
+        "additionalProperties": false
+      },
+      "CompactActivityScalar": {
+        "type": "object",
+        "properties": {
+          "definition": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56,
+              57,
+              58,
+              59,
+              60,
+              61,
+              62,
+              63
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "incomplete_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "definition",
+          "value",
+          "reason",
+          "start",
+          "end",
+          "complete",
+          "incomplete_reasons"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexBar": {
+        "type": "object",
+        "properties": {
+          "period_start": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "period_end": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "start": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "end": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "open": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+            "maxLength": 45
+          },
+          "high": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+            "maxLength": 45
+          },
+          "low": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+            "maxLength": 45
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+            "maxLength": 45
+          },
+          "sample_count": {
+            "type": "integer"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "incomplete_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "window_start_truncated",
+                "period_in_progress",
+                "calendar_unknown"
+              ]
+            },
+            "maxItems": 3
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "raw-daily-price-v1",
+              "calendar-ohlc-v1"
+            ]
+          },
+          "change_pct": {
+            "$ref": "#/components/schemas/CompactIndexScalar"
+          },
+          "ma": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompactIndexScalar"
+            },
+            "maxItems": 8
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end",
+          "start",
+          "end",
+          "open",
+          "high",
+          "low",
+          "close",
+          "sample_count",
+          "complete",
+          "incomplete_reasons",
+          "formula_version",
+          "change_pct",
+          "ma"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexSeries": {
+        "type": "object",
+        "properties": {
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "ma_availability": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexSeriesCalculationAvailability"
+            },
+            "maxItems": 8
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompactIndexBar"
+            },
+            "maxItems": 1100
+          }
+        },
+        "required": [
+          "frequency",
+          "ma_availability",
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexCalculations": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "index-price-calculations-v1"
+          },
+          "calendar_version": {
+            "type": "string",
+            "const": "cn-indices-sse-szse-2023-2026-v1"
+          },
+          "anchor_date": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "pit_grade": {
+            "type": "string",
+            "const": "latest_only"
+          },
+          "unit": {
+            "type": "string",
+            "const": "点"
+          },
+          "daily": {
+            "$ref": "#/components/schemas/CompactIndexSeries"
+          },
+          "weekly": {
+            "$ref": "#/components/schemas/CompactIndexSeries"
+          },
+          "monthly": {
+            "$ref": "#/components/schemas/CompactIndexSeries"
+          },
+          "performance": {
+            "type": "object",
+            "properties": {
+              "day_5": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "day_20": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "day_60": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "year_1": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              }
+            },
+            "required": [
+              "day_5",
+              "day_20",
+              "day_60",
+              "year_1"
+            ],
+            "additionalProperties": false
+          },
+          "definitions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/CompactIndexDefinition"
+            }
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "calendar_version",
+          "anchor_date",
+          "pit_grade",
+          "unit",
+          "daily",
+          "weekly",
+          "monthly",
+          "performance",
+          "definitions"
+        ],
+        "additionalProperties": false
+      },
+      "CompactActivityCalculations": {
+        "type": "object",
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ]
+          },
+          "activity_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "price_snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "market-activity-calculations-v1",
+              "market-activity-calculations-sse-szse-v1"
+            ]
+          },
+          "pit_grade": {
+            "const": "latest_only",
+            "type": "string"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "frequency": {
+                  "type": "string",
+                  "enum": [
+                    "daily",
+                    "weekly",
+                    "monthly"
+                  ]
+                },
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "volume",
+                    "amount"
+                  ]
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "start": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "end": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "period_start": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "period_end": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      },
+                      "total": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "change_pct": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "ma": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/CompactActivityScalar"
+                        }
+                      }
+                    },
+                    "required": [
+                      "start",
+                      "end",
+                      "period_start",
+                      "period_end",
+                      "sample_count",
+                      "total",
+                      "change_pct",
+                      "ma"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "ma_availability": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "period": {
+                        "type": "integer"
+                      },
+                      "available": {
+                        "type": "boolean"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      },
+                      "required_count": {
+                        "type": "integer"
+                      },
+                      "reason": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "period",
+                      "available",
+                      "sample_count",
+                      "required_count",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "frequency",
+                "field",
+                "rows",
+                "ma_availability"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "comparisons": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "day_5": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "day_20": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "day_60": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "year_1": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/CompactActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "day_5",
+                  "day_20",
+                  "day_60",
+                  "year_1"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "definitions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/CompactActivityDefinition"
+            }
+          }
+        },
+        "required": [
+          "series_id",
+          "activity_id",
+          "price_snapshot_id",
+          "formula_version",
+          "pit_grade",
+          "series",
+          "comparisons",
+          "definitions"
+        ],
+        "additionalProperties": false
+      },
+      "IndexSeriesCombinedView": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "$ref": "#/components/schemas/IndexSeriesView"
+          },
+          "calculations": {
+            "$ref": "#/components/schemas/CompactIndexCalculations"
+          }
+        },
+        "required": [
+          "view",
+          "calculations"
+        ],
+        "additionalProperties": false
+      },
+      "MarketActivityCombinedView": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/MarketActivityCurrent"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/MarketActivitySnapshot"
+          },
+          "calculations": {
+            "$ref": "#/components/schemas/CompactActivityCalculations"
+          }
+        },
+        "required": [
+          "current",
+          "snapshot",
+          "calculations"
+        ],
+        "additionalProperties": false
+      },
+      "IndexSeriesOverviewCalculations": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "index-price-calculations-v1"
+          },
+          "calendar_version": {
+            "type": "string",
+            "const": "cn-indices-sse-szse-2023-2026-v1"
+          },
+          "anchor_date": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "pit_grade": {
+            "type": "string",
+            "const": "latest_only"
+          },
+          "unit": {
+            "type": "string",
+            "const": "点"
+          },
+          "performance": {
+            "type": "object",
+            "properties": {
+              "day_5": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "day_20": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "day_60": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "year_1": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              }
+            },
+            "required": [
+              "day_5",
+              "day_20",
+              "day_60",
+              "year_1"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "calendar_version",
+          "anchor_date",
+          "pit_grade",
+          "unit",
+          "performance"
+        ],
+        "additionalProperties": false
+      },
+      "CompactIndexOverviewCalculations": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "index-price-calculations-v1"
+          },
+          "calendar_version": {
+            "type": "string",
+            "const": "cn-indices-sse-szse-2023-2026-v1"
+          },
+          "anchor_date": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "pit_grade": {
+            "type": "string",
+            "const": "latest_only"
+          },
+          "unit": {
+            "type": "string",
+            "const": "点"
+          },
+          "performance": {
+            "type": "object",
+            "properties": {
+              "day_5": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "day_20": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "day_60": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              },
+              "year_1": {
+                "$ref": "#/components/schemas/CompactIndexScalar"
+              }
+            },
+            "required": [
+              "day_5",
+              "day_20",
+              "day_60",
+              "year_1"
+            ],
+            "additionalProperties": false
+          },
+          "definitions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/CompactIndexDefinition"
+            }
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "calendar_version",
+          "anchor_date",
+          "pit_grade",
+          "unit",
+          "performance",
+          "definitions"
+        ],
+        "additionalProperties": false
+      },
+      "IndexSeriesOverviewView": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "$ref": "#/components/schemas/IndexSeriesView"
+          },
+          "calculations": {
+            "$ref": "#/components/schemas/CompactIndexOverviewCalculations"
+          }
+        },
+        "required": [
+          "view",
+          "calculations"
+        ],
+        "additionalProperties": false
+      },
+      "IndexSeriesViewResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/IndexSeriesCombinedView"
+          },
+          {
+            "$ref": "#/components/schemas/IndexSeriesOverviewView"
+          }
+        ]
+      },
+      "StoredDateRange": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "end": {
+            "$ref": "#/components/schemas/Day"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
+      },
+      "StoredVersion": {
+        "type": "object",
+        "properties": {
+          "publication_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "observation_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first_observation_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_coverage": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "binding": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "publication_id",
+          "observation_id",
+          "first_observation_id",
+          "source_coverage",
+          "binding"
+        ],
+        "additionalProperties": false
+      },
+      "MarketVersions": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "indices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index_id": {
+                  "$ref": "#/components/schemas/IndexSeriesId"
+                },
+                "price": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StoredVersion"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "activity": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StoredVersion"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "index_id",
+                "price",
+                "activity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "markets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "series_id": {
+                  "$ref": "#/components/schemas/MarketActivitySeriesId"
+                },
+                "activity": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StoredVersion"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "series_id",
+                "activity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "etf": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "store_id",
+          "indices",
+          "markets",
+          "etf"
+        ],
+        "additionalProperties": false
+      },
+      "StorageStatus": {
+        "type": "object",
+        "properties": {
+          "quarantined": {
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_structure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_full": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "structure_due": {
+            "type": "boolean"
+          },
+          "full_due": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "quarantined",
+          "reason",
+          "last_structure",
+          "last_full",
+          "structure_due",
+          "full_due",
+          "available"
+        ],
+        "additionalProperties": false
+      },
+      "StoredPriceOverview": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "index-price-calculations-v1"
+          },
+          "calendar_version": {
+            "type": "string",
+            "const": "cn-indices-sse-szse-2023-2026-v1"
+          },
+          "anchor_date": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "pit_grade": {
+            "type": "string",
+            "const": "latest_only"
+          },
+          "unit": {
+            "type": "string",
+            "const": "点"
+          },
+          "storage_decimals": {
+            "type": "integer",
+            "enum": [
+              2,
+              4
+            ]
+          },
+          "verification": {
+            "$ref": "#/components/schemas/IndexSeriesVerification"
+          },
+          "observation_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "source_coverage": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "requested_range": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "returned_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "calculation_input_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexSeriesRetrievalSource"
+            }
+          },
+          "instrument": {
+            "$ref": "#/components/schemas/IndexSeriesInstrument"
+          },
+          "source_policy_version": {
+            "$ref": "#/components/schemas/IndexSeriesSourcePolicy"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/IndexSeriesSummary"
+          },
+          "performance": {
+            "type": "object",
+            "properties": {
+              "day_5": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "day_20": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "day_60": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              },
+              "year_1": {
+                "$ref": "#/components/schemas/IndexSeriesCalculationScalar"
+              }
+            },
+            "required": [
+              "day_5",
+              "day_20",
+              "day_60",
+              "year_1"
+            ],
+            "additionalProperties": false
+          },
+          "observed_at": {
+            "type": "string"
+          },
+          "bars": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "trade_date": {
+                  "$ref": "#/components/schemas/Day"
+                },
+                "open": {
+                  "$ref": "#/components/schemas/IndexSeriesPoint"
+                },
+                "high": {
+                  "$ref": "#/components/schemas/IndexSeriesPoint"
+                },
+                "low": {
+                  "$ref": "#/components/schemas/IndexSeriesPoint"
+                },
+                "close": {
+                  "$ref": "#/components/schemas/IndexSeriesPoint"
+                }
+              },
+              "required": [
+                "trade_date",
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "calendar_version",
+          "anchor_date",
+          "pit_grade",
+          "unit",
+          "storage_decimals",
+          "verification",
+          "observation_id",
+          "source_coverage",
+          "requested_range",
+          "returned_range",
+          "calculation_input_range",
+          "sources",
+          "instrument",
+          "source_policy_version",
+          "summary",
+          "performance",
+          "observed_at",
+          "bars"
+        ],
+        "additionalProperties": false
+      },
+      "StoredPriceRange": {
+        "type": "object",
+        "properties": {
+          "index_id": {
+            "$ref": "#/components/schemas/IndexSeriesId"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "formula_version": {
+            "type": "string",
+            "const": "index-price-calculations-v1"
+          },
+          "calendar_version": {
+            "type": "string",
+            "const": "cn-indices-sse-szse-2023-2026-v1"
+          },
+          "anchor_date": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "pit_grade": {
+            "type": "string",
+            "const": "latest_only"
+          },
+          "unit": {
+            "type": "string",
+            "const": "点"
+          },
+          "storage_decimals": {
+            "type": "integer",
+            "enum": [
+              2,
+              4
+            ]
+          },
+          "verification": {
+            "$ref": "#/components/schemas/IndexSeriesVerification"
+          },
+          "observation_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "source_coverage": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "requested_range": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "returned_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "calculation_input_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexSeriesRetrievalSource"
+            }
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "ma_periods": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "integer",
+              "enum": [
+                5,
+                10,
+                20,
+                30,
+                60,
+                120,
+                180,
+                250
+              ]
+            }
+          },
+          "series": {
+            "$ref": "#/components/schemas/IndexSeriesCalculationSeries"
+          },
+          "navigation_periods": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1100,
+            "items": {
+              "$ref": "#/components/schemas/StoredDateRange"
+            },
+            "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。"
+          }
+        },
+        "required": [
+          "index_id",
+          "snapshot_id",
+          "formula_version",
+          "calendar_version",
+          "anchor_date",
+          "pit_grade",
+          "unit",
+          "storage_decimals",
+          "verification",
+          "observation_id",
+          "source_coverage",
+          "requested_range",
+          "returned_range",
+          "calculation_input_range",
+          "sources",
+          "frequency",
+          "ma_periods",
+          "series",
+          "navigation_periods"
+        ],
+        "additionalProperties": false
+      },
+      "StoredPriceView": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StoredPriceOverview"
+          },
+          {
+            "$ref": "#/components/schemas/StoredPriceRange"
+          }
+        ]
+      },
+      "StoredActivitySeries": {
+        "type": "object",
+        "properties": {
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "volume",
+              "amount"
+            ]
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "period_start": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "period_end": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "sample_count": {
+                  "type": "integer"
+                },
+                "total": {
+                  "$ref": "#/components/schemas/MarketActivityScalar"
+                },
+                "change_pct": {
+                  "$ref": "#/components/schemas/MarketActivityScalar"
+                },
+                "ma": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarketActivityScalar"
+                  }
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "period_start",
+                "period_end",
+                "sample_count",
+                "total",
+                "change_pct",
+                "ma"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "ma_availability": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer"
+                },
+                "available": {
+                  "type": "boolean"
+                },
+                "sample_count": {
+                  "type": "integer"
+                },
+                "required_count": {
+                  "type": "integer"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "period",
+                "available",
+                "sample_count",
+                "required_count",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "frequency",
+          "field",
+          "rows",
+          "ma_availability"
+        ],
+        "additionalProperties": false
+      },
+      "StoredActivityRange": {
+        "type": "object",
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ]
+          },
+          "activity_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "price_snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "market-activity-calculations-v1",
+              "market-activity-calculations-sse-szse-v1"
+            ]
+          },
+          "pit_grade": {
+            "const": "latest_only",
+            "type": "string"
+          },
+          "observation_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "anchor_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "calendar_version": {
+            "type": "string"
+          },
+          "source_policy_version": {
+            "type": "string"
+          },
+          "source_coverage": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "requested_range": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "returned_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "calculation_input_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarketActivityObservedSource"
+            }
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "ma_periods": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "integer",
+              "enum": [
+                5,
+                10,
+                20,
+                30,
+                60,
+                120,
+                180,
+                250
+              ]
+            }
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "volume",
+              "amount"
+            ]
+          },
+          "series": {
+            "$ref": "#/components/schemas/StoredActivitySeries"
+          },
+          "source_scope": {
+            "type": "string"
+          },
+          "source_revision_relation": {
+            "const": "unknown",
+            "type": "string"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string"
+                  },
+                  "price_object_id": {
+                    "$ref": "#/components/schemas/ObjectId"
+                  },
+                  "activity_object_id": {
+                    "$ref": "#/components/schemas/ObjectId"
+                  },
+                  "relation": {
+                    "type": "string",
+                    "enum": [
+                      "same_source_object",
+                      "different_source_objects"
+                    ]
+                  },
+                  "comparison": {
+                    "const": "exact_available_values_match",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "version",
+                  "price_object_id",
+                  "activity_object_id",
+                  "relation",
+                  "comparison"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "navigation_periods": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1100,
+            "items": {
+              "$ref": "#/components/schemas/StoredDateRange"
+            },
+            "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。"
+          }
+        },
+        "required": [
+          "series_id",
+          "activity_id",
+          "price_snapshot_id",
+          "formula_version",
+          "pit_grade",
+          "observation_id",
+          "anchor_date",
+          "calendar_version",
+          "source_policy_version",
+          "source_coverage",
+          "requested_range",
+          "returned_range",
+          "calculation_input_range",
+          "sources",
+          "frequency",
+          "ma_periods",
+          "field",
+          "series",
+          "source_scope",
+          "source_revision_relation",
+          "binding",
+          "navigation_periods"
+        ],
+        "additionalProperties": false
+      },
+      "StoredMarketOverview": {
+        "type": "object",
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "enum": [
+              "sse:000001:price",
+              "szse:399001:price",
+              "szse:399006:price",
+              "sse:000688:price",
+              "cn-a-turnover",
+              "cn-a-turnover-sse-szse"
+            ]
+          },
+          "activity_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "price_snapshot_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_version": {
+            "type": "string",
+            "enum": [
+              "market-activity-calculations-v1",
+              "market-activity-calculations-sse-szse-v1"
+            ]
+          },
+          "pit_grade": {
+            "const": "latest_only",
+            "type": "string"
+          },
+          "observation_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "anchor_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "calendar_version": {
+            "type": "string"
+          },
+          "source_policy_version": {
+            "type": "string"
+          },
+          "source_coverage": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "requested_range": {
+            "$ref": "#/components/schemas/StoredDateRange"
+          },
+          "returned_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "calculation_input_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoredDateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarketActivityObservedSource"
+            }
+          },
+          "series": {
+            "$ref": "#/components/schemas/StoredActivitySeries"
+          },
+          "comparisons": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "day_5": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "day_20": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "day_60": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "year_1": {
+                    "type": "object",
+                    "properties": {
+                      "baseline": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "comparison": {
+                        "$ref": "#/components/schemas/MarketActivityScalar"
+                      },
+                      "sample_count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "baseline",
+                      "comparison",
+                      "sample_count"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "day_5",
+                  "day_20",
+                  "day_60",
+                  "year_1"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_scope": {
+            "type": "string"
+          },
+          "source_revision_relation": {
+            "const": "unknown",
+            "type": "string"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string"
+                  },
+                  "price_object_id": {
+                    "$ref": "#/components/schemas/ObjectId"
+                  },
+                  "activity_object_id": {
+                    "$ref": "#/components/schemas/ObjectId"
+                  },
+                  "relation": {
+                    "type": "string",
+                    "enum": [
+                      "same_source_object",
+                      "different_source_objects"
+                    ]
+                  },
+                  "comparison": {
+                    "const": "exact_available_values_match",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "version",
+                  "price_object_id",
+                  "activity_object_id",
+                  "relation",
+                  "comparison"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "navigation_periods": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1100,
+            "items": {
+              "$ref": "#/components/schemas/StoredDateRange"
+            },
+            "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。"
+          }
+        },
+        "required": [
+          "series_id",
+          "activity_id",
+          "price_snapshot_id",
+          "formula_version",
+          "pit_grade",
+          "observation_id",
+          "anchor_date",
+          "calendar_version",
+          "source_policy_version",
+          "source_coverage",
+          "requested_range",
+          "returned_range",
+          "calculation_input_range",
+          "sources",
+          "series",
+          "comparisons",
+          "source_scope",
+          "source_revision_relation",
+          "binding",
+          "navigation_periods"
+        ],
+        "additionalProperties": false
+      },
+      "StoredActivityView": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StoredActivityRange"
+          },
+          {
+            "$ref": "#/components/schemas/StoredMarketOverview"
+          }
+        ]
       }
     },
     "parameters": {
@@ -11680,9 +19841,16 @@
     "client": "Persist public unknown identity before dispatch; cancellation is not server cancellation; poll lookup read only, never repeat POST. After refresh/reconnect/new instance keep uncertainty and separate latest business status."
   },
   "x-wolf-stage": {
-    "identity": "MASTER-BASE-20261106",
+    "identity": "SQLITE-MIGRATION-20261108",
     "state": "market-overview-baseline",
     "contract_digest_rule": "SHA256 of exact UTF-8 active contract file bytes; not embedded inside this file. Expected descriptor and server packaged resource use identical bytes. Artifact filename extension is irrelevant; any reserialization changes digest and requires re-fixing.",
-    "stage_profile": "Independent browser and local service. Canonical index and activity permissions are explicit; no automatic POST retries. Legacy single-stock/260-day APIs and native host are retired; no data migration."
+    "stage_profile": "统一SQLite、固定版本按需读取；保留旧数据，采集与周期更新须显式授权。"
+  },
+  "x-wolf-etf-operation-semantics": {
+    "scope": "ETF logical domain in the shared SQLite store; preserved historical operation identities",
+    "replay": "After current transport/config/write guards, look up the original request before new plan/CAS/budget checks. Same terminal200, same live202, changed parameters409.",
+    "recovery": "Explicit identical POST only; one shared writer task across ETF and coordinator. Only the unique scoped zero-request ETF lease may finish; preserve counters and other batches.",
+    "time": "Fixed selection_at, effective configuration, admission proofs and immutable original records. First backfill never creates historical published signals.",
+    "client": "Store original config/instance/request/plan/expected snapshot before POST. Distinguish current serving config/instance; never retry POST automatically."
   }
 }

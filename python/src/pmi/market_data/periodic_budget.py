@@ -1,12 +1,12 @@
 """服务内周期预算：固定根账本、跨进程整批预留、出站前扣额及未知保护。"""
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-import fcntl
 import hashlib
 import json
-import os
 import re
 from pathlib import Path
 import threading
@@ -14,7 +14,11 @@ from typing import Callable, TypedDict, Literal
 
 from pmi.market_data import SnapshotError
 from pmi.market_data.activity.model import ActivityError
-from pmi.market_data.read_only import checked_path, read_bytes
+from pmi.market_data.storage.database import Database, StorageError, digest
+from pmi.market_data.storage.documents import Documents
+from pmi.market_data.storage.publications import Publications
+from pmi.market_data.storage.tasks import Task, task_writer
+from pmi.market_data.storage import state as states
 from pmi.market_data.index_history_calendar import SHANGHAI
 
 MIB = 1024 * 1024
@@ -107,62 +111,51 @@ def _canonical(value: object) -> bytes:
 
 
 def scope_id(root: Path, activity_root: Path) -> str:
-    """账本身份绑定规范价格／量额根；配置别名和实例变化不能另获额度。"""
-    for path in (root, activity_root):
-        checked_path(path)
-        if path.resolve() != path or not path.is_dir():
-            raise ValueError('invalid_periodic_scope')
-    return hashlib.sha256(_canonical([str(root), str(activity_root)])).hexdigest()
+    """额度身份来自已迁入领域；物理迁址不重新生成额度。"""
+    if root != activity_root:
+        raise BudgetError('periodic_scope_mismatch')
+    with Database(root).read() as connection:
+        row = connection.execute("SELECT logical_scope FROM domain WHERE id='periodic' AND initialized=1").fetchone()
+        if row is None:
+            raise BudgetError('periodic_not_initialized')
+        return row[0]
 
 
 def initialize(root: Path, activity_root: Path) -> None:
-    """仅供明确授权的初始化；正常构造、状态GET和重启不隐式创建账本。"""
-    path = checked_path(root / LEDGER)
-    initial = {'version': 'overview-periodic-ledger-v1', 'scope_id': scope_id(root, activity_root),
-               'last_day': None, 'days': {}, 'months': {}, 'batches': [], 'attempts': []}
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    try:
-        raw = memoryview(_canonical(initial))
-        while raw:
-            count = os.write(fd, raw)
-            if count <= 0:
-                raise BudgetError('periodic_ledger_write_failed')
-            raw = raw[count:]
-        os.fsync(fd)
-        directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
-    finally:
-        os.close(fd)
+    """只供明确初始化；已有领域或额度不能被覆盖。"""
+    if root != activity_root:
+        raise BudgetError('periodic_scope_mismatch')
+    database = Database(root)
+    with task_writer(root), database.transaction() as connection:
+        if connection.execute("SELECT 1 FROM domain WHERE id='periodic'").fetchone() is not None:
+            raise BudgetError('periodic_already_initialized')
+        identity = connection.execute('SELECT store_id FROM store_identity').fetchone()[0]
+        scope = digest({'store': identity, 'domain': 'periodic'})
+        Publications(connection).domain('periodic', scope)
+        initial = {'version': 'overview-periodic-ledger-v1', 'scope_id': scope,
+                   'last_day': None, 'days': {}, 'months': {}, 'batches': [], 'attempts': []}
+        states.write(connection, 'periodic', 'ledger', initial)
+        connection.execute('INSERT INTO budget_scope VALUES(?,?,?,?)', ('periodic', scope, None, 'ledger'))
 
 
 class Budget:
     """一根一个账本；整个批次持排他锁，GET遇到未完整写入会受控拒绝。"""
     def __init__(self, root: Path, activity_root: Path, options: PeriodicOptions,
                  clock: Callable[[], datetime] | None = None):
-        self.root, self.path, self.options = root, checked_path(root / LEDGER), options
+        self.root, self.database, self.options = root, Database(root), options
+        self.path = self.database.path
         self.scope = scope_id(root, activity_root)
         self.clock = clock or (lambda: datetime.now(SHANGHAI))
         self._mutex = threading.RLock()
         self.active: Lease | None = None
-        self._identity = self._stat_identity()
         self.read()
-
-    def _stat_identity(self) -> tuple[int, int]:
-        checked_path(self.path)
-        info = self.path.stat()
-        if not self.path.is_file() or info.st_nlink != 1:
-            raise BudgetError('periodic_ledger_invalid')
-        return info.st_dev, info.st_ino
 
     def read(self) -> Ledger:
         """状态读取不建账、不加写锁、不恢复、不续额落盘。"""
-        if self._stat_identity() != self._identity:
-            raise BudgetError('periodic_ledger_replaced')
+        self.database.check()
         try:
-            data = json.loads(read_bytes(self.path), object_pairs_hook=_unique)
+            with self.database.read() as connection:
+                data = states.read(connection, 'periodic', 'ledger')
             if data['version'] != 'overview-periodic-ledger-v1' or data['scope_id'] != self.scope:
                 raise ValueError()
             if set(data) != {'version', 'scope_id', 'last_day', 'days', 'months', 'batches', 'attempts'}:
@@ -236,10 +229,9 @@ class Budget:
         import uuid
         with self._mutex:
             if self.active is not None: raise BudgetError('periodic_busy')
-            fd = os.open(self.path, os.O_RDWR | os.O_NOFOLLOW)
+            task = None
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                if (os.fstat(fd).st_dev, os.fstat(fd).st_ino) != self._identity: raise BudgetError('periodic_ledger_replaced')
+                task = Task.acquire(self.root)
                 data = self.read(); day = self.day()
                 if any(row['state'] == 'running' for row in data['batches']): raise BudgetError('periodic_unresolved_batch')
                 if automatic and any(row['automatic'] and row['day'] == day and row['target'] == target for row in data['batches']): raise BudgetError('periodic_already_attempted')
@@ -248,12 +240,14 @@ class Budget:
                 row = {'id': uuid.uuid4().hex, 'target': target, 'automatic': automatic, 'day': day,
                        'state': 'running', 'remaining': [list(x) for x in plan], 'reason': None}
                 data['last_day'] = day; data['batches'].append(row)
-                lease = Lease(self, fd, data, row); lease._save(); self.active = lease
+                lease = Lease(self, task, data, row); lease._save(); self.active = lease
                 return lease
-            except BlockingIOError as error:
-                os.close(fd); raise BudgetError('periodic_busy') from error
+            except StorageError as error:
+                if task is not None: task.close()
+                raise BudgetError('periodic_busy' if str(error) == 'storage_writer_busy' else 'periodic_storage_unavailable') from error
             except BaseException:
-                os.close(fd); raise
+                if task is not None: task.close()
+                raise
 
     def status(self) -> dict:
         data = self.read(); day = self.day(); self._check_time(data, day)
@@ -268,22 +262,62 @@ class Budget:
         return result
 
 
+    @contextmanager
+    def recover_etf_zero(self, target: str, batch_id: str | None):
+        """仅显式恢复ETF零请求租约；调用者先持ETF根锁，不触及其他业务或计数。"""
+        if not isinstance(target, str) or not re.fullmatch(r'etf-flow:[a-f0-9]{64}:[a-f0-9]{64}', target):
+            raise BudgetError('periodic_recovery_target_invalid')
+        if batch_id is not None and (not isinstance(batch_id, str) or not re.fullmatch('[a-f0-9]{32}', batch_id)):
+            raise BudgetError('periodic_recovery_target_invalid')
+        if not self._mutex.acquire(blocking=False):
+            raise BudgetError('periodic_busy')
+        task, lease = None, None
+        try:
+            if self.active is not None:
+                raise BudgetError('periodic_busy')
+            try:
+                task = Task.acquire(self.root)
+            except StorageError as error:
+                raise BudgetError('periodic_busy') from error
+            data = self.read()  # 包含scope/inode、全部尝试及日/月计数的重新核验。
+            matches = [row for row in data['batches'] if row['target'] == target]
+            if len(matches) > 1 or (batch_id is not None and (not matches or matches[0]['id'] != batch_id)):
+                raise BudgetError('periodic_recovery_target_invalid')
+            if any(row['state'] == 'running' and row['target'] != target for row in data['batches']):
+                raise BudgetError('periodic_unresolved_batch')
+            if matches:
+                row = matches[0]
+                if row['automatic'] or row['remaining'] or any(a['batch'] == row['id'] for a in data['attempts']):
+                    raise BudgetError('periodic_recovery_not_zero')
+                if row['state'] == 'running':
+                    lease = Lease(self, task, data, row)
+                    self.active = lease
+                    task = None  # Lease唯一负责释放此任务引用。
+            yield lease
+        finally:
+            try:
+                if lease is not None and not lease.closed:
+                    lease.finish('periodic_unresolved_batch')
+                if task is not None:
+                    task.close()
+            finally:
+                self._mutex.release()
+
+
 class Lease:
     """仅由持排他锁的Budget创建；各传输层消费同一份已批准出站计划。"""
-    def __init__(self, budget: Budget, fd: int, data: Ledger, row: Batch):
-        self.budget, self.fd, self.data, self.row = budget, fd, data, row
+    def __init__(self, budget: Budget, task: Task, data: Ledger, row: Batch):
+        self.budget, self.task, self.data, self.row = budget, task, data, row
         self._mutex = threading.RLock(); self.closed = False
 
     def _save(self) -> None:
-        # 同inode更新保留锁身份；GET可能遇到短写，按账本无效暂拒而非修复。
-        if self.budget._stat_identity() != self.budget._identity: raise BudgetError('periodic_ledger_replaced')
-        raw = _canonical(self.data); os.lseek(self.fd, 0, os.SEEK_SET)
-        view = memoryview(raw)
-        while view:
-            count = os.write(self.fd, view)
-            if count <= 0: raise BudgetError('periodic_ledger_write_failed')
-            view = view[count:]
-        os.ftruncate(self.fd, len(raw)); os.fsync(self.fd)
+        # 额度、尝试索引在同一事务提交；普通GET只读上一完整提交。
+        with self.task.use(), self.budget.database.transaction() as connection:
+            states.write(connection, 'periodic', 'ledger', self.data)
+            docs = Documents(connection)
+            for attempt in self.data['attempts']:
+                connection.execute("INSERT INTO attempt VALUES(?,?,?,?) ON CONFLICT(domain_id,scope_id,attempt_id) DO UPDATE SET revision=excluded.revision",
+                    ('periodic', self.budget.scope, attempt['id'], docs.put(attempt)))
 
     def ensure(self) -> None:
         if self.closed or self.budget.active is not self: raise BudgetError('periodic_lease_invalid')
@@ -322,4 +356,4 @@ class Lease:
                 self.row.update(state='failed' if reason else 'completed', reason=reason, remaining=[])
             try: self._save()
             finally:
-                self.closed = True; self.budget.active = None; os.close(self.fd)
+                self.closed = True; self.budget.active = None; self.task.close()

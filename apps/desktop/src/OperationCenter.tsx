@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ApiClient } from './apiClient';
-import { indexConnectionDescriptor, activityConnectionDescriptor } from './browserHost';
+import { EtfFlowClient, etfReason } from './etfFlowClient';
+import { indexConnectionDescriptor, activityConnectionDescriptor, etfConnectionDescriptor } from './browserHost';
 import { IndexSeriesClient } from './indexSeriesClient';
 import { ActivityClient, ActivityReadError } from './activityClient';
 import { OVERVIEW_INDICES, type OverviewIndexId } from './indexSeriesTypes';
@@ -9,6 +10,7 @@ import { allScopes, retiredRecords, exportBook, identityKey, importBook, needsEx
 
 const terminal = new Set(['idle','completed','failed','interrupted']);
 const choices = [
+  {key:'etf.flow.update',label:'大资金动向 · 观察池',operation:'etf.flow.update' as const,target:'observation-pool'},
   ...OVERVIEW_INDICES.map(x=>({key:'price:'+x.id,label:x.name+' · 价格',operation:'index.series.update' as const,target:x.id})),
   ...OVERVIEW_INDICES.map(x=>({key:'activity:'+x.id,label:x.name+' · 量额',operation:'market.activity.update' as const,target:x.id})),
   {key:'activity:'+LEGACY_MARKET,label:'沪深北三市合计',operation:'market.activity.update' as const,target:LEGACY_MARKET},
@@ -19,8 +21,8 @@ function pause(signal: AbortSignal) { return new Promise<void>(resolve=>{const d
 /** App常驻核对区；失联仍可复制记录，连接权限只来自受控Client。 */
 export function OperationCenter({client, requested, onPublished, reconnect}: {client?:ApiClient;requested?:string;onPublished:()=>void;reconnect:()=>void}) {
   useSyncExternalStore(subscribeOperations,operationsRevision);
-  const [selection,setSelection]=useState(choices[0].key);
-  const [connections,setConnections]=useState<{owner:ApiClient;price?:IndexSeriesClient;activity?:ActivityClient}>();
+  const [selection,setSelection]=useState('price:'+OVERVIEW_INDICES[0].id);
+  const [connections,setConnections]=useState<{owner:ApiClient;price?:IndexSeriesClient;activity?:ActivityClient;etf?:EtfFlowClient}>();
   const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false);
   const [paste,setPaste]=useState(''); const [copy,setCopy]=useState('');
   const [recoverable,setRecoverable]=useState<string>();
@@ -29,43 +31,50 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
   const details=useRef<HTMLDetailsElement>(null);
   const choice=choices.find(x=>x.key===selection)!;
   const connection=connections?.owner===client?connections:undefined;
-  const price=connection?.price, activity=connection?.activity;
-  const scope:Scope|undefined=client?{endpoint:client.expected.endpoint,data_scope_id:client.expected.data_scope_id,operation:choice.operation,target:choice.target}:undefined;
-  const selectedClient = choice.operation === "index.series.update" ? price : activity;
-  const canQuery=!!client && !client.closed && (choice.operation === "index.series.update" ? !!price && !price.closed : !!activity && !activity.closed);
+  const price=connection?.price, activity=connection?.activity, etf=connection?.etf;
+  const scope:Scope|undefined=client && (choice.operation!=='etf.flow.update' || etf)?{endpoint:client.expected.endpoint,data_scope_id:client.expected.data_scope_id,operation:choice.operation,target:choice.operation==='etf.flow.update'?etf!.expected.etf_scope_id:choice.target}:undefined;
+  const selectedClient = choice.operation==='etf.flow.update'?etf:choice.operation === "index.series.update" ? price : activity;
+  const canQuery=!!client && !client.closed && (choice.operation==='etf.flow.update'?!!etf && !etf.closed:choice.operation === "index.series.update" ? !!price && !price.closed : !!activity && !activity.closed);
   const book=scope?readBook(scope):undefined;
   const storedError=scope?operationError(scope):undefined;
-  const reason=!client || client.closed?'本地服务未连接':choice.operation==='index.series.update'?(!price || price.closed?'指数连接未就绪':!price.expected.write_indices.includes(choice.target as OverviewIndexId)?'所选指数未启写':undefined)
+  const reason=!client || client.closed?'本地服务未连接':choice.operation==='etf.flow.update'?(!etf || etf.closed?'ETF连接未就绪':!etf.expected.write_enabled?'ETF未启写':undefined):choice.operation==='index.series.update'?(!price || price.closed?'指数连接未就绪':!price.expected.write_indices.includes(choice.target as OverviewIndexId)?'所选指数未启写':undefined)
     :(!activity || activity.closed?'量额连接未就绪':activityGate(activity.expected,choice.target as ActivityId)??(!activity.expected.write_series.includes(choice.target as ActivityId)?'量额未启写':undefined));
 
   useEffect(()=>{
     if(requested && choices.some(x=>x.key===requested)){setSelection(requested);if(details.current){details.current.open=true;details.current.scrollIntoView({block:'nearest'});}}
   },[requested]);
   useEffect(()=>{
-    const controller=new AbortController();let p:IndexSeriesClient|undefined,a:ActivityClient|undefined;
+    const controller=new AbortController();let p:IndexSeriesClient|undefined,a:ActivityClient|undefined,e:EtfFlowClient|undefined;
     setConnections(undefined);setRecoverable(undefined);
+    if(client) void (async()=>{
+      const descriptor=await etfConnectionDescriptor(client.expected,controller.signal);
+      if(descriptor)e=await EtfFlowClient.connect(descriptor,client.instance,controller.signal);
+      if(controller.signal.aborted){e?.close();return;}
+      if(!controller.signal.aborted)setConnections(previous=>({...previous,owner:client,etf:e}));
+    })().catch(error=>{if(!controller.signal.aborted)setMessage(explain(error));});
     if(client) void (async()=>{
       const descriptor=await indexConnectionDescriptor(client.expected,controller.signal);
       if(!descriptor)return;
       p=await IndexSeriesClient.connect(descriptor,client.instance,controller.signal);
       if(controller.signal.aborted){p.close();return;}
-      setConnections({owner:client,price:p});
+      setConnections(previous=>({...previous,owner:client,price:p}));
       const quantity=await activityConnectionDescriptor(descriptor,controller.signal);
       if(quantity)a=await ActivityClient.connect(quantity,client.instance,controller.signal);
-      if(!controller.signal.aborted)setConnections({owner:client,price:p,activity:a});
+      if(!controller.signal.aborted)setConnections(previous=>({...previous,owner:client,price:p,activity:a}));
     })().catch(error=>{if(!controller.signal.aborted)setMessage(explain(error));});
-    return()=>{controller.abort();action.current?.abort();p?.close();a?.close();};
+    return()=>{controller.abort();action.current?.abort();p?.close();a?.close();e?.close();};
   },[client]);
 
   async function currentStatus(signal:AbortSignal) {
     if(!client || client.closed)throw new Error('连接不可用');
     if(choice.operation==='index.series.update')return price!.status(choice.target as OverviewIndexId,signal);
-    if(choice.operation==='market.activity.update')return undefined;
+    if(choice.operation==='market.activity.update' || choice.operation==='etf.flow.update')return undefined;
   }
   async function query(identity:Identity, signal:AbortSignal) {
     if(!client || client.closed)throw new Error('连接不可用');
     if(identity.operation==='index.series.update')return price!.operation(identity,signal);
     if(identity.operation==='market.activity.update')return activity!.operation(identity,signal);
+    if(identity.operation==='etf.flow.update')return etf!.operation(identity,signal);
     throw new Error('该操作已退役，原记录仅可导出');
   }
   async function confirm(identity:Identity, signal:AbortSignal, ownRequest=false) {
@@ -75,6 +84,9 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
       try {
         const result=await query(identity,signal);
         if(signal.aborted)return;
+        if('recovery_required' in result && result.recovery_required){
+          setRecoverable(identityKey(identity));setMessage('原请求需要明确恢复；不创建新计划、不重新取数');return;
+        }
         if(['completed','failed','interrupted','rejected'].includes(result.state)) {
           settle(scope,identity,result.state as Terminal);
           setMessage(result.state==='completed'?'该请求已精确确认完成；其他未知记录仍保留':'该请求未成功，已保存数据保持原样');
@@ -103,8 +115,8 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
     posting.current=false;setBusy(false);setRecoverable(undefined);setMessage('');
     if(client && scope) void (async()=>{
       try{
-        if(book?.pending && (choice.operation==='index.series.update'?price:choice.operation==='market.activity.update'?activity:client))await confirm(book.pending,controller.signal);
-        else if(choice.operation!=='market.activity.update' && (choice.operation!=='index.series.update'||price)){
+        if(book?.pending && selectedClient)await confirm(book.pending,controller.signal);
+        else if(choice.operation!=='market.activity.update' && choice.operation!=='etf.flow.update' && (choice.operation!=='index.series.update'||price)){
           const until=Date.now()+120000;
           do {
             const status=await currentStatus(controller.signal);
@@ -128,6 +140,14 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
       if(status && !terminal.has(status.stage))throw new Error('已有业务任务，不能另发检查');
       let identity:Identity;
       if(recoveryIdentity){identity=recoveryIdentity;if(identityKey(identity)!==recoverable)throw new Error('请先核对原请求');}
+      else if(choice.operation==='etf.flow.update'){
+        const current=await etf!.current(controller.signal);
+        if(current.blocked_reason)throw new Error(etfReason(current.blocked_reason));
+        identity={instance_id:client.instance,config_id:etf!.expected.config_id,request_id:crypto.randomUUID(),operation:'etf.flow.update',
+          parameters:{plan_id:current.plan.id,expected_snapshot_id:current.snapshot_id}};
+        if(controller.signal.aborted)return;
+        savePending(scope,identity);
+      }
       else {
         identity={instance_id:client.instance,config_id:choice.operation==='index.series.update'?price!.expected.config_id:choice.operation==='market.activity.update'?activity!.expected.config_id:client.expected.config_id,request_id:crypto.randomUUID(),operation:choice.operation};
         if(choice.operation==='index.series.update')identity.index_id=choice.target;
@@ -140,7 +160,8 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
         savePending(scope,identity);
       }
       try{
-        if(identity.operation==='index.series.update')await price!.startUpdate(identity,controller.signal);
+        if(identity.operation==='etf.flow.update')await etf!.startUpdate(identity,controller.signal,!!recoveryIdentity);
+        else if(identity.operation==='index.series.update')await price!.startUpdate(identity,controller.signal);
         else if(identity.operation==='market.activity.update'){
           const result=await activity!.startUpdate(identity,controller.signal,!!recoveryIdentity);
           if(!controller.signal.aborted && ['completed','failed','interrupted'].includes(result.state)){
@@ -160,7 +181,7 @@ export function OperationCenter({client, requested, onPublished, reconnect}: {cl
     <button disabled={!!reason || !!storedError || busy || !book || needsExplicit(book)} onClick={()=>void start(false)}>检查更新</button>
     {book && needsExplicit(book) && <><p className="warning">{book.continuity_unverified?'本页尚未接续此前操作。':''}先前操作可能已执行。接续记录只能帮助核对，不能保证此前没有执行；继续将创建全新请求。</p>
       <button disabled={!!reason || !!storedError || busy} onClick={()=>void start(true)}>明确发起新检查</button></>}
-    {reason&&<p>{reason}；未准入或缺失量额仍为“暂无数据”，G1—G4保留。</p>}
+    {reason&&<p>{reason}{choice.operation==='etf.flow.update'?'；已有ETF版本保留':'；未准入或缺失量额仍为“暂无数据”，G1—G4保留。'}</p>}
     {storedError&&<p role="alert">{storedError}</p>}
     {message&&<p role="status">{message}</p>}<button onClick={reconnect}>重新连接服务</button>
     {scope&&book&&<>

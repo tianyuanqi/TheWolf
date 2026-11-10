@@ -20,14 +20,14 @@ from test_index_series_contract import WINDOW, encoded
 from test_index_series_runtime import state
 from test_market_activity import admitted
 from pmi.api import create_app
-from pmi.market_data import index_series_store as prices
+from pmi.market_data.storage import index_store as prices
 from pmi.market_data.index_catalog import INDICES
 from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import initialize, price_writer as writer_lock
 from pmi.market_data.activity import facts, runtime, calculations
 from pmi.market_data.activity.model import Options, Original, MARKET, canonical, digest
 from pmi.market_data.activity.sources import url
-from pmi.market_data.activity.store import Store
+from pmi.market_data.storage.activity_store import Store
 from pmi.service_config import ServiceConfig
 
 REPO = Path(__file__).resolve().parents[2]
@@ -49,8 +49,9 @@ def publish(store, manifest, originals, request_id):
 
 def fixtures(root):
     """仅在新建独占临时根发布合成原件；不改生产来源规则。"""
-    price_root, activity_root = root/'price', root/'activity'
-    price_root.mkdir(); activity_root.mkdir()
+    price_root = activity_root = root/'price'
+    price_root.mkdir(); (root/'activity').mkdir()
+    initialize(price_root)
     store = Store(activity_root)
     for index in INDICES:
         if index.index_id not in IDS:
@@ -58,7 +59,7 @@ def fixtures(root):
         items = varied_originals(index)
         with writer_lock(price_root):
             prices.prepare_directories(price_root, index)
-            prices.publish(price_root, index, WINDOW, build_manifest(index, WINDOW, items), items, state(index))
+            prices.publish(price_root, index, WINDOW, build_manifest(index, WINDOW, items), items, {**state(index), 'job_id':'fixture-'+index.index_id.replace(':','-')})
         price = prices.read_snapshot(price_root, index)
         if index.provider == 'csindex':
             body = json.loads(items[0].content)
@@ -88,7 +89,8 @@ def fixtures(root):
                                      {m:list(WINDOW.dates) for m in components}, components)
     manifest['completion_basis'] = WINDOW.completion_basis
     manifest['sources'] = [{'source':o.source,'object_id':o.object_id,'url':o.url} for o in originals]
-    publish(store, manifest, {o.object_id:o.content for o in originals}, 'p3-market')
+    with patch.object(facts, 'market_from_originals', return_value=manifest):
+        publish(store, manifest, {o.object_id:o.content for o in originals}, 'p3-market')
     (root/'market-test-replay.json').write_bytes(canonical(manifest))
 
 
@@ -96,7 +98,7 @@ def serve(root, backend, frontend):
     import uvicorn
     with admitted(), patch.object(runtime, 'market_from_originals', side_effect=lambda window, originals: json.loads((root/'market-test-replay.json').read_bytes())), \
          patch('urllib.request.OpenerDirector.open', side_effect=AssertionError('P3测试禁止外部网络')):
-        config = ServiceConfig(root/'price', backend, (f'http://127.0.0.1:{frontend}',), activity_options=Options(root/'activity'))
+        config = ServiceConfig(root/'price', backend, (f'http://127.0.0.1:{frontend}',), activity_options=Options(root/'price'))
         for name, descriptor in [('legacy',config.public_descriptor()),('index',config.public_index_descriptor()),('activity',config.public_activity_descriptor())]:
             (root/(name+'.json')).write_text(json.dumps(descriptor))
         # 固定实际API输出供客户端反例，不用前端镜像金融公式。

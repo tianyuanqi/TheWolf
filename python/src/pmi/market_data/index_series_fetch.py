@@ -22,7 +22,7 @@ from pmi.market_data import SnapshotError
 from pmi.market_data.index_catalog import IndexDefinition, get_index
 from pmi.market_data.index_history_calendar import FrozenWindow, complete_window
 from pmi.market_data.index_series_contract import Original, canonical, source_url, utc
-from pmi.market_data.index_series_store import append_record, load_json
+from pmi.market_data.storage.index_store import record_network, network_entries, load_json
 from pmi.market_data.read_only import checked_path, read_bytes
 
 MAX_RESPONSE_BYTES = 1024 * 1024
@@ -55,13 +55,7 @@ def _now() -> str:
 
 
 def _entries(parent: Path) -> list[dict]:
-    path = checked_path(parent / "index-v2-network-ledger.jsonl")
-    if not path.exists():
-        return []
-    content = read_bytes(path)
-    if content and not content.endswith(b"\n"):
-        raise SnapshotError("incomplete_network_ledger")
-    return [load_json(line) for line in content.splitlines()]
+    return network_entries(parent)
 
 
 def _totals(entries: list[dict]) -> tuple[dict[str, dict], dict[str, int]]:
@@ -126,7 +120,7 @@ def reserve(parent: Path, index: IndexDefinition, source: str, window: FrozenWin
         if budget.lease.budget.root != parent:
             raise SnapshotError("periodic_scope_mismatch")
         entry["periodic_attempt"] = budget.lease.charge(url, MAX_RESPONSE_BYTES)
-    append_record(parent / "index-v2-network-ledger.jsonl", entry)
+    record_network(parent, entry)
     return entry
 
 
@@ -197,7 +191,7 @@ def fetch_bounded(parent: Path, index: IndexDefinition, source: str, window: Fro
             budget.lease.settle(entry["periodic_attempt"], charged if success else None, success)
         if guard:
             guard()
-        append_record(parent / "index-v2-network-ledger.jsonl", {
+        record_network(parent, {
             "event": "finished", "attempt_id": entry["attempt_id"], "index_id": index.index_id,
             "job_id": job_id, "source": source, "success": success, "charged_bytes": charged, "finished_at": _now()})
 

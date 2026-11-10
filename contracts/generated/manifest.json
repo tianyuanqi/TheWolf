@@ -2,21 +2,21 @@
   "editable": false,
   "format": "wolf-generation/C-target/1",
   "inputs": {
-    "contract_source.py": "683f6b318f00be135baa74331077ab826ab654b8d303bd2551de73284cb1f43e",
-    "generate.mjs": "78a15f623da8aaf9218689cc97ff5fa19f6a5c0ccd55768df05335a9ddd507f5",
-    "generate.py": "189778d45adc0bfc5d43d68f8996517909148e7b782ddc25f8963fcf7a3be6c7",
+    "contract_source.py": "64fadcf114bc66459dc2f95b17094cf539efdd3c2b33003c3cb7b1b316e1ff6e",
+    "generate.mjs": "b89ab905da3e2342e0c536657682c0977502ba5090b4a4e4bdd3c118efa63ccc",
+    "generate.py": "ff94a0da0230fe3fa86e0a1f69c74f4d32afd52707024c7dad8c712c8f26aaa1",
     "package-lock.json": "1561367844dae692839c5e172e3f09ca2717bc4dc8107bbbe711476f839de5c3",
-    "projection.py": "5faa1f72113af20b338bf34825416a8c4005677235fe463ca86144fe68d136d3",
+    "projection.py": "62bcf0264adfbb969a571f6f15fdb8d16c427e9b1af2bfc7b29ce4f6d83f3a8b",
     "requirements.lock": "a49693eaa30a0f925f2c3f258b8847bb13bad39e6afb9d63b7c6f862b60d1e10"
   },
   "outputs": {
-    "http.d.ts": "97f780f700bb3dcabdc933df1b4d73c481fe93ac5ba99d40cacc5d39a31f0f81",
-    "http_dto.py": "d6238ed963ca1ce7402380371299d7544a325dd9f0b5a2f536a4bc5558e088bc",
-    "openapi.resource": "b25a05db61080574d9e0308e4ecd6cd4d14d90df315a7602a93802b8fbf2ef7a",
-    "operations.json": "67585c07ea9b948331f1482186e68f277b9249698ccd01662667efe5ae6d6027",
-    "schemas.json": "4879c163f7f2cf53eef1508396ef262b086fa6aa5701d94414790aa0fc5ba7c5",
-    "validators.d.mts": "1150e882e1a176db955c8c99edafdea066cd0583ba49c6b95f9af2d7d48b0ff5",
-    "validators.mjs": "ee02b4cb6a1f534fadb00a1b075859d832838c38e2d815cbf7a34e9d5595b0ba"
+    "http.d.ts": "c9d5e035e7a4855b59cc33de3a796c1acb17ecb117cc5bcb421185e305bc223b",
+    "http_dto.py": "ec0839120152256757316468249290d131f58c47c88e54dee3c87f2c6074ea33",
+    "openapi.resource": "f7a795734308d4a960b645c6d8d6746e899a148d1abcba60dd1711fc96c86592",
+    "operations.json": "849324ca82a54b669818ed29249d10e41a3eacf83cbd722bae3cbf829323c7a9",
+    "schemas.json": "d1a2b916e0391c98040dc4be7d43eab3e63aca96199c814de21e5c79b3bc43c8",
+    "validators.d.mts": "ae615cf270f216879b5353eefb7bf3092c87707c7db40814444b56c780d46152",
+    "validators.mjs": "4d479d8100bba3aa6768d2a9d435a0dc67b015e5add32cd99c4b7196cd2a7990"
   },
   "product_runtime_integrated_operations": [
     "GET /api/health",
@@ -57,7 +57,27 @@
     "POST /api/market-activity/{series_id}/update",
     "OPTIONS /api/market-activity/{series_id}/update",
     "GET /api/overview-update/status",
-    "OPTIONS /api/overview-update/status"
+    "OPTIONS /api/overview-update/status",
+    "OPTIONS /api/etf-flow/session",
+    "GET /api/etf-flow/session",
+    "OPTIONS /api/etf-flow/current",
+    "GET /api/etf-flow/current",
+    "OPTIONS /api/etf-flow/snapshots/{snapshot_id}",
+    "GET /api/etf-flow/snapshots/{snapshot_id}",
+    "OPTIONS /api/etf-flow/snapshots/{snapshot_id}/evidence/{object_id}",
+    "GET /api/etf-flow/snapshots/{snapshot_id}/evidence/{object_id}",
+    "OPTIONS /api/etf-flow/update",
+    "POST /api/etf-flow/update",
+    "OPTIONS /api/etf-flow/operations/{request_id}",
+    "GET /api/etf-flow/operations/{request_id}",
+    "GET /api/index-series/{index_id}/view",
+    "OPTIONS /api/index-series/{index_id}/view",
+    "GET /api/market-activity/{series_id}/view",
+    "OPTIONS /api/market-activity/{series_id}/view",
+    "GET /api/storage/versions",
+    "OPTIONS /api/storage/versions",
+    "GET /api/storage/status",
+    "OPTIONS /api/storage/status"
   ],
   "product_runtime_profile": "RB-RO-1: read; POST disabled; no native host",
   "python": {
@@ -67,6 +87,6 @@
     "openapi-spec-validator": "0.8.5",
     "pydantic": "2.13.5"
   },
-  "source_sha256": "b25a05db61080574d9e0308e4ecd6cd4d14d90df315a7602a93802b8fbf2ef7a",
-  "source_version": "2.0.0"
+  "source_sha256": "f7a795734308d4a960b645c6d8d6746e899a148d1abcba60dd1711fc96c86592",
+  "source_version": "3.0.0"
 }

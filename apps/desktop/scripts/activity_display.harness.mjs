@@ -12,6 +12,7 @@ const requests=[];
 page.on('pageerror',e=>record.errors.push(String(e)));
 page.on('request',r=>{requests.push(r);if(!/^http:\/\/127\.0\.0\.1:\d+\//.test(r.url()))record.external.push(r.url());});
 const waitLoaded=()=>page.getByText('读取结束 · 当前读取不采集新行情',{exact:true}).waitFor({timeout:90000});
+const waitDetail=async()=>{await waitLoaded();await page.locator('.m-activity-chart canvas').waitFor();};
 const activityRead=()=>page.getByLabel('量额读数',{exact:true}).innerText();
 const waitCursorSync=()=>page.waitForFunction(()=>document.querySelector('#overview-readout strong')?.textContent===document.querySelector('[aria-label="量额读数"] strong')?.textContent);
 async function screenshot(name){
@@ -21,69 +22,70 @@ async function screenshot(name){
 try{
   const began=Date.now(); await page.goto(process.env.WOLF_UI_ORIGIN);await waitLoaded();record.initial_load_ms=Date.now()-began;
   await page.locator('.m-activity-chart canvas').waitFor();
-  assert.match(await activityRead(),/1\.23/);
-  assert.equal(await page.getByRole('button',{name:'更新数据',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByLabel('量额读数',{exact:true}).locator('b').innerText(),'1');
+  assert.equal(await page.getByRole('button',{name:'更新数据',exact:true}).isDisabled(),false);
   assert.equal(await page.locator('.m-table tbody tr').count(),5);
   await screenshot('p3-light.png');
-  const count=requests.filter(r=>r.url().includes('/api/')).length;
-  await page.getByLabel('指数K线副图',{exact:true}).selectOption('volume');
+  const beforeRange=requests.length;
+  await page.getByLabel('指数K线副图',{exact:true}).selectOption('volume');await waitDetail();
   assert.match(await activityRead(),/VOL/);assert.equal(await page.getByLabel('量额读数',{exact:true}).locator('b').innerText(),'0');
   assert.match(await page.getByLabel('量额均线读数',{exact:true}).innerText(),/0\.8/);
   await page.getByRole('button',{name:'均线设置 ▾',exact:true}).click();
   const field=page.locator('fieldset').filter({has:page.locator('legend').filter({hasText:'成交量 VOL'})});
   assert.equal(await field.locator('input').count(),8);await field.getByLabel('MA5',{exact:true}).uncheck();
   await page.keyboard.press('Escape');
-  await page.getByLabel('指数K线副图',{exact:true}).selectOption('amount');
+  await page.getByLabel('指数K线副图',{exact:true}).selectOption('amount');await waitDetail();
   assert.match(await page.getByLabel('量额均线读数',{exact:true}).innerText(),/MA5/);
-  await page.getByLabel('指数K线副图',{exact:true}).selectOption('volume');
+  await page.getByLabel('指数K线副图',{exact:true}).selectOption('volume');await waitDetail();
   assert.doesNotMatch(await page.getByLabel('量额均线读数',{exact:true}).innerText(),/MA5 /);
-  await page.getByRole('button',{name:'周 K',exact:true}).click();assert.match(await activityRead(),/周频/);
-  await page.getByRole('button',{name:'月 K',exact:true}).click();assert.match(await activityRead(),/月频/);
+  await page.getByRole('button',{name:'周 K',exact:true}).click();await waitDetail();assert.match(await activityRead(),/周频/);
+  await page.getByRole('button',{name:'月 K',exact:true}).click();await waitDetail();assert.match(await activityRead(),/月频/);
   await page.getByRole('button',{name:'均线设置 ▾',exact:true}).click();
   assert.equal(await field.getByLabel('MA60',{exact:true}).isDisabled(),true);assert.match(await field.innerText(),/有效样本不足/);await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'日 K',exact:true}).click();
+  await page.getByRole('button',{name:'日 K',exact:true}).click();await waitDetail();
   await page.getByRole('region',{name:'日K图表',exact:true}).focus();await page.keyboard.press('Home');
   const date=(await page.locator('#overview-readout strong').innerText());assert.ok((await activityRead()).startsWith(date));
-  await page.getByRole('group',{name:'图表显示范围',exact:true}).getByRole('button',{name:'1 月',exact:true}).click();
+  await page.getByRole('group',{name:'图表显示范围',exact:true}).getByRole('button',{name:'1 月',exact:true}).click();await waitDetail();
   await waitCursorSync();
   assert.ok((await activityRead()).startsWith(await page.locator('#overview-readout strong').innerText()),'缩放排除旧游标后，价格与量额仍须选择同一可见日期');
   await page.getByRole('region',{name:'指数成交量 VOL图表',exact:true}).focus();await page.keyboard.press('ArrowRight');
   await waitCursorSync();
   assert.ok((await activityRead()).startsWith(await page.locator('#overview-readout strong').innerText()));
-  for(const name of ['深证成指','创业板指','科创50']){await page.getByRole('button',{name:new RegExp(name)}).click();await page.locator('.m-activity-chart canvas').waitFor();assert.match(await activityRead(),/万股/);}
-  await page.getByRole('button',{name:/全市场成交额/}).click();
-  assert.match(await activityRead(),/全市场成交额/);
-  await page.getByRole('region',{name:'全市场成交额图表',exact:true}).focus();await page.keyboard.press('End');
+  for(const name of ['深证成指','创业板指','科创50']){await page.getByRole('button',{name:new RegExp(name)}).click();await waitDetail();assert.match(await activityRead(),/万股/);}
+  await page.getByRole('button',{name:/沪深北三市合计/}).click();await waitDetail();
+  assert.match(await activityRead(),/沪深北三市合计/);
+  await page.getByRole('region',{name:'沪深北三市合计图表',exact:true}).focus();await page.keyboard.press('End');
   assert.equal(await page.getByLabel('量额读数',{exact:true}).locator('b').innerText(),'6');
-  const marketRow=page.locator('.m-table tbody tr').last();assert.match(await marketRow.innerText(),/6 亿元/);assert.match(await marketRow.innerText(),/暂无数据/);
+  const marketRow=page.locator('.m-table tbody tr').last();assert.match(await marketRow.innerText(),/6\s+亿元/);assert.match(await marketRow.innerText(),/暂无数据/);
   await page.keyboard.press('ArrowLeft');await page.keyboard.press('ArrowLeft');await page.keyboard.press('ArrowLeft');assert.match(await activityRead(),/暂无数据/);
   await page.getByRole('checkbox',{name:'显示数据说明',exact:true}).check();assert.match(await page.locator('.m-activity-details').innerText(),/bse/);assert.match(await page.locator('.m-activity-details').innerText(),/来源修订一致性未知/);
-  await page.getByRole('group',{name:'图表显示范围',exact:true}).getByRole('button',{name:'3 月',exact:true}).click();
-  assert.equal(requests.filter(r=>r.url().includes('/api/')).length,count);
+  await page.getByRole('group',{name:'图表显示范围',exact:true}).getByRole('button',{name:'3 月',exact:true}).click();await waitDetail();
+  const rangeReads=requests.slice(beforeRange).filter(r=>r.url().includes('/view?')&&new URL(r.url()).searchParams.get('detail')!=='overview');
+  assert.ok(rangeReads.length>0);assert.ok(rangeReads.every(r=>new URL(r.url()).searchParams.has('start')&&new URL(r.url()).searchParams.has('end')));
   await screenshot('p3-market.png');
   await page.getByRole('button',{name:'深色备选主题',exact:true}).click();await screenshot('p3-dark.png');
   await page.setViewportSize({width:820,height:1000});await screenshot('p3-narrow.png');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  record.checks.push('four-index-and-market-real-http','independent-eight-ma-preferences','daily-weekly-monthly','zero-not-missing','missing-market-no-partial-total','linked-cursor','local-range-no-fetch','metadata-themes-narrow');
+  record.checks.push('four-index-and-market-real-http','independent-eight-ma-preferences','daily-weekly-monthly','zero-not-missing','missing-market-no-partial-total','linked-cursor','fixed-version-date-range-requests','metadata-themes-narrow');
   // 模拟收到撤回错误；清除既有值，无旧有效量额兜底。
-  await page.route('**/api/market-activity/cn-a-turnover?*',async route=>{
+  await page.route('**/api/market-activity/cn-a-turnover/view?*',async route=>{
     const response=await route.fetch();await route.fulfill({response,status:409,body:JSON.stringify({detail:{code:'source_withdrawn',message:'synthetic withdrawal'}})});
   });
   await page.getByRole('button',{name:'重新读取',exact:true}).click();await waitLoaded();assert.equal(await page.locator('.m-activity-chart').count(),0);assert.match(await page.locator('.m-activity-empty').innerText(),/撤回/);
-  await page.unroute('**/api/market-activity/cn-a-turnover?*');
+  await page.unroute('**/api/market-activity/cn-a-turnover/view?*');
   // 结构正确但量额属于别的价格，不能展示。
-  await page.route('**/api/market-activity/sse%3A000001%3Aprice?*',async route=>{
+  await page.route('**/api/market-activity/sse%3A000001%3Aprice/view?*',async route=>{
     const response=await route.fetch();const data=await response.json();data.price_snapshot_id='0'.repeat(64);await route.fulfill({response,json:data});
   });
-  await page.getByRole('button',{name:/上证指数/}).click();await page.getByRole('button',{name:'重新读取',exact:true}).click();await waitLoaded();assert.equal(await page.locator('.m-activity-chart').count(),0);assert.match(await page.locator('.m-activity-empty').innerText(),/归属/);
+  await page.getByRole('button',{name:/上证指数/}).click();await page.getByRole('button',{name:'重新读取',exact:true}).click();await waitLoaded();assert.equal(await page.locator('.m-activity-chart').count(),0);assert.match(await page.locator('.m-activity-empty').innerText(),/归属|版本|绑定/);
   record.checks.push('withdrawn-clears-old-values','cross-price-current-rejected');
-  await page.unroute('**/api/market-activity/sse%3A000001%3Aprice?*');
-  await page.getByRole('button',{name:'周 K',exact:true}).click();
-  await page.route('**/api/index-series/**/calculations?*',route=>route.abort());
+  await page.unroute('**/api/market-activity/sse%3A000001%3Aprice/view?*');
+  await page.getByRole('button',{name:'周 K',exact:true}).click();await waitDetail();
+  await page.route('**/api/index-series/**/view?*',route=>new URL(route.request().url()).searchParams.get('frequency')==='weekly'?route.abort():route.continue());
   await page.getByRole('button',{name:'重新读取',exact:true}).click();await waitLoaded();
   assert.equal(await page.locator('.m-activity-chart').count(),0);
   assert.match(await page.locator('.m-activity-empty').innerText(),/当前周期价格计算未取得/);
-  await page.getByRole('button',{name:'日 K',exact:true}).click();await page.locator('.m-activity-chart canvas').waitFor();
+  await page.getByRole('button',{name:'日 K',exact:true}).click();await waitDetail();await page.locator('.m-activity-chart canvas').waitFor();
   assert.match(await activityRead(),/万股/);
   record.checks.push('missing-weekly-price-does-not-use-daily-price-colors');
   assert.equal(requests.some(r=>r.method()==='POST'),false);

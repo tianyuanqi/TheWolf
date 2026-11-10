@@ -80,7 +80,7 @@ def _from_anchor(anchor: date) -> FrozenWindow:
     days = []
     day = start
     while day < anchor:
-        marker = day.strftime("%m-%d")
+        marker = f"{day.month:02d}-{day.day:02d}"
         if day.weekday() < 5 and not any(left <= marker <= right for left, right in _HOLIDAYS[day.year]):
             days.append(day.isoformat())
         day += timedelta(days=1)
@@ -143,7 +143,7 @@ def period_calendar(start: date, end: date, version: str) -> tuple[str, ...] | N
     rows = []
     day = start
     while day <= end:
-        marker = day.strftime("%m-%d")
+        marker = f"{day.month:02d}-{day.day:02d}"
         if day.weekday() < 5 and not any(left <= marker <= right for left, right in _HOLIDAYS[day.year]):
             rows.append(day.isoformat())
         day += timedelta(days=1)

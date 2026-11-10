@@ -7,10 +7,10 @@ from pathlib import Path
 import sys
 import tempfile
 
-from pmi.market_data import index_series_store as store
+from pmi.market_data.storage import index_store as store
 from pmi.market_data.index_catalog import get_index
 from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import initialize, price_writer as writer_lock
 from test_index_series_contract import WINDOW, originals
 from test_index_series_runtime import state
 
@@ -21,6 +21,7 @@ def cases() -> dict:
     result = {}
     with tempfile.TemporaryDirectory(prefix='wolf-startup-observation-', dir='/private/tmp') as value:
         root = Path(value).resolve()
+        initialize(root)
         with writer_lock(root):
             store.prepare_directories(root, index)
         for name, prices, hour in [('old', ('100.01','110.02','90.00','105.12'), 1),

@@ -18,6 +18,7 @@ from pmi.market_data.index_history_calendar import complete_window
 from pmi.market_data.periodic_budget import initialize, PeriodicOptions
 from test_two_market import market_original
 from test_market_activity import Client
+from sqlite_fixture import initialize as initialize_sqlite, set_activity_budget, activity_budget_bytes
 from test_periodic_budget import Clock
 
 ANCHOR = '2026-11-05'
@@ -36,8 +37,8 @@ def original(market, day, *, empty=False):
 class ThreeMarketTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='wolf-bse-test-',dir='/private/tmp');self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name);self.price=self.root/'price';self.act=self.root/'activity';self.price.mkdir();self.act.mkdir()
-        self.ledger=self.root/'budget.json';self.ledger.write_bytes(canonical({'cycle':'bse-test','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
+        self.root=Path(self.temp.name);self.price=self.act=self.root/'data';self.price.mkdir();initialize_sqlite(self.price)
+        self.ledger=self.price/'facts.sqlite';set_activity_budget(self.price, canonical({'cycle':'bse-test','attempts':0,'bytes':0,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
         self.client=Client(self.price,self.act,write_series=(TWO_MARKET,MARKET),max_attempts=2200,max_bytes=2200*MARKET_MAX_BYTES,budget_cycle='bse-test',budget_ledger=self.ledger)
         self.addCleanup(self.client.app.state.updates.close)
         self.rt=self.client.config.market_data._activity_runtime
@@ -78,7 +79,7 @@ class ThreeMarketTests(unittest.TestCase):
         with patch.object(fetch,'fetch',self.obtain):
             two=self.publish(TWO_MARKET,request='two');self.assertEqual(two['state'],'completed',two)
             result=self.publish();self.assertEqual(result['state'],'completed',result)
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'],726*3)
+        self.assertEqual(json.loads(activity_budget_bytes(self.price))['attempts'],726*3)
         aid=result['activity_id'];value=self.rt.fixed(MARKET,aid)
         calc=self.rt.calculations(MARKET,aid,calculations.FORMULA)
         self.assertEqual(calc['series'][0]['rows'][-1]['total']['value'],'400000123.45')
@@ -102,7 +103,7 @@ class ThreeMarketTests(unittest.TestCase):
         with patch.object(fetch,'fetch',self.obtain):
             result=self.publish(request='seed-late')
         before=self.rt.store.json(*self.rt.store.location(MARKET,ANCHOR))
-        ledger=self.ledger.read_bytes()
+        ledger=activity_budget_bytes(self.price)
         def post(anchor,expected,request):
             return self.client.request('/api/market-activity/'+MARKET+'/update','POST',
                 body=canonical({'anchor_date':anchor,'expected_activity_id':expected}),headers={'x-wolf-request-id':request})
@@ -116,12 +117,12 @@ class ThreeMarketTests(unittest.TestCase):
             response=post(ANCHOR,result['activity_id'],'same-correct')
             self.assertEqual(response.status,200,response.body)
             self.assertEqual(json.loads(response.body)['state'],'completed')
-        self.assertEqual(self.ledger.read_bytes(),ledger)
+        self.assertEqual(activity_budget_bytes(self.price),ledger)
         self.assertEqual(self.rt.latest_market_anchor(ANCHOR,MARKET),ANCHOR)
         self.assertIsNotNone(self.rt.fixed(MARKET,result['activity_id']))
 
     def test_budget_insufficient_no_network(self):
-        self.ledger.write_bytes(canonical({'cycle':'bse-test','attempts':2199,'bytes':0,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
+        set_activity_budget(self.price, canonical({'cycle':'bse-test','attempts':2199,'bytes':0,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
         with patch.object(fetch,'fetch',side_effect=AssertionError('不应联网')) as call:
             result=self.publish()
         self.assertEqual(result['reason'],'activity_budget_exhausted');call.assert_not_called()

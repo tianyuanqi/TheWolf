@@ -15,6 +15,8 @@ from pydantic import ValidationError
 from . import models
 
 logger = logging.getLogger(__name__)
+_COMBINED_COMPONENTS = frozenset({'StoredPriceView', 'StoredPriceOverview', 'StoredPriceRange', 'StoredActivityView', 'StoredActivityRange', 'StoredMarketOverview', 'IndexSeriesCombinedView', 'IndexSeriesOverviewView',
+                                 'IndexSeriesViewResponse', 'MarketActivityCombinedView'})
 
 
 class ContractResponseError(ValueError):
@@ -30,7 +32,7 @@ def verify_resources() -> None:
         actual = hashlib.sha256(root.joinpath(name).read_bytes()).hexdigest()
         if actual != manifest["outputs"][source]:
             raise ContractResponseError("安装包契约资源不一致")
-    if manifest["source_version"] != "2.0.0" or manifest["source_sha256"] != manifest["outputs"]["openapi.resource"]:
+    if manifest["source_version"] != "3.0.0" or manifest["source_sha256"] != manifest["outputs"]["openapi.resource"]:
         raise ContractResponseError("安装包契约版本不匹配")
 
 
@@ -59,12 +61,24 @@ def _same_value(left: Any, right: Any) -> bool:
 
 
 @lru_cache(maxsize=32)
-def _validator(name: str) -> Draft202012Validator:
+def _validator(name: str):
     """从安装包资源构建同源组件校验器，不访问仓库或工具目录。"""
     schema = json.loads(files(__package__).joinpath("schemas.json").read_text(encoding="utf-8"))
     if name not in schema["$defs"]:
         raise ContractResponseError("未登记的HTTP响应组件")
+    if name in _COMBINED_COMPONENTS:
+        from .schema_graph import validator
+        return validator(schema, name)
     return Draft202012Validator({**schema, "$ref": "#/$defs/" + name})
+
+
+def validate_combined_schema(schema: dict, value: Any) -> bool:
+    """仅对精确同源组件复用规则图；路由内联/组合Schema仍由原边界完整验证。"""
+    for name in _COMBINED_COMPONENTS:
+        if schema == {"$ref": "#/$defs/" + name}:
+            _validator(name).validate(value)
+            return True
+    return False
 
 
 def response_value(name: str, value: Any) -> Any:
@@ -81,7 +95,16 @@ def response_value(name: str, value: Any) -> Any:
     try:
         # 裸DTO会宽化可选非null字段；必须先校验原输入，再规范化整数值。
         _validator(name).validate(value)
-        result = getattr(models, name).model_validate(_integer_values(value), strict=True)
+        model = getattr(models, name)
+        if name in _COMBINED_COMPONENTS:
+            try:
+                # 正常JSON整数直接严格检查；只有原Schema接受的1.0等写法
+                # 才需要原规范化遍历。失败仍走原DTO，接受集合不变。
+                result = model.model_validate(value, strict=True)
+            except ValidationError:
+                result = model.model_validate(_integer_values(value), strict=True)
+        else:
+            result = model.model_validate(_integer_values(value), strict=True)
         output = result.model_dump(mode="json", exclude_unset=True)
         if not _same_value(output, value):
             raise ContractResponseError("HTTP响应往返发生字段或值变化")

@@ -28,7 +28,7 @@ def generate(spec_path: Path, output: Path) -> None:
         raise ValueError("生成目标必须为空目录")
     output.mkdir(parents=True, exist_ok=True)
     definitions = project(spec["components"]["schemas"])
-    target = spec["info"]["version"] in {"1.0.0", "1.1.0", "2.0.0"}
+    target = spec["info"]["version"] in {"1.0.0", "1.1.0", "2.0.0", "3.0.0"}
     if target:
         from projection import projection
         projected = projection(spec, hashlib.sha256(spec_path.read_bytes()).hexdigest())

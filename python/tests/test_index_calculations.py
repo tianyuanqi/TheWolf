@@ -14,8 +14,8 @@ from pmi.market_data.index_calculations import (calculate, FORMULA_VERSION, PERI
 from pmi.market_data.index_history_calendar import complete_window, period_calendar, CALENDAR_VERSION
 from pmi.market_data.price_formulas import change_pct_v1, close_sma_v1
 from pmi.market_data.index_series_contract import summarize, build_manifest
-from pmi.market_data import index_series_store as store
-from pmi.market_data.writer_lock import writer_lock
+from pmi.market_data.storage import index_store as store
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite
 from pmi.http_contract import response_value
 from test_index_series_http_contract import synthetic_view
 from test_index_series_contract import originals, WINDOW
@@ -128,7 +128,7 @@ class FormulaTests(unittest.TestCase):
 class ApplicationTests(unittest.TestCase):
     def test_fixed_http_readonly_rejection_and_current_independence(self):
         with tempfile.TemporaryDirectory(prefix='thewolf-a-unit-') as folder:
-            root=Path(folder).resolve();index=INDICES[1];items=originals(index,WINDOW)
+            root=Path(folder).resolve(); initialize_sqlite(root);index=INDICES[1];items=originals(index,WINDOW)
             with writer_lock(root):
                 store.prepare_directories(root,index)
                 store.publish(root,index,WINDOW,build_manifest(index,WINDOW,items),items,state(index))
@@ -156,9 +156,9 @@ class ApplicationTests(unittest.TestCase):
 
     def test_empty_root_no_creation(self):
         with tempfile.TemporaryDirectory(prefix='thewolf-a-empty-') as folder:
-            root=Path(folder).resolve();data=MarketData(root,{})
+            root=Path(folder).resolve(); initialize_sqlite(root);before=disk(root);data=MarketData(root,{})
             self.assertIsNone(data.read_index_calculations(INDICES[1].index_id,'a'*64,FORMULA_VERSION))
-            self.assertEqual(list(root.iterdir()),[])
+            self.assertEqual(disk(root),before)
         self.assertFalse(root.exists())
 
 

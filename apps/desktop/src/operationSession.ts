@@ -1,12 +1,14 @@
 /** 标签页公开操作记录。记录不授予连接权限；终态落盘并读回后才消除未决。 */
-export type Kind = 'index.series.update' | 'market.activity.update';
-export type Identity = { instance_id: string; config_id: string; request_id: string; operation: Kind; index_id?: string; series_id?: string;
+import type { EtfIdentity } from './etfFlowClient';
+type ExistingKind = 'index.series.update' | 'market.activity.update';
+export type Kind = ExistingKind | 'etf.flow.update';
+export type Identity = EtfIdentity | { instance_id: string; config_id: string; request_id: string; operation: ExistingKind; index_id?: string; series_id?: string;
   parameters?: { price_snapshot_id: string; expected_activity_id: string | null } | { anchor_date: string; expected_activity_id: string | null } };
 export type Scope = { endpoint: string; data_scope_id: string; operation: Kind; target: string };
 export type Terminal = 'completed' | 'failed' | 'interrupted' | 'rejected';
 type Settled = { identity: Identity; state: Terminal; source: 'local' | 'carried' };
 export type Book = { pending: Identity | null; history: Identity[]; settled: Settled[]; continuity_unverified: boolean };
-const kinds = ['index.series.update','market.activity.update'];
+const kinds = ['index.series.update','market.activity.update','etf.flow.update'];
 const ids = ['csi:000300:price','sse:000001:price','csi:000852:price','szse:399001:price','szse:399006:price','sse:000688:price'];
 const activities = ['sse:000001:price','szse:399001:price','szse:399006:price','sse:000688:price','cn-a-turnover','cn-a-turnover-sse-szse'];
 const digest = /^[a-f0-9]{64}$/;
@@ -23,6 +25,7 @@ function exact(value: unknown, keys: string[]): asserts value is Record<string, 
   if (!value || typeof value!=='object' || Array.isArray(value) || Object.keys(value).sort().join('|')!==[...keys].sort().join('|')) throw new Error('操作记录字段无效');
 }
 function targetValid(kind: Kind, target: string) {
+  if(kind==='etf.flow.update')return digest.test(target);
   return kind==='index.series.update' ? ids.includes(target) : activities.includes(target);
 }
 /** 严格校验公开作用域；读取存储只供展示，不据其端点建立连接。 */
@@ -35,10 +38,14 @@ export function validScope(value: unknown): Scope {
 }
 /** 身份包含完整目标／参数，不能把旧四元组猜成另一个指数或量额请求。 */
 export function validIdentity(value: unknown, scope: Scope): Identity {
-  const keys=['instance_id','config_id','request_id','operation',...(scope.operation==='index.series.update'?['index_id']:scope.operation==='market.activity.update'?['series_id','parameters']:[])];
+  const keys=['instance_id','config_id','request_id','operation',...(scope.operation==='index.series.update'?['index_id']:scope.operation==='market.activity.update'?['series_id','parameters']:scope.operation==='etf.flow.update'?['parameters']:[])];
   exact(value,keys);
   if (value.operation!==scope.operation || typeof value.instance_id!=='string' || !uuid.test(value.instance_id) || typeof value.config_id!=='string' || !digest.test(value.config_id)
-      || typeof value.request_id!=='string' || !(scope.operation==='market.activity.update'?/^[A-Za-z0-9_-]{1,80}$/:/^[A-Za-z0-9_-]{1,128}$/).test(value.request_id)) throw new Error('操作身份无效');
+      || typeof value.request_id!=='string' || !(scope.operation==='etf.flow.update'?/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/:scope.operation==='market.activity.update'?/^[A-Za-z0-9_-]{1,80}$/:/^[A-Za-z0-9_-]{1,128}$/).test(value.request_id)) throw new Error('操作身份无效');
+  if(scope.operation==='etf.flow.update'){
+    exact(value.parameters,['expected_snapshot_id','plan_id']);const p=value.parameters;
+    if(typeof p.plan_id!=='string' || !digest.test(p.plan_id) || (p.expected_snapshot_id!==null && (typeof p.expected_snapshot_id!=='string' || !digest.test(p.expected_snapshot_id))))throw new Error('ETF原计划或前提无效');
+  }
   if (scope.operation==='index.series.update' && value.index_id!==scope.target) throw new Error('指数目标不符');
   if (scope.operation==='market.activity.update') {
     if (value.series_id!==scope.target) throw new Error('量额目标不符');

@@ -18,17 +18,18 @@ from unittest.mock import patch
 from pmi.market_data import MarketData, ReadUnavailable, SnapshotError
 from pmi.service_config import ServiceConfig, digest
 from http_test_support import ReadClient, disk
+from sqlite_fixture import initialize
 
 REPO = Path(__file__).resolve().parents[2]
 CONFIG_IMPORTS = {('pmi.service','pmi.market_data.periodic_budget.PeriodicOptions'), ('pmi.service_config','pmi.market_data.periodic_budget.PeriodicOptions'), ('pmi.managed_config','pmi.market_data.periodic_budget.PeriodicOptions'), ('pmi.periodic_scheduler','pmi.market_data.index_history_calendar.SHANGHAI')}
-PUBLIC = {"MarketData", "ReadUnavailable", "SnapshotError", "ActivityError", "ActivityOptions", "ACTIVITY_SERIES", "ACTIVITY_MARKET"}
+PUBLIC = {"MarketData", "ReadUnavailable", "SnapshotError", "ActivityError", "ActivityOptions", "ACTIVITY_SERIES", "ACTIVITY_MARKET", "EtfOptions", "EtfError", "decode_etf_request", "etf_request_id", "PeriodicBudgetError", "StorageError"}
 OLD_MODULES = {"index_calendar", "index_contract", "index_snapshot", "index_update",
                "index_fetch", "read_only", "writer_lock", "snapshot", "data_update",
                "sina_slice", "source_fetch", "trading_calendar", "read_service"}
 # 两切片均已迁入；旧路径、逐符号暂留及共享内部导入均不再放行。
 # 非行情访问仅为安装包HTTP契约资源；同样固定到具体函数，不放行任意文件读取。
 # 固定到实际处理契约资源／受控配置／自有进程的函数；不能给任意金融I/O放行。
-RESOURCE_READS = {'pmi.http_boundary:Boundary.__init__': 'b9143671d6fc5a61b0e55cfe6bbd414b8ee3d607c37f54e289dabbb172144b13', 'pmi.http_contract:_validator': 'b0a872c5fd0ceadb81980d0210a33c426996352febf06fc25b924aa20eb806f0', 'pmi.http_contract:response_value': '28d4992762a4bc88b9ced915b94574151973fe8d431472f2c356b5f5b783f7f4', 'pmi.http_contract:verify_resources': '804cb0b0ac26d461f522a62dad63d63663af2173974674d267e9ea32860c6155', 'pmi.service_config:ServiceConfig.public_descriptor': '97ddc85e15ae64265409f0c88b5c7126e220ed80e6c52be1732834e428d80093', 'pmi.managed_runtime:main.register': 'eb3661cd75d8c3a3e2513b653bdb64a8e280cc25eb2beef944c69258c477fdaf', 'pmi.managed_config:unique': '843cf6d79e9eb1b5591e6ac83b6880fef4f87010edc6aae7913f446247395c1d', 'pmi.managed_config:location': '884b93371ae4a2d21edffe99a19cf7a6bd7542bd223cd3976796641ac1893397', 'pmi.managed_config:disjoint': 'e771f3e5b903be0540dccf7a9450cc4461951e7e2e5c0344d525c14272c19f01', 'pmi.managed_config:parse': 'b313a1fcccedc0d492ea24c7ab73a6dd0cdd6d4cc13706d5ff3c5d46145818fc', 'pmi.managed_config:service_arguments': '4abdb3da14f8af9d700c3ef1c93946825819bfaa9a91f29fb859b707d013d270', 'pmi.managed_runtime:members': '1ba0d43b09e6d236ec1b1a6d65ca463ea0e32f77202fc8b34e8055a8647f4bbd', 'pmi.managed_runtime:remove_tree': '326eeeeef74e166ed814a586d44af1680020f181daa2953e4a76aa3384973589', 'pmi.managed_runtime:main': '11317cbbf4e23ac686c591dc41c5276f3790fa28d109599b3f47eae0af1fcba6', 'pmi.managed_runtime:main.request': 'b71c7e235696a6137d38ed9c2c3ae3f2ed44c527d1178124e3ab5a36c9d07fe6', 'pmi.managed_runtime:main.wait_ready': '15f231276d38062d405a11e92e88059cc91487bcd62a425bd22a5220eb7a4cae', 'pmi.managed_runtime:main.read_record': '2b4e95018a1c7db49ec595f439ddd57e7933217eaf6aa62bae440a4acc0a8896', 'pmi.managed_runtime:main.service_ready': 'd77cae651c28623ae8cd4b9a2725169e3f2949972ddb08506dd17bcacbabec71', 'pmi.managed_runtime:main.browser_ready': 'd9ec23034c0332f16c06cdec9f1b93253ad105ac896304e1422bdb52d46c954f', 'pmi.managed_service:serve': '68dbcad61a2645f2ef4d140f6242958cbb0897d97d6de423234ed054006fe367', 'pmi.managed_service:serve.watch': '9e13b95c29ba680c8f29a28322df4fd5cba3cf995a5dc26170742e674d638457', 'pmi.service:main': '37f57a6aeb0349930e4660f3039868bf506a1ed4d6555ff123e4a3d7971fad1c'}
+RESOURCE_READS = {'pmi.http_boundary:Boundary.__init__': 'b9143671d6fc5a61b0e55cfe6bbd414b8ee3d607c37f54e289dabbb172144b13', 'pmi.http_contract:_validator': '58b51524010fe1f817eac199949e4cd86316d0d222ddfaf4f8b736bfdad69259', 'pmi.http_contract:response_value': 'c706667bd67b5d9a21dace969f7a517597f6c0e2ff1e492984142c6f98611e40', 'pmi.http_contract:verify_resources': 'a62b187d71ea3f7489fe83cc7f53cdb20d116eb286835f017ec3c2061e011af9', 'pmi.service_config:ServiceConfig.public_descriptor': '4ecfa1ecf2e7c812b815193a883bca07eebf7df1e4b33275c749184afd3d0bbe', 'pmi.managed_runtime:main.register': 'eb3661cd75d8c3a3e2513b653bdb64a8e280cc25eb2beef944c69258c477fdaf', 'pmi.managed_config:unique': '843cf6d79e9eb1b5591e6ac83b6880fef4f87010edc6aae7913f446247395c1d', 'pmi.managed_config:location': '884b93371ae4a2d21edffe99a19cf7a6bd7542bd223cd3976796641ac1893397', 'pmi.managed_config:disjoint': 'e771f3e5b903be0540dccf7a9450cc4461951e7e2e5c0344d525c14272c19f01', 'pmi.managed_config:parse': '25bc498f270faf560f66094ee8bc0de76d12e646699262dbc64cafebfccb8c30', 'pmi.managed_config:service_arguments': '0ebd84e44cd2e5531b686206926f97b1971c3ab07a4daf0801b40756d5e266aa', 'pmi.managed_runtime:members': '1ba0d43b09e6d236ec1b1a6d65ca463ea0e32f77202fc8b34e8055a8647f4bbd', 'pmi.managed_runtime:remove_tree': '326eeeeef74e166ed814a586d44af1680020f181daa2953e4a76aa3384973589', 'pmi.managed_runtime:main': '9f40caedeab1e9e0b470c163286c22940b9ba8f2bff3e483883aec05da0a4ca2', 'pmi.managed_runtime:main.request': 'b71c7e235696a6137d38ed9c2c3ae3f2ed44c527d1178124e3ab5a36c9d07fe6', 'pmi.managed_runtime:main.wait_ready': '15f231276d38062d405a11e92e88059cc91487bcd62a425bd22a5220eb7a4cae', 'pmi.managed_runtime:main.read_record': '2b4e95018a1c7db49ec595f439ddd57e7933217eaf6aa62bae440a4acc0a8896', 'pmi.managed_runtime:main.service_ready': 'd77cae651c28623ae8cd4b9a2725169e3f2949972ddb08506dd17bcacbabec71', 'pmi.managed_runtime:main.browser_ready': 'd9ec23034c0332f16c06cdec9f1b93253ad105ac896304e1422bdb52d46c954f', 'pmi.managed_service:serve': 'df8b115f92a25eeb230194701d174cde238748d71534475580c98650fb2c0ecf', 'pmi.managed_service:serve.watch': '9e13b95c29ba680c8f29a28322df4fd5cba3cf995a5dc26170742e674d638457', 'pmi.service:main': '31809b650966d6ec4ec87bc6c8e4d476e0f22bbd932a8523ef02698661c51fd0', 'pmi.http_contract.schema_graph:validator.build': '91526194d09e1a092343b829935ff3ee4067cbbc202875fef6eb1495f87569d4'}
 
 IO_NAMES = {"open", "fdopen", "read", "readinto", "readline", "readlines", "read_bytes", "read_text",
             "write", "writelines", "write_bytes", "write_text", "connect", "execute", "executemany",
@@ -123,6 +124,8 @@ def python_boundary(sources: dict[str, str]) -> dict:
                 issue(node, "数据层反向依赖上层")
             top = full.split('.')[0]
             approved = {"requests", "akshare", "py_mini_racer"} if data else {"fastapi", "starlette", "uvicorn", "pydantic", "jsonschema"}
+            # schema_graph沿用已锁定的Pydantic依赖，仅此模块可用其纯校验API。
+            if module == 'pmi.http_contract.schema_graph': approved.add('pydantic_core')
             if top not in sys.stdlib_module_names | approved | {"pmi", "__future__"}:
                 issue(node, "未登记的外部依赖，须判断是否绕过数据层")
             if not data and module != "pmi.storage" and top in {"sqlite3", "dbm", "shelve", "ctypes"}:
@@ -192,8 +195,9 @@ for (const [file, source] of Object.entries(input)) {
       const module = node.moduleSpecifier.text;
       const local = module.startsWith('./') && Object.keys(input).some(name => name === module.slice(2)+'.ts' || name === module.slice(2)+'.tsx');
       const contract = ['../../../contracts/generated/http','../../../contracts/generated/validators.mjs','../../../contracts/generated/manifest.json'].includes(module);
-      const style = file === 'main.tsx' && module === './styles.css' || file === 'ProductionOverview.tsx' && module === './overview.css';
-      const chart = file === 'OverviewCharts.tsx' && ['echarts/core','echarts/charts','echarts/components','echarts/renderers'].includes(module);
+      const etfStyle = file === 'EtfFlowPage.tsx' && ['./overview.css','./etfFlow.css'].includes(module);
+      const style = etfStyle || file === 'main.tsx' && module === './styles.css' || file === 'ProductionOverview.tsx' && module === './overview.css';
+      const chart = ['OverviewCharts.tsx','EtfFlowChart.tsx'].includes(file) && ['echarts/core','echarts/charts','echarts/components','echarts/renderers'].includes(module);
       if (!local && !contract && !style && !chart && !['react','react-dom/client'].includes(module)) issue(node, '未登记的浏览器依赖');
     }
     if (ts.isIdentifier(node) || ts.isStringLiteral(node)) {
@@ -207,7 +211,7 @@ for (const [file, source] of Object.entries(input)) {
         if (!recordCall && !recordLength && (file !== 'ManualUpdate.tsx' || !ts.isCallExpression(call) || !allowedSession.has(text))) issue(node, '操作身份以外的浏览器存储访问');
         else classified.push({file, line: tree.getLineAndCharacterOfPosition(node.getStart()).line+1, usage:'操作身份，不是行情缓存'});
       }
-      if (word === 'fetch' && !['apiClient.ts','indexSeriesClient.ts','activityClient.ts','browserHost.ts'].includes(file)) issue(node, '页面绕过公共Client');
+      if (word === 'fetch' && !['apiClient.ts','indexSeriesClient.ts','activityClient.ts','etfFlowClient.ts','browserHost.ts'].includes(file)) issue(node, '页面绕过公共Client');
     }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) issue(node, '动态导入无法证明边界');
     if (ts.isElementAccessExpression(node) && ['window','globalThis','self'].includes(node.expression.getText(tree))) issue(node, '动态全局能力访问无法证明边界');
@@ -245,8 +249,9 @@ class DataLayerBoundaryTests(unittest.TestCase):
         self.assertEqual(public, {'scope_id', 'check_location', 'check_write_paths',
                                  'read_daily', 'latest_date', 'read_evidence',
                                  'status', 'is_active', 'update', 'index_policy', 'index_catalog',
-                                 'resolve_index', 'read_index_range', 'read_index_calculations', 'close_updates', 'wait_updates',
-                                 'read_index_original', 'activity', 'activity_scope_id', 'activity_anchor_date', 'activity_market_anchors', 'periodic_status', 'periodic_check'})
+                                 'resolve_index', 'read_index_range', 'read_index_calculations', 'close_updates', 'wait_updates', 'storage_identity', 'storage_status', 'start_maintenance',
+                                 'market_versions', 'price_view', 'activity_view', 'read_index_view',
+                                 'read_index_original', 'activity', 'activity_scope_id', 'activity_anchor_date', 'activity_market_anchors', 'periodic_status', 'periodic_check', 'etf_flow'})
         self.assertIs(type(data.scope_id), str)
         self.assertRegex(data.scope_id, r'\A[0-9a-f]{64}\Z')
         # 新公开面只给身份/能力/预算，不把目录或数据库位置作为新出口。
@@ -257,7 +262,7 @@ class DataLayerBoundaryTests(unittest.TestCase):
 
     def test_public_scope_api_and_actual_config_consumer(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory).resolve()
+            root = Path(directory).resolve(); initialize(root)
             config = ServiceConfig(root, 18080, ('http://127.0.0.1:18081',))
             with ExitStack() as stack:
                 for target in ('builtins.open', 'pathlib.Path.open', 'pathlib.Path.mkdir',
@@ -273,24 +278,24 @@ class DataLayerBoundaryTests(unittest.TestCase):
             accesses = []
             class DigestOnly:
                 def __getattribute__(self, name):
-                    if name != 'scope_id':
+                    if name not in ('scope_id', 'storage_identity'):
                         raise AssertionError('上层索取存储内部信息: ' + name)
                     accesses.append(name)
                     return '1' * 64
             object.__setattr__(config, 'market_data', DigestOnly())
             expected_config = digest({'identity_format': 'wolf-config-v2', 'data_scope_id': '1' * 64,
                 'backend_authority': '127.0.0.1:18080',
-                'allowed_origins': ['http://127.0.0.1:18081'], 'contract_major': 2})
+                'allowed_origins': ['http://127.0.0.1:18081'], 'contract_major': 3, 'storage': '1'*64})
             self.assertEqual(config.data_scope_id, '1' * 64)
             self.assertEqual(config.config_id, expected_config)
             self.assertEqual(config.public_descriptor(),
                              {**descriptor, 'data_scope_id': '1' * 64, 'config_id': expected_config})
             self.assertTrue(accesses)
-            self.assertEqual(list(root.iterdir()), [])
+            self.assertTrue((root/'facts.sqlite').is_file())
 
     def test_scope_export_counterexamples(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory).resolve()
+            root = Path(directory).resolve(); initialize(root)
             exports = (
                 ('scope_mapping', {'slice': '.', 'index_000300': 'indices/csi000300'}),
                 ('renamed_layout', {'index_000300': root / 'indices/csi000300'}),

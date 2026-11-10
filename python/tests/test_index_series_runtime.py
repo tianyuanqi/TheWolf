@@ -20,8 +20,12 @@ from pmi.market_data.index_catalog import INDICES
 from pmi.market_data.index_history_calendar import complete_window
 from pmi.market_data.index_series_contract import build_manifest, digest, canonical
 from pmi.market_data.index_series_fetch import FetchInterrupted, NetworkBudget
-from pmi.market_data import index_series_store as store, index_series_update as update
-from pmi.market_data.writer_lock import writer_lock
+from pmi.market_data import index_series_update as update
+from pmi.market_data.storage import index_store as store
+from pmi.market_data.storage import Database, StorageError
+from pmi.market_data.storage.tasks import Task
+from pmi.market_data.storage.documents import Documents
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite
 from test_index_series_contract import NOW, WINDOW, originals, changed, change_east_price
 
 
@@ -40,59 +44,17 @@ def fixture_fetch(parent, index, source, window, job, **kwargs):
     return next(item for item in originals(index, window) if item.source == source)
 
 
-CRASH_CODE = r'''
-import os,sys
-from contextlib import contextmanager
-from pathlib import Path
-from unittest.mock import patch
-from pmi.market_data.index_catalog import get_index
-from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data import index_series_store as store
-from pmi.market_data.writer_lock import writer_lock
-from test_index_series_contract import WINDOW, originals
-from test_index_series_runtime import state
-root,index,mode=Path(sys.argv[1]),get_index(sys.argv[2]),sys.argv[3]
-items=originals(index,WINDOW,prices=('101.00','111.00','91.00','106.00'))
-base_connection=store.candidate_connection
-@contextmanager
-def connection(path):
-    with base_connection(path) as value:
-        if mode=='journal_hot': value.execute('PRAGMA cache_size=1')
-        yield value
-original_unlink=store.os.unlink
-original_new_file=store._new_file
-def copy_or_crash(path,content):
-    if mode=='copy_partial' and Path(path).name=='candidate.sqlite':
-        Path(path).write_bytes(content[:128])
-        os._exit(91)
-    return original_new_file(path,content)
-def unlink_or_crash(path,*args,**kwargs):
-    if mode=='object_link' and Path(path).name.startswith('.index-v2-pending-'): os._exit(87)
-    return original_unlink(path,*args,**kwargs)
-def checkpoint(stage):
-    if mode.startswith('journal') and stage=='before_commit': os._exit(86)
-    if mode=='database_link' and stage=='database_linked': os._exit(87)
-    if mode=='after_commit' and stage=='after_commit': os._exit(88)
-    if mode=='exit:'+stage: os._exit(90)
-with writer_lock(root):
-    store.prepare_directories(root,index)
-    prior=store.read_snapshot_locked(root,index)
-    pending={**state(index,'hard-crash'),'previous_snapshot_id':prior['snapshot_id'] if prior else None}
-    store.save_status(root,index,pending)
-    with patch.object(store,'candidate_connection',connection),patch.object(store.os,'unlink',unlink_or_crash),patch.object(store,'_new_file',copy_or_crash):
-        store.publish(root,index,WINDOW,build_manifest(index,WINDOW,items),items,pending,checkpoint)
-raise AssertionError('crash point missed')
-'''
-
-
 class StoreTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="wolf-series-store-test-")
         self.root = Path(self.temporary.name).resolve()
+        initialize_sqlite(self.root)
         self.index = INDICES[0]
+
 
     def tearDown(self):
         self.temporary.cleanup()
+
 
     def publish(self, index=None, items=None, job="test-job", window=WINDOW, checkpoint=None):
         index = index or self.index
@@ -102,13 +64,15 @@ class StoreTests(unittest.TestCase):
             return store.publish(self.root, index, window, build_manifest(index, window, items), items,
                                  {**state(index, job), "target_start": window.start, "target_end": window.end}, checkpoint)
 
+
     def test_empty_get_creates_nothing(self):
         before = files(self.root)
         self.assertIsNone(store.read_snapshot(self.root, self.index))
         self.assertEqual(store.read_status(self.root, self.index)["stage"], "idle")
-        self.assertFalse(store.has_database(self.root, self.index))
+        self.assertTrue(Database(self.root).exists)
         self.assertEqual(files(self.root), before)
-        self.assertEqual(list(self.root.iterdir()), [])
+        self.assertTrue((self.root/"facts.sqlite").is_file())
+
 
     def test_six_indices_replay_and_evidence_isolation(self):
         published = [self.publish(index, job=index.code) for index in INDICES]
@@ -128,6 +92,7 @@ class StoreTests(unittest.TestCase):
                 store.read_evidence(self.root, index, snapshot["snapshot_id"], other["snapshot_id"])
         self.assertEqual(before, files(self.root))
 
+
     def test_first_observation_stable_and_older_observation_cannot_revert_current(self):
         first = self.publish()
         later_items = tuple(replace(item, started_at="2026-10-28T02:00:00Z", completed_at="2026-10-28T02:00:01Z") for item in originals())
@@ -140,6 +105,7 @@ class StoreTests(unittest.TestCase):
         self.assertNotEqual(old["snapshot_id"], first["snapshot_id"])
         self.assertEqual(store.read_snapshot(self.root, self.index)["snapshot_id"], first["snapshot_id"])
         self.assertIsNotNone(store.read_snapshot(self.root, self.index, old["snapshot_id"]))
+
 
     def test_fractional_timestamps_order_by_instant_and_old_anchor_cannot_advance(self):
         first_items = tuple(replace(item, started_at="2026-10-28T01:00:00Z", completed_at="2026-10-28T01:00:00Z") for item in originals())
@@ -158,6 +124,7 @@ class StoreTests(unittest.TestCase):
         self.publish(index=index, items=older, job="old-anchor", window=earlier)
         self.assertEqual(store.read_snapshot(self.root, index)["snapshot_id"], latest["snapshot_id"])
 
+
     def test_job_replay_and_conflicting_job_rejected(self):
         first = self.publish()
         self.assertEqual(self.publish(), first)
@@ -165,6 +132,7 @@ class StoreTests(unittest.TestCase):
         with self.assertRaisesRegex(SnapshotError, "job_content_conflict"):
             self.publish(items=different)
         self.assertEqual(store.read_snapshot(self.root, self.index)["snapshot_id"], first["snapshot_id"])
+
 
     def test_before_commit_retains_current_after_commit_is_recoverable(self):
         first = self.publish()
@@ -188,6 +156,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(store.read_status(self.root, self.index), proof)
         self.assertEqual(store.read_snapshot(self.root, self.index)["snapshot_id"], proof["snapshot_id"])
 
+
     def test_first_failed_transaction_can_retry_and_reads_stay_pure(self):
         def failure(stage):
             if stage == "before_commit":
@@ -196,58 +165,9 @@ class StoreTests(unittest.TestCase):
             self.publish(checkpoint=failure)
         before = files(self.root)
         self.assertIsNone(store.read_snapshot(self.root, self.index))
-        self.assertFalse(store.has_database(self.root, self.index))
+        self.assertTrue(Database(self.root).exists)
         self.assertEqual(before, files(self.root))
         self.assertEqual(self.publish()["stage"], "completed")
-
-    def test_schema_initialization_failure_does_not_publish_half_database(self):
-        with patch.object(store, "_schema", side_effect=OSError("synthetic initialization interruption")):
-            with self.assertRaises(OSError):
-                self.publish()
-        self.assertFalse(store.has_database(self.root, self.index))
-        self.assertIsNone(store.read_snapshot(self.root, self.index))
-        self.assertEqual(self.publish()["stage"], "completed")
-
-    def test_copied_database_wrong_index_and_damaged_objects_fail_closed(self):
-        committed = self.publish()
-        other = INDICES[1]
-        with writer_lock(self.root):
-            target = store.prepare_directories(self.root, other)
-            shutil.copyfile(store.index_root(self.root, self.index) / "index-v2.sqlite", target / "index-v2.sqlite")
-        with self.assertRaisesRegex(SnapshotError, "wrong_database_index"):
-            store.read_snapshot(self.root, other)
-        obj = store.index_root(self.root, self.index) / "objects" / committed["snapshot_id"]
-        obj.write_bytes(b"corrupt synthetic object")
-        with self.assertRaisesRegex(SnapshotError, "object_hash_mismatch"):
-            store.read_snapshot(self.root, self.index)
-        with writer_lock(self.root), self.assertRaises(SnapshotError):
-            store.write_object(store.index_root(self.root, self.index), canonical(build_manifest(self.index, WINDOW, originals())))
-
-    def test_sidecars_symlinks_special_files_and_parent_lock(self):
-        self.publish()
-        root = store.index_root(self.root, self.index)
-        for name in ("index-v2.sqlite-wal", "index-v2.sqlite-shm", "index-v2.sqlite-journal"):
-            path = root / name
-            path.write_bytes(b"unrecovered")
-            with self.assertRaises(ReadUnavailable):
-                store.read_snapshot(self.root, self.index)
-            path.unlink()
-        with writer_lock(self.root), self.assertRaises(ReadUnavailable):
-            store.read_snapshot(self.root, self.index)
-        path = root / "update-v2-status.json"
-        path.symlink_to(root / "index-v2.sqlite")
-        with self.assertRaises(ReadUnavailable):
-            store.read_status(self.root, self.index)
-
-    def test_current_observation_corruption_detected_without_writes(self):
-        self.publish()
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        with sqlite3.connect(path) as connection:
-            connection.execute("UPDATE current_snapshot SET observation_id=?", ("0" * 64,))
-        before = files(self.root)
-        with self.assertRaises(SnapshotError):
-            store.read_snapshot(self.root, self.index)
-        self.assertEqual(before, files(self.root))
 
 
 class UpdateTests(unittest.TestCase):
@@ -289,14 +209,16 @@ class UpdateTests(unittest.TestCase):
         bad = changed(originals(), 1, lambda body: change_east_price(body, 0, 2, "106.00"))
         def fetch(parent, index, source, window, job, **kwargs):
             return next(item for item in bad if item.source == source)
-        self.start(fetch=fetch)
+        initial = self.start(fetch=fetch)
         self.assertTrue(self.runtime.wait(5))
         result = store.read_status(self.root, self.index)
         self.assertEqual(result["stage"], "failed")
         self.assertEqual(len(result["differences"]), 1)
         self.assertEqual(store.read_snapshot(self.root, self.index)["snapshot_id"], first["snapshot_id"])
         root = store.index_root(self.root, self.index)
-        self.assertEqual(len((root / "index-v2-original-observations.jsonl").read_text().splitlines()), 2)
+        with Database(root).read() as connection:
+            records = [Documents(connection).get(row[0]) for row in connection.execute("SELECT metadata FROM source_observation")]
+            self.assertEqual(sum(record.get("job_id")==initial["job_id"] for record in records), 2)
         self.assertTrue((root / "objects" / digest(bad[1].content)).exists())
 
     def test_source_not_ready_retains_current(self):
@@ -304,7 +226,7 @@ class UpdateTests(unittest.TestCase):
         short = changed(originals(), 1, lambda body: body["data"]["klines"].pop())
         def fetch(parent, index, source, window, job, **kwargs):
             return next(item for item in short if item.source == source)
-        self.start(fetch=fetch)
+        initial = self.start(fetch=fetch)
         self.assertTrue(self.runtime.wait(5))
         final = store.read_status(self.root, self.index)
         self.assertEqual((final["stage"], final["result"]), ("completed", "source_not_ready"))
@@ -322,12 +244,10 @@ class UpdateTests(unittest.TestCase):
             active = store.read_status(self.root, self.index)
             self.assertEqual(active["job_id"], initial["job_id"])
             self.assertIn(active["stage"], update.ACTIVE)
-            with self.assertRaises(ReadUnavailable):
-                store.read_status(self.root, INDICES[1])
-            with self.assertRaisesRegex(SnapshotError, "writer_busy"):
+            self.assertEqual(store.read_status(self.root, INDICES[1])["stage"], "idle")
+            with self.assertRaisesRegex((SnapshotError, StorageError), "writer_busy"):
                 update.start_update(self.root, INDICES[1], WINDOW, budget=NetworkBudget(), runtime=update.Runtime(), fetch=fixture_fetch)
-            with self.assertRaises(ReadUnavailable):
-                store.read_snapshot(self.root, self.index)
+            self.assertIsNone(store.read_snapshot(self.root, self.index))
         finally:
             release.set()
         self.assertTrue(self.runtime.wait(5))
@@ -339,8 +259,8 @@ class UpdateTests(unittest.TestCase):
         before = files(self.root)
         self.assertEqual(store.read_status(self.root, self.index)["stage"], "interrupted")
         self.assertEqual(before, files(self.root))
-        with writer_lock(self.root), self.assertRaises(ReadUnavailable):
-            store.read_status(self.root, self.index)
+        with writer_lock(self.root):
+            self.assertEqual(store.read_status(self.root, self.index)["stage"], "interrupted")
 
     def test_commit_status_write_failure_recovered_without_false_failure(self):
         def crash(stage):
@@ -399,6 +319,7 @@ class UpdateTests(unittest.TestCase):
             self.assertTrue(entered.wait(2))
             self.assertFalse(self.runtime.wait(.01))
             self.assertFalse(self.runtime.stop.is_set())
+            initialize_sqlite(Path(other_dir.name).resolve())
             update.start_update(Path(other_dir.name).resolve(), self.index, WINDOW, budget=NetworkBudget(), runtime=other_runtime, fetch=fixture_fetch)
             self.assertTrue(self.runtime.close(5))
             self.assertFalse(other_runtime.stop.is_set())
@@ -456,387 +377,118 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(store.read_snapshot(self.root, self.index), first)
 
 
-class RecoveryTests(unittest.TestCase):
-    """真实退出只发生在隔离候选，正式 sidecar 反例始终保留拒绝。"""
-    publish = StoreTests.publish
-    setUp = UpdateTests.setUp
-    tearDown = UpdateTests.tearDown
-    start = UpdateTests.start
 
-    def crash(self, mode, root=None, index=None):
-        completed = subprocess.run([sys.executable, "-B", "-c", CRASH_CODE, str(root or self.root),
-                                    (index or self.index).index_id, mode], capture_output=True, timeout=40, check=False)
-        expected = 86 if mode.startswith("journal") else 88 if mode == "after_commit" else 90 if mode.startswith("exit:") else 91 if mode == "copy_partial" else 87
-        self.assertEqual(completed.returncode, expected, completed.stderr.decode(errors="replace"))
-
-    def fingerprint(self, root=None):
-        root = root or self.root
-        return {str(path.relative_to(root)): (digest(path.read_bytes()), path.stat().st_dev, path.stat().st_ino,
-                                             path.stat().st_size, path.stat().st_mtime_ns, path.stat().st_ctime_ns)
-                for path in root.rglob("*") if path.is_file()}
-
-    def stages(self, root=None, index=None):
-        return list(store.index_root(root or self.root, index or self.index).glob(".index-v2-stage-*"))
-
-    def test_candidate_crashes_never_publish_or_modify_old_database(self):
-        parent = self.root
-        modes = ("copy_partial", "exit:candidate_copied", "exit:candidate_started", "journal_cold", "journal_hot",
-                 "exit:candidate_committed", "exit:candidate_synced", "exit:publication_synced", "exit:before_publish")
-        for mode in modes:
-            with self.subTest(mode=mode):
-                self.root = parent / mode.replace(":", "-")
-                self.root.mkdir()
-                baseline = self.publish()
-                fixed = store.read_snapshot(self.root, self.index)
-                path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-                before = (path.read_bytes(), path.stat().st_ino, path.stat().st_mtime_ns, path.stat().st_ctime_ns)
-                self.crash(mode)
-                self.assertEqual((path.read_bytes(), path.stat().st_ino, path.stat().st_mtime_ns, path.stat().st_ctime_ns), before)
-                self.assertEqual(store.read_snapshot(self.root, self.index), fixed)
-                with writer_lock(self.root):
-                    self.assertIsNone(store.committed_job_locked(self.root, self.index, "hard-crash"))
-                    self.assertEqual(store.committed_job_locked(self.root, self.index, "test-job"), baseline)
-                self.assertFalse(list(path.parent.glob("index-v2.sqlite-*")))
-                residue = self.fingerprint(self.stages()[0])
-                with writer_lock(self.root):
-                    store.recover_locked(self.root, self.index)
-                self.assertEqual(self.fingerprint(self.stages()[0]), residue)
-
-    def test_first_unpublished_candidate_is_not_promoted(self):
-        self.crash("exit:publication_synced")
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        self.assertFalse(path.exists())
-        before = self.fingerprint()
-        with writer_lock(self.root):
-            store.recover_locked(self.root, self.index)
-        self.assertEqual(self.fingerprint(), before)
-        self.assertIsNone(store.read_snapshot(self.root, self.index))
-        self.start()
-        self.assertTrue(self.runtime.wait(20))
-        self.assertEqual(store.read_status(self.root, self.index)["stage"], "completed")
-        self.assertTrue(self.stages())  # 旧候选仍保留，没有被提升或删除。
-
-    def test_actual_published_crashes_keep_complete_job_and_all_old_references(self):
-        parent = self.root
-        for mode in ("exit:database_replaced", "exit:directory_synced", "exit:after_publish", "after_commit"):
-            with self.subTest(mode=mode):
-                self.root = parent / mode.replace(":", "-")
-                self.root.mkdir()
-                old = self.publish()
-                fixed = store.read_snapshot(self.root, self.index)
-                before_inode = (store.index_root(self.root, self.index) / "index-v2.sqlite").stat().st_ino
-                self.crash(mode)
-                self.assertNotEqual(before_inode, (store.index_root(self.root, self.index) / "index-v2.sqlite").stat().st_ino)
-                final = store.read_status(self.root, self.index)
-                self.assertEqual((final["job_id"], final["stage"]), ("hard-crash", "completed"))
-                self.assertEqual(store.read_snapshot(self.root, self.index, old["snapshot_id"]), fixed)
-                before = self.fingerprint()
-                with writer_lock(self.root):
-                    store.recover_locked(self.root, self.index)
-                self.assertEqual(self.fingerprint(), before)
-
-    def test_first_completed_database_two_links_recover_and_only_missing_skips_through_facade(self):
-        self.crash("database_link")
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        self.assertEqual(path.stat().st_nlink, 2)
-        database_bytes = path.read_bytes()
-        with self.assertRaises(ReadUnavailable):
-            store.read_snapshot(self.root, self.index)
-        market = MarketData(self.root, {self.index.index_id: True})
-        try:
-            with patch("pmi.market_data.datetime") as clock, patch.object(update, "fetch_bounded") as fetch:
-                clock.now.return_value = NOW
-                result = market.update(self.index.index_id, only_missing=True)
-                self.assertEqual(result, {"index_id": self.index.index_id, "stage": "completed", "result": "already_covered"})
-                fetch.assert_not_called()
-            self.assertEqual(path.stat().st_nlink, 1)
-            self.assertEqual(path.read_bytes(), database_bytes)
-            self.assertEqual(market.status(self.index.index_id)["job_id"], "hard-crash")
-            before = self.fingerprint()
-            with patch("pmi.market_data.datetime") as clock, patch.object(update, "fetch_bounded") as fetch:
-                clock.now.return_value = NOW
-                market.update(self.index.index_id, only_missing=True)
-                fetch.assert_not_called()
-            self.assertEqual(self.fingerprint(), before)
-        finally:
-            self.assertTrue(market.close_updates(20))
-
-    def test_first_link_recovery_real_exit_can_be_retried(self):
-        self.crash("database_link")
-        code = r'''
-import os,sys
+CRASH_CODE = r"""
+import os, sys
 from pathlib import Path
-from unittest.mock import patch
+from pmi.market_data.storage import Database, index_store as store
 from pmi.market_data.index_catalog import get_index
-from pmi.market_data import index_series_store as store
-from pmi.market_data.writer_lock import writer_lock
-root,index=Path(sys.argv[1]),get_index(sys.argv[2])
-original=store.os.unlink
-def crash(path,*args,**kwargs):
-    if Path(path).name=='candidate.sqlite': os._exit(89)
-    return original(path,*args,**kwargs)
-with writer_lock(root),patch.object(store.os,'unlink',crash): store.recover_locked(root,index)
-'''
-        child = subprocess.run([sys.executable, "-B", "-c", code, str(self.root), self.index.index_id], capture_output=True, timeout=30)
-        self.assertEqual(child.returncode, 89, child.stderr)
-        with writer_lock(self.root):
-            store.recover_locked(self.root, self.index)
-        self.assertEqual(store.read_status(self.root, self.index)["job_id"], "hard-crash")
+from pmi.market_data.index_series_contract import build_manifest
+from test_index_series_contract import WINDOW, originals
+from test_index_series_runtime import state
+root, mode = Path(sys.argv[1]), sys.argv[2]
+index=get_index('csi:000300:price')
+items=originals(index,WINDOW,prices=('101.00','111.00','91.00','106.00'))
+database=Database(root)
+def checkpoint(stage):
+    if stage==mode: os._exit(86)
+with database.writer() as connection:
+    connection.execute('PRAGMA cache_size=1')
+    store.save_status(root,index,state(index,'hard-crash'))
+    store.publish(root,index,WINDOW,build_manifest(index,WINDOW,items),items,state(index,'hard-crash'),checkpoint)
+raise AssertionError('crash point missed')
+"""
 
-    def test_first_link_rejects_tampered_receipts_external_and_third_links(self):
-        parent = self.root
-        for mode in ("hash", "job", "location", "missing", "extra", "external"):
-            with self.subTest(mode=mode):
-                self.root = parent / mode
-                self.root.mkdir()
-                self.crash("database_link")
-                path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-                stage = self.stages()[0]
-                proof = stage / "publication.json"
-                if mode in {"hash", "job", "location"}:
-                    value = json.loads(proof.read_text())
-                    if mode == "hash": value["candidate_sha256"] = "0" * 64
-                    elif mode == "job": value["completed_state"]["job_id"] = "other-job"
-                    else: value["stage_location"]["inode"] += 1
-                    value.pop("record_sha256")
-                    value["record_sha256"] = digest(canonical(value))
-                    proof.write_bytes(canonical(value))
-                elif mode == "missing": proof.unlink()
-                elif mode == "extra": (self.root / "third").hardlink_to(path)
-                else:
-                    (self.root / "outside").hardlink_to(path)
-                    (stage / "candidate.sqlite").unlink()
-                before = self.fingerprint()
-                with writer_lock(self.root), self.assertRaises((ReadUnavailable, SnapshotError)):
-                    store.recover_locked(self.root, self.index)
-                self.assertEqual(self.fingerprint(), before)
 
-    def test_original_sidecars_all_reject_before_any_mutation_in_actual_facade(self):
+class RecoveryTests(unittest.TestCase):
+    """实际进程退出验证单库事务；恢复用已核备份，新格式不重用旧文件替换协议。"""
+    setUp = StoreTests.setUp
+    tearDown = StoreTests.tearDown
+    publish = StoreTests.publish
+
+    def test_actual_exit_before_and_after_commit_and_backup_restore(self):
+        import os
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'tools/migrations'))
+        from backup_sqlite import backup
+        with tempfile.TemporaryDirectory(prefix='wolf-sql-crash-',dir='/private/tmp') as parent:
+            base=Path(parent)
+            for existing in (False,True):
+                for phase in ('objects_written','candidate_started','before_commit','after_commit'):
+                    with self.subTest(existing=existing,phase=phase):
+                        case=base/(str(existing)+'-'+phase);case.mkdir()
+                        root=case/'data';root.mkdir();initialize_sqlite(root)
+                        prior=None
+                        if existing:
+                            with writer_lock(root):
+                                items=originals(self.index,WINDOW)
+                                store.publish(root,self.index,WINDOW,build_manifest(self.index,WINDOW,items),items,state(self.index))
+                            prior=store.read_snapshot(root,self.index)
+                        saved=case/'backup';backup(root,saved)
+                        child=subprocess.run([sys.executable,'-B','-c',CRASH_CODE,str(root),phase],capture_output=True,text=True,
+                            env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'},timeout=25)
+                        self.assertEqual(child.returncode,86,child.stderr)
+                        before=files(root)
+                        if phase=='before_commit':
+                            self.assertTrue((root/'facts.sqlite-journal').exists())
+                            with self.assertRaisesRegex(StorageError,'recovery_required'):
+                                store.read_snapshot(root,self.index)
+                            with self.assertRaisesRegex(StorageError,'recovery_required'):
+                                with Database(root).writer():pass
+                        else:
+                            actual=store.read_snapshot(root,self.index)
+                            if phase=='after_commit':
+                                self.assertIsNotNone(actual)
+                                self.assertEqual(store.read_status(root,self.index)['job_id'],'hard-crash')
+                                if prior:self.assertEqual(store.read_snapshot(root,self.index,prior['snapshot_id']),prior)
+                            else:self.assertEqual(actual,prior)
+                        self.assertEqual(files(root),before)
+                        restored=case/'restored';receipt=backup(saved,restored)
+                        self.assertTrue(receipt['passed'])
+                        self.assertEqual(store.read_snapshot(restored,self.index),prior)
+
+    def test_all_sidecars_reject_before_read_or_write(self):
         self.publish()
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        market = MarketData(self.root, {self.index.index_id: True})
+        for suffix in ('-journal','-wal','-shm'):
+            path=self.root/('facts.sqlite'+suffix);path.write_bytes(b'unrecovered synthetic journal')
+            try:
+                before=files(self.root)
+                with self.assertRaisesRegex(StorageError,'recovery_required'):store.read_snapshot(self.root,self.index)
+                with self.assertRaisesRegex(StorageError,'recovery_required'):
+                    with Database(self.root).writer():pass
+                self.assertEqual(files(self.root),before)
+            finally:path.unlink()
+
+    def test_current_observation_wrong_series_and_missing_reference_reject(self):
+        first=self.publish();second=self.publish(index=INDICES[1],job='second')
+        database=Database(self.root);saved=database.path.read_bytes()
         try:
-            for suffix in ("-journal", "-wal", "-shm"):
-                for content in (b"", b"unknown original journal"):
-                    with self.subTest(suffix=suffix, content=content):
-                        auxiliary = Path(str(path) + suffix)
-                        auxiliary.write_bytes(content)
-                        before = self.fingerprint()
-                        with patch("pmi.market_data.datetime") as clock, patch.object(update, "fetch_bounded") as fetch:
-                            clock.now.return_value = NOW
-                            with self.assertRaises(ReadUnavailable): market.update(self.index.index_id, only_missing=True)
-                            fetch.assert_not_called()
-                        with self.assertRaises(ReadUnavailable): market.read_daily(self.index.index_id)
-                        self.assertEqual(self.fingerprint(), before)
-                        auxiliary.unlink()
-        finally:
-            self.assertTrue(market.close_updates(20))
+            for reference in ('0'*64,second['observation_id']):
+                with sqlite3.connect(database.path) as connection:
+                    connection.execute("UPDATE current_publication SET observation_id=? WHERE domain_id='price-v2' AND subject=?",(reference,self.index.index_id))
+                before=files(self.root)
+                with self.assertRaises(SnapshotError):store.read_snapshot(self.root,self.index)
+                self.assertEqual(files(self.root),before)
+                database.path.write_bytes(saved)
+        finally:database.path.write_bytes(saved)
+        self.assertEqual(store.read_snapshot(self.root,self.index)['snapshot_id'],first['snapshot_id'])
 
-    def test_wrong_index_and_same_index_old_journal_never_remove_committed_rows(self):
-        self.publish()
-        self.crash("after_commit")  # 已提交 job，外部状态仍 publishing；AP1-01。
-        fixed = store.read_snapshot(self.root, self.index)
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        for index in (self.index, INDICES[1]):
-            with self.subTest(index=index.index_id), tempfile.TemporaryDirectory(dir=self.root) as directory:
-                other = Path(directory)
-                with writer_lock(other):
-                    store.prepare_directories(other, index)
-                    items = originals(index)
-                    store.publish(other, index, WINDOW, build_manifest(index, WINDOW, items), items, state(index))
-                self.crash("journal_hot", root=other, index=index)
-                stages = self.stages(other, index)
-                journal = stages[0] / "candidate.sqlite-journal"
-                self.assertGreater(journal.stat().st_size, 512)
-                auxiliary = Path(str(path) + "-journal")
-                shutil.copyfile(journal, auxiliary)
-                before = self.fingerprint()
-                with self.assertRaises(ReadUnavailable): self.start()
-                self.assertEqual(self.fingerprint(), before)
-                auxiliary.unlink()
-                self.assertEqual(store.read_snapshot(self.root, self.index, fixed["snapshot_id"]), fixed)
-                with writer_lock(self.root):
-                    self.assertIsNotNone(store.committed_job_locked(self.root, self.index, "hard-crash"))
-
-    def test_object_link_real_exit_and_legacy_empty_database_link_compatibility(self):
-        self.crash("object_link")
-        with writer_lock(self.root): store.recover_locked(self.root, self.index)
-        self.start()
-        self.assertTrue(self.runtime.wait(20))
-        self.assertEqual(store.read_status(self.root, self.index)["stage"], "completed")
-        other = INDICES[1]
-        with writer_lock(self.root):
-            root = store.prepare_directories(self.root, other)
-            pending = root / ".index-v2-db-pending-abcdefgh"
-            with sqlite3.connect(pending) as connection: store._schema(connection, other)
-            (root / "index-v2.sqlite").hardlink_to(pending)
-            store.recover_locked(self.root, other)
-        self.assertIsNone(store.read_snapshot(self.root, other))
-        self.assertFalse(pending.exists())
-
-    def test_candidate_full_history_and_current_tampering_never_publishes(self):
-        self.publish()
-        later = tuple(replace(item, started_at="2026-10-28T02:00:00Z", completed_at="2026-10-28T02:00:01Z") for item in originals())
-        self.publish(items=later, job="same-content-later")
-        self.publish(items=originals(prices=("102.00", "112.00", "92.00", "107.00")), job="noncurrent")
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        before = path.read_bytes()
-        for mode in ("old_job", "old_snapshot", "current", "observation"):
-            with self.subTest(mode=mode):
-                def tamper(point):
-                    if point != "candidate_synced": return
-                    candidate = self.stages()[0] / "candidate.sqlite"
-                    with sqlite3.connect(candidate) as connection:
-                        if mode == "old_job": connection.execute("DELETE FROM committed_jobs WHERE job_id='test-job'")
-                        elif mode == "old_snapshot": connection.execute("UPDATE snapshots SET anchor_date='2000-01-01' WHERE id=(SELECT snapshot_id FROM committed_jobs WHERE job_id='noncurrent')")
-                        elif mode == "current": connection.execute("UPDATE current_snapshot SET snapshot_id=(SELECT snapshot_id FROM committed_jobs WHERE job_id='noncurrent'),observation_id=(SELECT json_extract(state,'$.observation_id') FROM committed_jobs WHERE job_id='noncurrent')")
-                        else: connection.execute("UPDATE current_snapshot SET observation_id=(SELECT first_observation FROM snapshots WHERE id=current_snapshot.snapshot_id)")
-                with self.assertRaises((SnapshotError, ReadUnavailable)):
-                    self.publish(job="candidate-" + mode, checkpoint=tamper)
-                self.assertEqual(path.read_bytes(), before)
-                self.assertEqual(self.stages(), [])
-
-    def test_published_sync_or_identity_failure_is_unknown_and_preserves_stage(self):
-        parent = self.root
-        for mode in ("directory_fsync", "identity"):
-            with self.subTest(mode=mode):
-                self.root = parent / mode
-                self.root.mkdir()
-                self.publish()
-                notifications, unknown = [], []
-                target = store.index_root(self.root, self.index)
-                original_sync = store.sync_directory
-                publication_started = [False]
-                def checkpoint(point):
-                    if point == "database_replaced":
-                        publication_started[0] = True
-                        if mode == "identity": raise ReadUnavailable("synthetic final identity uncertain")
-                def sync(path):
-                    if mode == "directory_fsync" and publication_started[0] and path == target:
-                        raise OSError("synthetic fsync failure")
-                    return original_sync(path)
-                with patch.object(store, "sync_directory", sync):
-                    initial = self.start(checkpoint=checkpoint, notify=notifications.append, uncertain=unknown.append)
-                    self.assertTrue(self.runtime.wait(20))
-                self.assertEqual(unknown, [initial["job_id"]])
-                self.assertFalse(any(item["stage"] == "completed" for item in notifications))
-                self.assertEqual(store.raw_status(self.root, self.index)["stage"], "publishing")
-                self.assertEqual(store.read_status(self.root, self.index)["job_id"], initial["job_id"])
-                stage = self.stages()[0]
-                self.assertTrue((stage / "before.sqlite").is_file())
-                self.assertTrue((stage / "publication.json").is_file())
-
-    def test_unpublished_failures_keep_original_and_clean_own_stage(self):
-        self.publish()
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        before = path.read_bytes()
-        for method in ("_new_file", "_sync_file", "_validate_publication", "os.replace"):
-            with self.subTest(method=method):
-                owner, name = (store.os, "replace") if method == "os.replace" else (store, method)
-                with patch.object(owner, name, side_effect=OSError("synthetic failure")), self.assertRaises(OSError):
-                    self.publish(job=method)
-                self.assertEqual(path.read_bytes(), before)
-                self.assertEqual(self.stages(), [])
-
-    def test_legitimate_inode_replacement_preserves_same_facade_guard_and_read(self):
-        market = MarketData(self.root, {self.index.index_id: True})
+    def test_database_inode_or_root_replacement_rejects_frozen_facade(self):
+        self.publish();data=MarketData(self.root,{})
+        original=self.root/'facts.sqlite';saved=self.root/'saved.sqlite'
         try:
-            with patch("pmi.market_data.datetime") as clock, patch.object(update, "fetch_bounded", fixture_fetch):
-                clock.now.return_value = NOW
-                market.update(self.index.index_id)
-                self.assertTrue(market.wait_updates(20))
-                path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-                old_inode = path.stat().st_ino
-                old = market.read_daily(self.index.index_id)
-                market.update(self.index.index_id)
-                self.assertTrue(market.wait_updates(20))
-                self.assertNotEqual(path.stat().st_ino, old_inode)
-                market.check_location()
-                self.assertEqual(market.read_daily(self.index.index_id), old)
-        finally:
-            self.assertTrue(market.close_updates(20))
+            saved.write_bytes(original.read_bytes());saved.replace(original)
+            with self.assertRaises(StorageError):data.read_daily(self.index.index_id)
+        finally:data.close_updates()
 
-    def test_first_publish_unlink_failure_unknown_then_strict_recovery(self):
-        notifications, unknown = [], []
-        original_unlink = store.os.unlink
-        def fail_candidate(path, *args, **kwargs):
-            if Path(path).name == "candidate.sqlite":
-                raise OSError("synthetic unlink failure after link")
-            return original_unlink(path, *args, **kwargs)
-        with patch.object(store.os, "unlink", fail_candidate):
-            initial = self.start(notify=notifications.append, uncertain=unknown.append)
-            self.assertTrue(self.runtime.wait(20))
-        self.assertEqual(unknown, [initial["job_id"]])
-        self.assertFalse(any(item["stage"] == "completed" for item in notifications))
-        final = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        self.assertEqual(final.stat().st_nlink, 2)
-        before = final.read_bytes()
-        with patch.object(update, "fetch_bounded") as fetch:
-            result = self.start(only_missing=True)
-            fetch.assert_not_called()
-        self.assertEqual(result["result"], "already_covered")
-        self.assertEqual(final.stat().st_nlink, 1)
-        self.assertEqual(final.read_bytes(), before)
-
-    def test_first_unlinked_crashes_publish_complete_database(self):
-        parent = self.root
-        for point in ("database_unlinked", "directory_synced"):
-            with self.subTest(point=point):
-                self.root = parent / point
-                self.root.mkdir()
-                self.crash("exit:" + point)
-                path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-                self.assertEqual(path.stat().st_nlink, 1)
-                self.assertEqual(store.read_status(self.root, self.index)["job_id"], "hard-crash")
-
-    def test_first_publish_no_clobber_and_link_failure(self):
-        path = store.index_root(self.root, self.index) / "index-v2.sqlite"
-        def race(point):
-            if point == "before_publish": path.write_bytes(b"external sentinel")
-        with self.assertRaises(FileExistsError): self.publish(checkpoint=race)
-        self.assertEqual(path.read_bytes(), b"external sentinel")
-        self.assertEqual(self.stages(), [])
-        path.unlink()  # 测试自身注入的文件。
-        link = store.os.link
-        def fail(source, target, **kwargs):
-            if Path(target).name == "index-v2.sqlite": raise OSError("synthetic link failure")
-            return link(source, target, **kwargs)
-        with patch.object(store.os, "link", fail), self.assertRaises(OSError): self.publish()
-        self.assertFalse(path.exists())
-        self.assertEqual(self.stages(), [])
-
-    def test_prepublication_tampering_rejected_without_replacing_formal_database(self):
-        parent = self.root
-        for mode in ("candidate_symlink", "receipt", "backup", "directory", "original_inode"):
-            with self.subTest(mode=mode):
-                self.root = parent / mode
-                self.root.mkdir()
-                self.publish()
-                final = store.index_root(self.root, self.index) / "index-v2.sqlite"
-                before, before_inode = final.read_bytes(), final.stat().st_ino
-                injected_inode = []
-                def tamper(point):
-                    if point != "before_publish": return
-                    stage = self.stages()[0]
-                    if mode == "candidate_symlink":
-                        (stage / "candidate.sqlite").unlink()
-                        (stage / "candidate.sqlite").symlink_to(final)
-                    elif mode == "receipt": (stage / "publication.json").write_bytes(b"{}")
-                    elif mode == "backup": (stage / "before.sqlite").write_bytes(b"changed")
-                    elif mode == "directory":
-                        moved = stage.with_name(stage.name + "-moved")
-                        stage.rename(moved)
-                        stage.mkdir()
-                    else:
-                        replacement = self.root / "external-replacement.sqlite"
-                        replacement.write_bytes(before)
-                        replacement.replace(final)
-                        injected_inode.append(final.stat().st_ino)
-                with self.assertRaises((ReadUnavailable, SnapshotError)):
-                    self.publish(job="new", checkpoint=tamper)
-                self.assertEqual(final.read_bytes(), before)
-                self.assertEqual(final.stat().st_ino, injected_inode[0] if injected_inode else before_inode)
+    def test_schema_failure_never_implicitly_initializes_or_promotes(self):
+        from pmi.market_data.storage import schema
+        with tempfile.TemporaryDirectory(prefix='wolf-init-fail-',dir='/private/tmp') as directory:
+            root=Path(directory);database=Database(root)
+            with patch.object(schema,'SCHEMA',schema.SCHEMA+'INVALID SQL;'),self.assertRaises(sqlite3.Error):database.initialize()
+            before=files(root)
+            with self.assertRaises(StorageError):MarketData(root,{})
+            self.assertEqual(files(root),before)
+            with self.assertRaises(StorageError):Database(root).initialize()
 
 
-if __name__ == "__main__":
-    unittest.main()
+if __name__=='__main__':unittest.main()

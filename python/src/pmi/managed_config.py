@@ -40,7 +40,7 @@ def parse(raw: str, repo: Path) -> tuple[dict, ServiceConfig, Path]:
     """冻结显式设置，返回服务配置和安全运行基目录；失败无持久副作用。"""
     value = json.loads(raw, object_pairs_hook=unique, parse_constant=lambda _: (_ for _ in ()).throw(ValueError('非法数值')))
     required = {'python', 'data_root', 'service_port', 'browser_port', 'runtime_base'}
-    if not isinstance(value, dict) or not required <= value.keys() or value.keys() - required - {'index', 'activity', 'periodic'}:
+    if not isinstance(value, dict) or not required <= value.keys() or value.keys() - required - {'index', 'activity', 'periodic', 'etf_flow'}:
         raise ValueError('配置字段不完整或含未知字段')
     executable = value['python']
     if not isinstance(executable, str) or not Path(executable).is_absolute() or not Path(executable).is_file() or not os.access(executable, os.X_OK):
@@ -72,6 +72,20 @@ def parse(raw: str, repo: Path) -> tuple[dict, ServiceConfig, Path]:
             protected.append(ledger.parent)
         activity = ActivityOptions(activity_root, tuple(act['write_series']), tuple(tuple(x) for x in act['blocked_series']),
                                    act['max_attempts'], act['max_bytes'], act['budget_cycle'], ledger, tuple(act.get('startup_series', [])))
+    etf = None
+    etf_value = value.get('etf_flow')
+    if etf_value is not None:
+        from pmi.market_data import EtfOptions
+        fields = {'root', 'configuration', 'evidence', 'grant', 'write_enabled', 'refresh_revision'}
+        if not isinstance(etf_value, dict) or set(etf_value) != fields:
+            raise ValueError('ETF配置字段无效')
+        etf = EtfOptions(location(etf_value['root']), location(etf_value['configuration'], directory=False),
+                         location(etf_value['evidence'], directory=False),
+                         location(etf_value['grant'], directory=False) if etf_value['grant'] is not None else None,
+                         etf_value['write_enabled'], etf_value['refresh_revision'])
+        protected += [etf.root, etf.configuration_path, etf.evidence_path]
+        if etf.grant_path is not None:
+            protected.append(etf.grant_path)
     if any(not disjoint(base, p) for p in protected):
         raise ValueError('运行位置与业务位置或仓库重叠')
     if base.stat().st_uid != os.getuid() or base.stat().st_mode & 0o022:
@@ -85,7 +99,7 @@ def parse(raw: str, repo: Path) -> tuple[dict, ServiceConfig, Path]:
         periodic = PeriodicOptions(**policy)
     config = ServiceConfig(root, value['service_port'], (f"http://127.0.0.1:{value['browser_port']}",),
                            index_write_ids=tuple(idx['write_ids']), startup_index_ids=tuple(idx['startup_ids']),
-                           index_max_attempts=idx['max_attempts'], index_max_bytes=idx['max_bytes'], activity_options=activity, periodic_options=periodic)
+                           index_max_attempts=idx['max_attempts'], index_max_bytes=idx['max_bytes'], activity_options=activity, periodic_options=periodic, etf_options=etf)
     return value, config, base
 
 
@@ -106,4 +120,12 @@ def service_arguments(value: dict) -> list[str]:
     if 'periodic' in value:
         for key, item in value['periodic'].items():
             args.extend(['--periodic-'+key.replace('_', '-'), str(item)])
+    etf = value.get('etf_flow')
+    if etf is not None:
+        args.extend(['--etf-root', etf['root'], '--etf-configuration', etf['configuration'], '--etf-evidence', etf['evidence'],
+                     '--etf-write', str(etf['write_enabled']).lower()])
+        if etf['grant'] is not None:
+            args.extend(['--etf-grant', etf['grant']])
+        if etf['refresh_revision'] is not None:
+            args.extend(['--etf-refresh-revision', etf['refresh_revision']])
     return args

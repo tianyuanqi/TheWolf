@@ -1,0 +1,22 @@
+{
+  "purpose": "仅用于离线旧备份恢复的固定验证器；产品服务不得导入",
+  "baseline": "2026-11-08 migration preimplementation",
+  "files": {
+    "etf_store.py": {
+      "source": "etf_flow/store.py",
+      "sha256": "08ac4a0946e3aa900293a6e1f40bb1e8b0c2e612edf93821466736515ac5c287"
+    },
+    "etf_options.py": {
+      "source": "etf_flow/options.py",
+      "sha256": "15c49132a5213c95c9442580a9d41c6182b8a1232dbfdbb804d2854e1bb6970c"
+    },
+    "periodic_budget.py": {
+      "source": "periodic_budget.py",
+      "sha256": "2877a943b4c330ba7c6c76a839c05825f355bc398ae95c06e3fea28080491222"
+    },
+    "index_runtime_v2_tests.py": {
+      "sha256": "9dab2eaf4f1a2bd258cd2979bf5418307575f0cc0a67da0da2ddd59f15020eed",
+      "purpose": "迁移前全部断言原文，仅用于恢复审计与验证迁移映射；不导入产品"
+    }
+  }
+}

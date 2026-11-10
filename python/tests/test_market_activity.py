@@ -14,13 +14,18 @@ from unittest.mock import patch
 from pmi.api import create_app
 from pmi.http_contract import response_value
 from pmi.service_config import ServiceConfig
-from pmi.market_data import index_series_store as price_store
+from pmi.market_data.storage import index_store as price_store
 from pmi.market_data.index_catalog import get_index
 from pmi.market_data.index_series_contract import Original as PriceOriginal, build_manifest
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite, set_activity_budget, activity_budget_bytes
 from pmi.market_data.activity import model, facts, sources, calculations, runtime, fetch
 from pmi.market_data.activity.model import ActivityError, Options, Original, canonical, digest
-from pmi.market_data.activity.store import Store
+from pmi.market_data.storage.activity_store import Store
+from pmi.market_data.storage import Database, StorageError
+from pmi.market_data.storage.documents import Documents
+from pmi.market_data.storage.originals import Originals
+from pmi.market_data.storage import state as sql_state
+from pmi.market_data.storage.publications import Publications
 from pmi.market_data.activity.fetch import reserve
 from http_test_support import ReadClient, disk
 from test_index_series_contract import originals, WINDOW
@@ -71,8 +76,8 @@ class ActivityTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='thewolf-b-test-')
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()
-        self.price, self.activity = self.base/'price', self.base/'activity'
-        self.price.mkdir();self.activity.mkdir()
+        self.price = self.activity = self.base/'data'
+        self.price.mkdir(); initialize_sqlite(self.price)
 
     def client(self, **kwargs):
         client = Client(self.price, self.activity, **kwargs)
@@ -109,19 +114,21 @@ class ActivityTests(unittest.TestCase):
         other=self.client();self.assertEqual(other.update('a'*64).status,403)
         self.assertEqual(disk(self.base),before)
 
-    def test_identity_changes_do_not_change_v1_v2(self):
-        one=self.client();otherroot=self.base/'other';otherroot.mkdir()
-        two=Client(self.price,otherroot,write_series=(SID,))
+    def test_unified_root_identity_and_split_root_rejection(self):
+        one = self.client()
+        otherroot = self.base/'other'; otherroot.mkdir(); initialize_sqlite(otherroot)
+        two = Client(otherroot, otherroot)
         self.addCleanup(two.app.state.updates.close)
-        self.assertNotEqual(one.config.activity_config_id,two.config.activity_config_id)
-        self.assertEqual(one.config.config_id,two.config.config_id)
-        self.assertEqual(one.config.index_config_id,two.config.index_config_id)
-        with self.assertRaises(ValueError):Client(self.price,self.price)
+        self.assertNotEqual(one.config.activity_config_id, two.config.activity_config_id)
+        self.assertNotEqual(one.config.config_id, two.config.config_id)
+        self.assertNotEqual(one.config.index_config_id, two.config.index_config_id)
+        with self.assertRaises(ValueError):
+            Client(self.price, otherroot)
 
     def test_actual_publish_replay_calculate_and_read_only(self):
         price=self.price_fixture()
         with admitted():
-            client=self.client(write_series=(SID,));before_price=disk(self.price)
+            client=self.client(write_series=(SID,));before_price=price_store.read_snapshot(self.price, INDEX)
             result=client.update(price['snapshot_id']);self.assertEqual(result.status,200,result.body)
             self.assertEqual(result.json()['state'],'completed',result.body)
             aid=result.json()['activity_id'];base=f'/api/market-activity/{SID}/snapshots/{aid}'
@@ -137,7 +144,7 @@ class ActivityTests(unittest.TestCase):
             self.assertEqual(volume['rows'][-1]['change_pct']['value'],'0.00')
             self.assertEqual(client.request(base+'/evidence/'+snap['sources'][0]['object_id']).status,200)
             self.assertEqual(client.request(base+'/evidence/'+'a'*64).status,404)
-            self.assertEqual(disk(self.base),before);self.assertEqual(disk(self.price),before_price)
+            self.assertEqual(disk(self.base),before);self.assertEqual(price_store.read_snapshot(self.price, INDEX),before_price)
             self.assertEqual(client.update(price['snapshot_id']).json(),result.json())
             self.assertEqual(client.update(price['snapshot_id'],aid).status,409)
 
@@ -209,7 +216,9 @@ class ActivityTests(unittest.TestCase):
             pointer = store.current(model.MARKET, WINDOW.anchor_date)
             pointer['target'] = '2026-10-31'
             with store.lock(write=True):
-                store.write(store.location(model.MARKET, WINDOW.anchor_date), canonical(pointer))
+                with store.database.transaction() as connection:
+                    reference = Documents(connection).put(pointer)
+                    connection.execute("UPDATE current_publication SET metadata=? WHERE domain_id='activity' AND subject=?", (reference, model.MARKET))
             before = disk(self.base)
             mismatch = client.request('/api/market-activity/cn-a-turnover?anchor_date=2026-10-31')
             self.assertEqual(mismatch.status, 409, mismatch.body)
@@ -222,7 +231,9 @@ class ActivityTests(unittest.TestCase):
             rt = client.config.market_data._activity_runtime
             pointer = rt.store.current(SID, price['snapshot_id']); pointer['target'] = 'a'*64
             with rt.store.lock(write=True):
-                rt.store.write(rt.store.location(SID, 'a'*64), canonical(pointer))
+                with rt.store.database.transaction() as connection:
+                    reference = Documents(connection).put(pointer)
+                    connection.execute("UPDATE current_publication SET metadata=?,binding=? WHERE domain_id='activity' AND subject=?", (reference, 'a'*64, SID))
             before = disk(self.base)
             response = client.request(f'/api/market-activity/{SID}?price_snapshot_id='+ 'a'*64)
             self.assertEqual(response.status, 409, response.body)
@@ -258,46 +269,54 @@ class ActivityTests(unittest.TestCase):
         with admitted():
             client = self.client(write_series=(SID,)); operation = client.update(price['snapshot_id']).json()
             aid, oid = operation['activity_id'], operation['observation_id']
-            rt = client.config.market_data._activity_runtime
-            manifest = rt.store.fixed(aid); original_id = manifest['sources'][0]['object_id']
-            observation_path = self.activity/'observations'/(oid+'.json'); content = observation_path.read_bytes()
+            store = client.config.market_data._activity_runtime.store
+            manifest = store.fixed(aid); original_id = manifest['sources'][0]['object_id']
             routes = [f'/api/market-activity/{SID}?price_snapshot_id='+price['snapshot_id'],
                       f'/api/market-activity/{SID}/snapshots/{aid}',
                       f'/api/market-activity/{SID}/snapshots/{aid}/calculations?formula_version='+calculations.FORMULA,
                       f'/api/market-activity/{SID}/snapshots/{aid}/evidence/'+original_id,
                       '/api/market-activity/operations/activity-test?series_id='+SID]
-            for invalid in (None, content+b' ', canonical({**json.loads(content), 'activity_id': 'a'*64})):
-                if invalid is None:
-                    observation_path.unlink()
-                else:
-                    observation_path.write_bytes(invalid)
-                before = disk(self.base)
-                for route in routes:
-                    response = client.request(route)
-                    self.assertEqual(response.status, 409, (route, response.body))
-                self.assertEqual(disk(self.base), before)
-                observation_path.write_bytes(content)
-            # 即便把错误回执重新算摘要并更新全部引用，归属交叉检查仍不能绕过。
-            wrong = {**json.loads(content), 'activity_id': 'a'*64}; bad_id = digest(wrong)
-            (self.activity/'observations'/(bad_id+'.json')).write_bytes(canonical(wrong))
-            for path in [self.activity/'observation-refs'/(aid+'.json'), self.activity/'operations/activity-test.json',
-                         rt.store.path(*rt.store.location(SID, price['snapshot_id']))]:
-                path.write_text(path.read_text().replace(oid, bad_id))
-            before = disk(self.base)
-            for route in routes:
-                self.assertEqual(client.request(route).status, 409)
-            self.assertEqual(disk(self.base), before)
+            saved = store.database.path.read_bytes()
+            for fault in ('missing_member', 'malformed_receipt', 'misbound_all_references'):
+                try:
+                    with store.database.writer(), store.database.transaction() as connection:
+                        # 只在本测试库撤下不可变触发器，模拟磁盘/越权SQL损坏。
+                        connection.execute('DROP TRIGGER immutable_publication_observation_delete')
+                        connection.execute('DROP TRIGGER immutable_publication_observation_update')
+                        if fault == 'missing_member':
+                            connection.execute('DELETE FROM publication_observation WHERE publication_id=? AND observation_id=?', (aid, oid))
+                        else:
+                            docs = Documents(connection)
+                            wrong = {} if fault == 'malformed_receipt' else {**docs.get(oid), 'activity_id': 'a'*64}
+                            bad = docs.put(wrong)
+                            connection.execute('UPDATE publication_observation SET observation_id=? WHERE publication_id=? AND observation_id=?', (bad, aid, oid))
+                            index = sql_state.read(connection, 'activity', 'observation-refs/'+aid+'.json')
+                            for entry in index['entries']: entry['observation_id'] = bad
+                            sql_state.write(connection, 'activity', 'observation-refs/'+aid+'.json', index)
+                            committed = {**operation, 'observation_id': bad}
+                            store.write(('operations', 'activity-test.json'), canonical(committed))
+                            pointer = store.current(SID, price['snapshot_id'])
+                            pointer.update(operation=committed, observation_id=bad)
+                            connection.execute("UPDATE current_publication SET observation_id=?,metadata=? WHERE domain_id='activity' AND subject=?", (bad, docs.put(pointer), SID))
+                    before = disk(self.base)
+                    for route in routes:
+                        response = client.request(route)
+                        self.assertEqual(response.status, 409, (fault, route, response.body))
+                    self.assertEqual(disk(self.base), before)
+                finally:
+                    # 仅隔离库，保留inode，恢复每个独立故障注入前的完整字节。
+                    store.database.path.write_bytes(saved)
 
     def test_precommit_observation_is_not_published_or_recovered_as_success(self):
         price = self.price_fixture()
         with admitted():
             client = self.client(write_series=(SID,)); first = client.update(price['snapshot_id']).json()
-            rt = client.config.market_data._activity_runtime; write = rt.store.write
-            def fail_before_pointer(parts, content, **kwargs):
-                if 'current-by-price' in parts:
+            rt = client.config.market_data._activity_runtime; select = Publications.select
+            def fail_before_pointer(*args, **kwargs):
+                if kwargs.get('domain') == 'activity':
                     raise OSError('synthetic failure before commit')
-                return write(parts, content, **kwargs)
-            with patch.object(rt.store, 'write', side_effect=fail_before_pointer):
+                return select(*args, **kwargs)
+            with patch.object(Publications, 'select', fail_before_pointer):
                 self.assertEqual(client.update(price['snapshot_id'], first['activity_id'], request='precommit').status, 409)
             before = disk(self.base)
             fixed = client.request(f'/api/market-activity/{SID}/snapshots/'+first['activity_id']).json()
@@ -326,7 +345,8 @@ class ActivityTests(unittest.TestCase):
             evidence_id = hashlib.sha256(evidence).hexdigest()
             evidence_store = Store(self.activity)
             with evidence_store.lock(write=True):
-                evidence_store.write(('objects', evidence_id), evidence, immutable=True)
+                with evidence_store.database.transaction():
+                    self.assertEqual(Originals(evidence_store.database).put(evidence), evidence_id)
             blocked=self.client(write_series=(SID,),blocked_series=((SID,evidence_id),));before=disk(self.base)
             base=f'/api/market-activity/{SID}/snapshots/{aid}'
             for route in [base,base+'/calculations?formula_version='+calculations.FORMULA]:
@@ -337,11 +357,11 @@ class ActivityTests(unittest.TestCase):
     def test_pointer_commit_recovers_operation_without_refetch(self):
         price=self.price_fixture()
         with admitted():
-            client=self.client(write_series=(SID,));runtime=client.config.market_data._activity_runtime;write=runtime.store.write
-            def interrupted(parts,content,**kw):
-                if parts[0]=='operations' and json.loads(content).get('state')=='completed':raise OSError('synthetic post-commit crash')
-                return write(parts,content,**kw)
-            with patch.object(runtime.store,'write',side_effect=interrupted):
+            client=self.client(write_series=(SID,));runtime=client.config.market_data._activity_runtime;publish=runtime.store.publish
+            def interrupted(*args, **kwargs):
+                publish(*args, **kwargs)
+                raise OSError('synthetic post-commit response failure')
+            with patch.object(runtime.store,'publish',side_effect=interrupted):
                 result=client.update(price['snapshot_id']);self.assertEqual(result.status,409)
             before=disk(self.base)
             status=client.request('/api/market-activity/operations/activity-test?series_id='+SID)
@@ -349,18 +369,21 @@ class ActivityTests(unittest.TestCase):
             with patch.object(runtime,'_obtain',side_effect=AssertionError('must not fetch')):
                 self.assertEqual(client.update(price['snapshot_id']).json()['state'],'completed')
 
-    def test_budget_persists_across_root_change_and_never_refunds(self):
-        ledger=self.base/'budget.json';ledger.write_bytes(canonical({'cycle':'test','attempts':0,'bytes':0,'limit_attempts':1,'limit_bytes':model.MAX_BYTES}))
+    def test_budget_cannot_reset_by_root_change_or_file_replacement(self):
+        ledger = self.activity/'facts.sqlite'
+        set_activity_budget(self.activity, canonical({'cycle':'test','attempts':0,'bytes':0,'limit_attempts':1,'limit_bytes':model.MAX_BYTES}))
         options=Options(self.activity,max_attempts=5,max_bytes=model.MAX_BYTES*5,budget_cycle='test',budget_ledger=ledger)
         reserve(options)
-        another=self.base/'another';another.mkdir()
-        with self.assertRaisesRegex(ActivityError,'activity_budget_exhausted'):reserve(replace(options,root=another))
-        self.assertEqual(json.loads(ledger.read_bytes())['attempts'],1)
-        replacement = self.base/'replacement.json'; replacement.write_bytes(ledger.read_bytes()); replacement.replace(ledger)
-        with self.assertRaisesRegex(ActivityError,'activity_budget_invalid'):reserve(options)
+        with self.assertRaisesRegex(ActivityError,'activity_budget_exhausted'): reserve(options)
+        another=self.base/'another';another.mkdir(); initialize_sqlite(another)
+        with self.assertRaisesRegex(ActivityError,'activity_budget_invalid'): reserve(replace(options,root=another))
+        self.assertEqual(json.loads(activity_budget_bytes(self.activity))['attempts'],1)
+        replacement = self.base/'replacement.sqlite'; replacement.write_bytes(ledger.read_bytes()); replacement.replace(ledger)
+        with self.assertRaisesRegex(ActivityError,'activity_budget_invalid'): reserve(options)
 
     def test_symlink_object_and_nonmember_rejected(self):
         store=Store(self.activity);outside=self.base/'outside';outside.write_text('preserve')
+        (self.activity/'objects').rename(self.activity/'saved-objects')
         (self.activity/'objects').symlink_to(self.base,target_is_directory=True)
         with self.assertRaises(ValueError):store.original('a'*64)
         self.assertEqual(outside.read_text(),'preserve')
@@ -429,6 +452,16 @@ class ActivityTests(unittest.TestCase):
     def test_retained_financial_contracts_match_accepted_baseline(self):
         current=json.loads((Path(__file__).resolve().parents[2]/"contracts/openapi.yaml").read_bytes())["components"]["schemas"]
         expected={'IndexSeriesId': '748022b1caacf04039da02fdf3aebb02e3538423d496911a2dc8c8b11d41bc4b', 'IndexSeriesSource': 'c6ef5676a2ae472fd7936caed750cb65e6879613d8d2e4471ec2f6e912ad7a07', 'IndexSeriesSourcePolicy': '92f1fceff3d6d92ef0ed5682982df05aaa247bd7de78907b49c8e07e4f172c43', 'IndexSeriesPoint': '6c56d062a8105620e855ba3709249edb882600e27135aab36a25a85773234090', 'IndexSeriesRawPoint': 'cd6f7aa11327b34de3366ce7b373c51373f4d5c7ef7596d7f8f84345689f01c1', 'IndexSeriesRawPriceFields': 'a5a38749e9bb3bd98111e4b34d301dc1796ef009d7d3f6b839d1f0470632f5df', 'IndexSeriesComparisonFields': '063281b082f04f4d825bb3f7405fd2b57030d9a1ac0aeb51bcc84e12971465ca', 'IndexSeriesField': 'bac74eac7958d22542f9b2a35b7caf2658e05ad07ecf049f5f5a72b8a1ba9a7c', 'IndexSeriesNetworkPolicy': '8337e8f0b66cdd0caf724fce054860334e5f48f421375b6e1be06ed60825bc9f', 'IndexSeriesPolicy': 'f1604bbd763e18e57bd5f62e5699eb5739404ce15b76c140c9faaba7020b1f2e', 'IndexSeriesReady': 'd9f7f946ec5a0330b83253ba0361af06db88b3b5c1176a0d0e3b07ef5008a39a', 'IndexSeriesCatalogEntry': 'def44e8ed3479349ace567f4fa5846cffaba9da84765e4abdeee29b165290414', 'IndexSeriesCatalog': '2c7b006665d18c12a6fba5858feda8b880ba201122635f61a4f1db048213626c', 'IndexSeriesInstrument': '2ea1060c4f88130bee80aa16dd665519c35c625f003a2a3bd1bc0198cce04d21', 'IndexSeriesWindow': 'b89fa676b222512f9c0d51f4f9b335c5db02a7a0ec7be755e33a83f81bc366d7', 'IndexSeriesCalendarSource': '1611858990f74080752185c46242a034240ee7823f0c36a3a3b2fe8d42a47072', 'IndexSeriesCompletionBasis': 'e2060339af456485bdb907fefb7608df7a933e75ca98c0d13996fd122044232c', 'IndexSeriesVerification': '1eafb036e5cd570fdea508acf29d8b324adb1ab77fcae1ea2b287a68d645e646', 'IndexSeriesEvidenceRef': 'a6b312644fb1148a9efdf3552fedd26f0f3dd69fdc0f190cbe1f304c580b629f', 'IndexSeriesBar': 'f0246e77bec34a9dfc9f2b6f92f8c8ee42633ef9f98555fa116c1e3b858233e7', 'IndexSeriesSourceRow': 'e34f4e8be3828acca458245520cb55521c35b14bc8dcb320ae6fa7428c26a5c0', 'IndexSeriesEvidence': '39f6f1f763d5ce5e44ff88149be3d995f87f0755c7bd8809905a433985493411', 'IndexSeriesSummaryInput': 'ba3ea7e2b3e94f7066afcf9c073764b5aff80fa0ab3e1a5ef5f9d48303af8b35', 'IndexSeriesSummary': '6225488aefebdf871989dd793205d33bc7a927439f234931d5038d8ab130e535', 'IndexSeriesRetrievalSource': '7c520816cfde595a69da297f3bb85f440cca948cc767e20a2e97f33eee947375', 'IndexSeriesRetrieval': '7f4839f9ac4f97d52e0b1b90b5dbb9f4977a33f9e5ab0d0ce681f176c9aeb631', 'IndexSeriesSnapshot': '2d5b7a8a2060aaf2b679a70dfec09d4527e8c6f28712e2cbcbbdfa81e33de883', 'IndexSeriesEvidenceDetail': 'cf715aadc8b880525a29859fa08ce96ea29fdb2d3fa64fa9df6db9f7c991ac0f', 'IndexSeriesEvidenceView': 'f9ea325505248a8a1aa9bd3f14ab1bc56289578cc43b604c3308e6afb992d90f', 'IndexSeriesRangeRow': '4218816e53d5ed2ed117873135d9499e5744d2577d5488f87fc8f08d29a50bc4', 'IndexSeriesRange': 'cf605dfe5495f34ee2a7a532a3267bdb1daf2d637252a07c3853be656b39c9ef', 'IndexSeriesDifference': '03faa248d48fb9eaf2d05b52c91ab657fb17ae3ec6e85217bd92b798ea7b04c2', 'IndexSeriesUpdateStatus': 'a87d06faf27683cf0c5261b47db7372ede0e9898c7ccd64d5fd316e992c8f410', 'IndexSeriesError': 'e600527e7b09db20011ed1d31995a28befd81ef19acd0cfc964f00cc2214206b', 'IndexSeriesRecordedRejection': 'e3e2473a47df26f4c4c5099a6934f3f57b4fd9db83bf1b17e2fac7819d74079e', 'IndexSeriesOperationKind': '4b37f7c29633327a2fd6b12cbc2dbd0e7dbd82863658a88d7757e4c362723f05', 'IndexSeriesAcceptedOperation': '297cf8c601768d259c8c7dbd054a091bf217c1cf03d5a915ea8ddbb225128abb', 'IndexSeriesOperationResult': '719d9003cc55c9e18edb9af665fc66ef23e1264d3dcdd6c5598ad2b46227287d', 'IndexSeriesCalculationInput': '45b75eb36e8f74d124a5d3e9e58ca66a07fbf001617c29fd7cb02b71d8a09184', 'IndexSeriesCalculationParameters': '57dd77d9aa25ef7cf4b34d49ca4b7266f76c7e481dcf68abe3baa019636c351a', 'IndexSeriesCalculationScalar': 'dd6b1a22ab18193e122e09726f3cb068c2fb0f0c09de47d17246d5ba568aa153', 'IndexSeriesCalculationBar': '048e1a437f7f95408d97186cfc713a56a43c54560182fa7b211e6ba3495b128f', 'IndexSeriesCalculationAvailability': 'a68191ca9743c97b5c75dbb27f747f388e02ee508526fe1d5b32145a3d3a2e7c', 'IndexSeriesCalculationSeries': '3f28f1955e32c74ee14b56dabd7f27deba0f4dea90c5e90d127d5b58f351c041', 'IndexSeriesCalculations': '270b87f801633996a41d1cb8a4402dda6651104563518ef49c398f94c19cb723', 'IndexSeriesCalculationError': 'dbecbd09ab88f5dee7e17b17dcf7f600e2d05eecf51e50100f5a7746cacd7778', 'MarketActivityPolicy': '89e640a630157f1bf4fe603f052d2f2ddd96c96c99cac5ccea7d0d9a57e50038', 'MarketActivitySeriesId': 'da22a05a175d43245ef2a8f0adadceb8dd876b8788229339aaf6cd233d265507', 'MarketActivityFact': '882736d8f5c11f02fd2e20c56ce8c743c70dedf7eb0c4c197cb0ecd9e450c759', 'MarketActivitySnapshot': 'a49e3647f8228867bd8b47b363d7f3393bef4b828845f16cdcd656eec6348e11', 'MarketActivityCurrent': 'd82bc92145a1a49c29a6f5eaf2cf4dbc9aad7d98e84be3bb1b70a011c1d3eeea', 'MarketActivityScalar': '79dbac29899123dc019509a57c83e08c8246064d16c4fc0f16656a357f5b8306', 'MarketActivityCalculations': '0bd9f497bfc130bdc49e876a9f7528219d1a69cb773d3f7a0b6ea72ed3148017', 'MarketActivityEvidence': '241cfbf17cf07d6ca231fabec4c4bfcae630cc656c93adae084f85730f28bdb0', 'MarketActivityOperation': 'fb79a6a9c0ead06d09b31e44bdca477890ddc665018751fe0da3dc211d1f8dac', 'MarketActivityUpdateBody': 'cfe32b3b598da1bbe130524991232b9a3860c122e8a94210d11c632162b74ba5', 'MarketActivityError': 'b319f2a9a0f4e0df4441c63ddee4c5caf73b70be711c35b2e47400ee7041e1d1', 'MarketActivityReady': '983f77ce236a6db9891b905afa6d3c237474961d8b45b0afa4d802f4cc0a84d8', 'MarketActivityIndexSnapshot': '70a63d1fb5cdc1e6162ff089b8fd685cdb41b1e217329d1a8100918539bb8ede', 'MarketActivityMarketSnapshot': 'bbba37ec1bdf6d082fd05466eefd50ae773652bf9b51c54a7ed22b6f869bb5a2', 'MarketActivityObservedSource': '29a426e2fdb5cad851baa045dee1c657b7ffd92b9955b0990e1e79f83a7b801c', 'MarketActivityObservation': '55044596ba72e227db29ef9556e1f94fa7552f3456d2d77d6392000402d571fd', 'MarketActivityTwoMarketSnapshot': '9df49971b4a3b6a84958c58d32075485aa912bdd09ba1b5e59b3b85792a34b5b', 'OverviewPeriodicPolicy': 'bbd55d1b56ada6e227e2039e9c92938921be3caa3f192bf78fc83aae4962968d', 'OverviewBudgetCounter': '6e7a6c2bf496754a7794d82cc6737fea36069916fc7c89d484b977bbea403687', 'OverviewUpdateStatus': 'fbecb0e0157e654006007a72e1f37210d8e2797ba2b930b1edaf9a79ba7bbceb', 'MarketActivityAnchors': 'c57e77c9351d788c8cf1cf3afd1d61d20bc17e1d2e8cd737992c9747c73bdde9'}
+        # 协议主版本按获准迁移升为3；金融结构仍与原验收指纹逐项一致。
+        for ready in ("IndexSeriesReady", "MarketActivityReady"):
+            current[ready]["properties"]["contract_version"]["const"] = "2.0.0"
+        added_errors = ['range_parameters_invalid', 'range_coverage_insufficient', 'storage_publication_not_found',
+            'storage_observation_not_member', 'storage_activity_binding_invalid', 'storage_quarantined',
+            'storage_integrity_check_due', 'storage_maintenance_failed']
+        for name in ('IndexSeriesError', 'IndexSeriesCalculationError'):
+            codes = current[name]['properties']['detail']['properties']['code']['enum']
+            self.assertEqual(codes[-len(added_errors):], added_errors)
+            del codes[-len(added_errors):]
         for name, fingerprint in expected.items():
             self.assertEqual(hashlib.sha256(json.dumps(current[name],sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()).hexdigest(),fingerprint,name)
 

@@ -74,7 +74,8 @@ def _daily(snapshot: dict, kind: str) -> list[dict]:
     return result
 
 
-def _series(snapshot: dict, kind: str, frequency: str) -> dict:
+def _series(snapshot: dict, kind: str, frequency: str, *, periods: tuple[int, ...] = PERIODS,
+            source_availability: list[dict] | None = None) -> dict:
     groups: list[list[dict]] = []
     for item in _daily(snapshot, kind):
         if not groups or _bounds(groups[-1][0]['day'], frequency) != _bounds(item['day'], frequency):
@@ -115,12 +116,14 @@ def _series(snapshot: dict, kind: str, frequency: str) -> dict:
             sample = rows[max(0, i + 1 - n):i + 1]
             why = 'insufficient_samples' if len(sample) < n else 'missing_window_value' if any(r['value'] is None for r in sample) else None
             inc = sorted({reason for r in sample for reason in r['incomplete']})
-            averages.append(scalar(sum(r['value'] for r in sample)/n if why is None else None, why, 'ma', n, sample[0]['start'], inc))
+            if n in periods:
+                averages.append(scalar(sum(r['value'] for r in sample)/n if why is None else None, why, 'ma', n, sample[0]['start'], inc))
             capabilities.append({'period': n, 'available': why is None, 'sample_count': sum(r['value'] is not None for r in sample), 'required_count': n, 'reason': why})
         output.append({'start': item['start'], 'end': item['end'], 'period_start': item['period_start'],
                        'period_end': item['period_end'], 'sample_count': item['sample_count'], 'total': total, 'change_pct': changes, 'ma': averages})
         availability = capabilities
-    return {'frequency': frequency, 'field': kind, 'rows': output, 'ma_availability': availability}
+    return {'frequency': frequency, 'field': kind, 'rows': output,
+            'ma_availability': source_availability if source_availability is not None else availability}
 
 
 def _comparison(snapshot: dict) -> dict:

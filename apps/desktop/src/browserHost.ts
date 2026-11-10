@@ -1,3 +1,4 @@
+import { parseEtfDescriptor } from "./etfFlowClient";
 import { parseDescriptor } from "./apiClient";
 import type { ConnectionDescriptor } from "./apiClient";
 import { parseActivityDescriptor } from "./activityClient";
@@ -38,4 +39,12 @@ export async function activityConnectionDescriptor(price: IndexDescriptor, signa
   if (response.status === 404) return undefined;
   if (!response.ok || !response.headers.get("content-type")?.startsWith("application/json")) throw new Error("量额连接配置不可用");
   return parseActivityDescriptor(await response.json(), price);
+}
+
+/** ETF可选预期绑定当前主连接，不由服务响应学习权限。 */
+export async function etfConnectionDescriptor(legacy: ConnectionDescriptor, signal: AbortSignal) {
+  const response = await fetch('/__wolf/etf-config', {cache:'no-store',credentials:'omit',redirect:'error',signal});
+  if (response.status===404) return undefined;
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('application/json')) throw new Error('ETF连接配置不可用');
+  return parseEtfDescriptor(await response.json(),legacy);
 }

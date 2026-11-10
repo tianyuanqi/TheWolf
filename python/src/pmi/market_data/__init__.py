@@ -13,14 +13,21 @@ import threading
 from types import MappingProxyType
 
 from pmi.market_data.read_only import ReadUnavailable, checked_path
+from pmi.market_data.storage.database import StorageError
 
 from pmi.market_data.activity.model import ActivityError, Options as ActivityOptions, SERIES as ACTIVITY_SERIES, MARKET as ACTIVITY_MARKET
+from pmi.market_data.etf_flow.options import Options as EtfOptions
+from pmi.market_data.etf_flow.model import FlowError as EtfError, decode as decode_etf_request, identifier as etf_request_id
 
-__all__ = ["MarketData", "ReadUnavailable", "SnapshotError", "ActivityError", "ActivityOptions", "ACTIVITY_SERIES", "ACTIVITY_MARKET"]
+__all__ = ["MarketData", "ReadUnavailable", "SnapshotError", "ActivityError", "ActivityOptions", "ACTIVITY_SERIES", "ACTIVITY_MARKET",
+           "EtfOptions", "EtfError", "decode_etf_request", "etf_request_id", "PeriodicBudgetError", "StorageError"]
 
 
 class SnapshotError(ValueError):
     """待发布或已保存的快照不符合切片契约。"""
+
+
+from pmi.market_data.periodic_budget import BudgetError as PeriodicBudgetError
 
 
 @dataclass(frozen=True, init=False)
@@ -40,9 +47,10 @@ class MarketData:
     _series_runtime: object = field(repr=False)
     _series_budget: object = field(repr=False)
     _activity_runtime: object = field(repr=False)
+    _etf_runtime: object = field(repr=False)
 
     def __init__(self, root: Path, writes: Mapping[str, bool], *,
-                 index_max_attempts: int = 16, index_max_bytes: int = 16 * 1024 * 1024, activity_options: ActivityOptions | None = None, periodic_options=None):
+                 index_max_attempts: int = 16, index_max_bytes: int = 16 * 1024 * 1024, activity_options: ActivityOptions | None = None, periodic_options=None, etf_options=None, etf_connection_id: str | None = None):
         from pmi.market_data.index_catalog import search_indices
         from pmi.market_data.index_series_fetch import NetworkBudget
         from pmi.market_data.index_series_update import Runtime
@@ -55,36 +63,39 @@ class MarketData:
             raise ValueError("data root必须是已有的规范绝对目录")
         object.__setattr__(self, "_root", root)
         object.__setattr__(self, "_writes", MappingProxyType(dict(writes)))
-        object.__setattr__(self, "_locations", tuple(
-            (path, path.stat().st_dev, path.stat().st_ino)
-            for path in (root, *root.parents, root / "indices") if path.exists()))
-        object.__setattr__(self, "_location_mutex", threading.RLock())
-        series_paths = (root / "indices", *(path for item in definitions
-                         for path in (root / item.relative_dir, root / item.relative_dir / "objects")))
-        locations = {}
-        for path in series_paths:
-            checked_path(path)
-            if path.exists():
-                if not path.is_dir():
-                    raise ReadUnavailable("指数目录类型不安全")
-                value = path.stat()
-                locations[path] = (value.st_dev, value.st_ino)
-        object.__setattr__(self, "_series_locations", locations)
+        from pmi.market_data.storage import Database
+        from pmi.market_data.storage.maintenance import Maintenance
+        from pmi.market_data.storage.result_cache import ResultCache
+        from pmi.market_data.storage.views import Views
+        database = Database(root)
+        with database.read() as connection:
+            identity = connection.execute('SELECT store_id FROM store_identity').fetchone()[0]
+            scope = connection.execute("SELECT logical_scope FROM domain WHERE id='price-v2' AND initialized=1").fetchone()
+            if scope is None:
+                raise ReadUnavailable('价格领域尚未初始化')
+        object.__setattr__(self, '_scope_identity', scope[0])
+        object.__setattr__(self, '_database', database)
+        object.__setattr__(self, '_storage_identity', identity)
+        object.__setattr__(self, '_range_cache', ResultCache())
+        object.__setattr__(self, '_maintenance', Maintenance(database, self._range_cache.clear))
+        object.__setattr__(self, '_storage_views', Views(database))
         object.__setattr__(self, "_series_budget", NetworkBudget(index_max_attempts, index_max_bytes))
         object.__setattr__(self, "_series_runtime", Runtime())
         activity_runtime = None
         if activity_options is not None:
             from pmi.market_data.activity.runtime import Runtime as ActivityRuntime
-            if activity_options.root.is_relative_to(root) or root.is_relative_to(activity_options.root):
-                raise ValueError("量额根与价格根不得嵌套")
-            if activity_options.budget_ledger is not None and activity_options.budget_ledger.is_relative_to(root):
-                raise ValueError("量额预算账本不得写入价格根")
+            if activity_options.root != root:
+                raise ValueError('量额与价格必须使用同一个SQLite数据根')
+            if activity_options.budget_ledger is not None and activity_options.budget_ledger != database.path:
+                raise ValueError('量额额度必须使用同一个SQLite文件')
             activity_runtime = ActivityRuntime(self, activity_options)
         object.__setattr__(self, "_activity_runtime", activity_runtime)
         periodic = None
-        if periodic_options is None and (root / "overview-periodic-ledger.json").exists() and (
-                any(writes.values()) or activity_options and activity_options.write_series):
-            raise ValueError("周期账本已存在，启写必须携带周期策略；旧模式只读仍可使用")
+        with database.read() as connection:
+            has_periodic = connection.execute("SELECT 1 FROM domain WHERE id='periodic'").fetchone() is not None
+        if periodic_options is None and has_periodic and (
+                any(writes.values()) or activity_options and activity_options.write_series or etf_options and etf_options.write_enabled):
+            raise ValueError('已有周期额度，启写必须携带周期策略')
         if periodic_options is not None:
             from pmi.market_data.periodic_budget import Budget, INDEX_IDS, MARKET_ID
             from pmi.market_data.periodic_runtime import Coordinator
@@ -94,70 +105,44 @@ class MarketData:
                 raise ValueError("周期预算不得扩大市场范围")
             periodic = Coordinator(self, Budget(root, activity_options.root, periodic_options))
         object.__setattr__(self, "_periodic", periodic)
+        etf_runtime = None
+        if etf_options is not None:
+            from pmi.market_data.etf_flow.runtime import Runtime as EtfRuntime
+            from pmi.market_data.etf_flow.context import capture as capture_etf_context
+            if etf_options.root != root:
+                raise ValueError('ETF与价格必须使用同一个SQLite数据根')
+            etf_runtime = EtfRuntime(etf_options, periodic=periodic.budget if periodic else None,
+                                     guard=self.check_location, connection_id=etf_connection_id,
+                                     context_provider=lambda config, end, selected_at: capture_etf_context(self, config, end, selected_at))
+        object.__setattr__(self, "_etf_runtime", etf_runtime)
 
     @property
     def scope_id(self) -> str:
         """返回总览数据范围摘要；布局及序列化留在本层，无业务I/O。"""
-        value = {"identity_format": "wolf-data-scope-v2", "data_root": str(self._root),
-                 "mapping": {"index_series": "indices"}}
-        raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(raw.encode()).hexdigest()
+        return self._scope_identity
+
+    @property
+    def storage_identity(self) -> str:
+        """匹配发布绑定物理库与位置，只向上层提供不可逆摘要。"""
+        return hashlib.sha256(json.dumps([self._storage_identity, str(self._root)], separators=(',', ':')).encode()).hexdigest()
 
     def check_location(self) -> None:
-        """业务访问前复核启动定位；换根不能沿用原配置身份。"""
-        checked_path(self._root)
-        for path, device, inode in self._locations:
-            actual = path.stat()
-            if (actual.st_dev, actual.st_ino) != (device, inode):
-                raise ReadUnavailable("配置根定位已变化，请检查后重新启动")
-        with self._location_mutex:
-            for path, identity in self._series_locations.items():
-                checked_path(path)
-                actual = path.stat()
-                if not stat.S_ISDIR(actual.st_mode) or (actual.st_dev, actual.st_ino) != identity:
-                    raise ReadUnavailable("指数目录定位已变化，请检查后重新启动")
+        """启动位置和库inode冻结，移动/替换须重新连接。"""
+        self._database.check()
 
     def check_write_paths(self) -> None:
-        """复核总览可写定位；只查元数据，不创建目录或打开业务库。"""
         self.check_location()
-        for directory in (self._root, self._root / "indices"):
-            checked_path(directory)
-            if directory.exists() and not directory.is_dir():
-                raise ReadUnavailable("更新目录类型不安全")
-        lock = checked_path(self._root / ".writer.lock")
-        if lock.exists() and not stat.S_ISREG(lock.stat().st_mode):
-            raise ReadUnavailable("父根写锁类型不安全")
-        from pmi.market_data.index_catalog import search_indices
-        for item in search_indices(None):
-            root = checked_path(self._root / item.relative_dir)
-            for path in (root, root / "objects"):
-                checked_path(path)
-                if path.exists() and not path.is_dir():
-                    raise ReadUnavailable("指数目录类型不安全")
-            for name in ("index-v2.sqlite", "index-v2.sqlite-journal", "index-v2.sqlite-wal",
-                         "index-v2.sqlite-shm", "update-v2-status.json", ".index-v2-activity.lock",
-                         "index-v2-original-observations.jsonl"):
-                path = checked_path(root / name)
-                if path.exists() and not stat.S_ISREG(path.stat().st_mode):
-                    raise ReadUnavailable("指数文件类型不安全")
-        ledger = checked_path(self._root / "index-v2-network-ledger.jsonl")
-        if ledger.exists() and not stat.S_ISREG(ledger.stat().st_mode):
-            raise ReadUnavailable("指数预算账本类型不安全")
+        self._maintenance.require_available()
 
     def _remember_index_locations(self, index_id: str) -> None:
-        """由持父独占锁的更新器登记本次新目录；已登记位置只能核对。"""
-        from pmi.market_data.index_catalog import get_index
-        item = get_index(index_id)
+        self._require_code(index_id)
         self.check_location()
-        with self._location_mutex:
-            for path in (self._root / "indices", self._root / item.relative_dir,
-                         self._root / item.relative_dir / "objects"):
-                checked_path(path)
-                actual = path.stat()
-                identity = (actual.st_dev, actual.st_ino)
-                if not stat.S_ISDIR(actual.st_mode) or self._series_locations.get(path, identity) != identity:
-                    raise ReadUnavailable("新指数目录不能登记到已变更位置")
-                self._series_locations[path] = identity
+
+    def start_maintenance(self) -> None:
+        self._maintenance.start()
+
+    def storage_status(self) -> dict:
+        return self._maintenance.integrity.status()
 
     @property
     def index_policy(self) -> dict:
@@ -203,6 +188,8 @@ class MarketData:
     def _read(self, code: str, operation: str, **identifiers: str | None) -> dict | bytes | None:
         self._require_code(code)
         self.check_location()
+        if operation != "status":
+            self._maintenance.require_available()
         try:
             value = self._read_series(code, operation, **identifiers)
             self.check_location()
@@ -214,7 +201,7 @@ class MarketData:
     def _read_series(self, code: str, operation: str, *, snapshot_id: str | None = None,
                      object_id: str | None = None) -> dict | None:
         from pmi.market_data.index_catalog import get_index
-        from pmi.market_data import index_series_store as store
+        from pmi.market_data.storage import index_store as store
         item = get_index(code)
         if operation == "status":
             return {**store.read_status(self._root, item), "enabled": self._writes.get(code, False)}
@@ -304,37 +291,125 @@ class MarketData:
         if self._activity_runtime is not None:
             self._activity_runtime.close()
         closed = self._series_runtime.close(timeout)
-        return closed and (self._periodic is None or self._periodic.close())
+        etf_closed = self._etf_runtime is None or self._etf_runtime.close(timeout)
+        maintenance_closed = self._maintenance.close(timeout)
+        return closed and etf_closed and maintenance_closed and (self._periodic is None or self._periodic.close())
 
     def wait_updates(self, timeout: float = 1) -> bool:
         """只等待本实例指数worker释放资源；不停止任务或持有金融写锁。"""
         return self._series_runtime.wait(timeout)
 
     def read_index_range(self, index_id: str, start: str, end: str, *,
-                         fields: str = "open,high,low,close", snapshot_id: str | None = None) -> dict | None:
-        """在单一已核快照中选日期与OHLC字段；不足时拒绝，不拼版本或联网。"""
-        from pmi.market_data.index_catalog import get_index
-        get_index(index_id)
+                         fields: str = 'open,high,low,close', snapshot_id: str | None = None) -> dict | None:
+        """SQL只读取固定发布的所请求OHLC；不先装配多年快照。"""
+        from pmi.market_data.storage.ranges import Ranges, plan, validate_request
+        from pmi.market_data.storage.publications import Publications
+        self._require_code(index_id)
+        self._maintenance.require_available()
+        validate_request(start, end, 'daily', ())
+        names = fields.split(',')
+        if len(names) != len(set(names)) or not names or not set(names) <= {'open', 'high', 'low', 'close'}:
+            raise SnapshotError('index_range_invalid')
+        with self._database.read() as connection:
+            if snapshot_id is None:
+                head = Publications(connection).head('price-v2', index_id)
+                if head is None:
+                    return None
+                snapshot_id = head[0]
+            reader = Ranges(connection)
+            header = reader.header(snapshot_id, 'price-v2', index_id)
+            dates = reader.dates(snapshot_id, 'price', index_id)
+            selected = plan(dates, start, end, 'daily', ())
+            bars = reader.rows(snapshot_id, 'price', index_id, selected)
+            return {'index_id': index_id, 'format': 'v2', 'snapshot_id': snapshot_id,
+                'start': start, 'end': end, 'fields': names, 'unit': '点', 'pit_grade': 'latest_only',
+                'storage_decimals': header['storage_decimals'], 'coverage': {'start': dates[0], 'end': dates[-1]},
+                'rows': [{'trade_date': row['trade_date'], 'values': {name: row[name] for name in names}}
+                         for row in bars if start <= row['trade_date'] <= end]}
+
+    def market_versions(self) -> dict:
+        from pmi.market_data.index_history_calendar import SHANGHAI
+        self.check_location()
+        self._maintenance.require_available()
+        runtime = self._activity_runtime
+        return self._storage_views.versions(datetime.now(SHANGHAI).date().isoformat(),
+            activity=runtime is not None, etf=self._etf_runtime is not None,
+            blocked=tuple(runtime.blocked) if runtime else ())
+
+    def price_view(self, index_id: str, configuration: str, parameters: dict) -> dict:
+        self._require_code(index_id)
+        self.check_location()
+        self._maintenance.require_available()
+        from pmi.market_data.storage.database import StorageError
+        common = {'snapshot_id', 'observation_id', 'formula_version', 'detail'}
+        detail = parameters.get('detail')
+        if detail == 'range':
+            if set(parameters) != common | {'start', 'end', 'frequency', 'ma'}:
+                raise StorageError('range_parameters_invalid')
+            periods = self._ma(parameters['ma'])
+            calculate = lambda: self._storage_views.price_range(index_id, parameters['snapshot_id'], parameters['observation_id'],
+                parameters['start'], parameters['end'], parameters['frequency'], periods, parameters['formula_version'])
+        elif detail == 'overview' and set(parameters) == common:
+            calculate = lambda: self._storage_views.price_overview(index_id, parameters['snapshot_id'], parameters['observation_id'], parameters['formula_version'])
+        else:
+            raise StorageError('range_parameters_invalid')
+        key = (self._storage_identity, configuration, 'price', index_id, tuple(sorted(parameters.items())), 'unadjusted')
+        result = self._range_cache.get(key, calculate)
+        self._maintenance.require_available()
+        return result
+
+    @staticmethod
+    def _ma(value: str) -> tuple[int, ...]:
+        from pmi.market_data.storage.database import StorageError
+        from pmi.market_data.index_calculations import PERIODS
         try:
-            first, last = date.fromisoformat(start), date.fromisoformat(end)
+            if value == 'none':
+                return ()
+            parts = value.split(',')
+            if any(not part.isascii() or not part.isdecimal() or str(int(part)) != part for part in parts):
+                raise ValueError()
+            values = tuple(int(part) for part in parts)
+            if len(set(values)) != len(values) or not set(values) <= set(PERIODS):
+                raise ValueError()
+            return values
         except (TypeError, ValueError) as error:
-            raise SnapshotError("index_range_invalid: 日期无效") from error
-        names = fields.split(",")
-        if (first > last or len(names) != len(set(names)) or not names
-                or not set(names) <= {"open", "high", "low", "close"}):
-            raise SnapshotError("index_range_invalid: 日期或字段未准入")
-        view = self.read_daily(index_id, snapshot_id)
+            raise StorageError('range_parameters_invalid') from error
+
+    def activity_view(self, series: str, configuration: str, parameters: dict) -> dict:
+        from pmi.market_data.storage.database import StorageError
+        if self._activity_runtime is None:
+            raise ActivityError('activity_disabled', 404)
+        self._activity_runtime.guard(series)
+        self._maintenance.require_available()
+        binding = 'anchor_date' if series in {'cn-a-turnover', 'cn-a-turnover-sse-szse'} else 'price_snapshot_id'
+        common = {'activity_id', 'observation_id', 'formula_version', 'detail', binding}
+        if parameters.get('detail') == 'range' and set(parameters) == common | {'start', 'end', 'frequency', 'ma', 'field'}:
+            periods = self._ma(parameters['ma'])
+            calculate = lambda: self._storage_views.activity_range(series, parameters['activity_id'], parameters['observation_id'], parameters[binding],
+                parameters['start'], parameters['end'], parameters['field'], parameters['frequency'], periods, parameters['formula_version'])
+        elif parameters.get('detail') == 'overview' and binding == 'anchor_date' and set(parameters) == common:
+            calculate = lambda: self._storage_views.market_overview(series, parameters['activity_id'], parameters['observation_id'], parameters[binding], parameters['formula_version'])
+        else:
+            raise StorageError('range_parameters_invalid')
+        key = (self._storage_identity, configuration, 'activity', series, tuple(sorted(parameters.items())), 'unadjusted')
+        result = self._range_cache.get(key, calculate)
+        self._maintenance.require_available()
+        return result
+
+    def read_index_view(self, index_id: str, formula_version: str, detail: str = 'full') -> dict | None:
+        """一次完整校验固定价格输入后现算；不二次取current或降低原件校验。"""
+        from pmi.market_data.compact_view import index_calculations
+        from pmi.market_data.index_calculations import INDEX_IDS, FORMULA_VERSION
+        if index_id not in INDEX_IDS or formula_version != FORMULA_VERSION or detail not in ('overview', 'full'):
+            raise SnapshotError("calculation_parameters_invalid")
+        view = self.read_daily(index_id)
         if view is None:
             return None
-        value = view["snapshot"]
-        if start < value["window"]["start"] or end > value["window"]["end"]:
-            raise SnapshotError("coverage_insufficient: 范围超出此固定快照")
-        return {"index_id": index_id, "format": view["format"], "snapshot_id": value["snapshot_id"],
-                "start": start, "end": end, "fields": names, "unit": "点", "pit_grade": "latest_only",
-                "storage_decimals": value.get("storage_decimals", 2),
-                "coverage": {"start": value["window"]["start"], "end": value["window"]["end"]},
-                "rows": [{"trade_date": row["trade_date"], "values": {name: row[name] for name in names}}
-                         for row in value["bars"] if start <= row["trade_date"] <= end]}
+        if view["format"] != "v2":
+            raise SnapshotError("calculation_input_mismatch")
+        calculations = index_calculations(index_id, view["snapshot"], formula_version, detail)
+        self.check_location()
+        return {"view": view, "calculations": calculations}
 
     def read_index_calculations(self, index_id: str, snapshot_id: str, formula_version: str) -> dict | None:
         """仅对明确固定v2快照现算；不访问current、不回退旧协议、不产生写入。
@@ -357,7 +432,7 @@ class MarketData:
     def read_index_original(self, index_id: str, snapshot_id: str, object_id: str):
         """只读完整价格原件供量额配对，成员校验留在数据层，不扩大HTTP证据接口。"""
         from pmi.market_data.index_catalog import get_index
-        from pmi.market_data.index_series_store import read_original
+        from pmi.market_data.storage.index_store import read_original
         self.check_location()
         result = read_original(self._root, get_index(index_id), snapshot_id, object_id)
         self.check_location()
@@ -368,19 +443,24 @@ class MarketData:
         from pmi.market_data.activity.model import ActivityError
         if self._activity_runtime is None:
             raise ActivityError("activity_disabled", 404)
-        if action not in {"current", "fixed", "calculations", "evidence", "start", "lookup", "startup"}:
+        if action not in {"current", "view", "fixed", "calculations", "evidence", "start", "lookup", "startup"}:
             raise ActivityError("unknown_activity_operation", 422)
         self.check_location()
-        operations = {"current": self._activity_runtime.current, "fixed": self._activity_runtime.fixed,
+        operations = {"current": self._activity_runtime.current, "view": self._activity_runtime.view, "fixed": self._activity_runtime.fixed,
                       "calculations": self._activity_runtime.calculations, "evidence": self._activity_runtime.evidence,
                       "start": self._activity_runtime.start, "lookup": self._activity_runtime.lookup,
                       "startup": self._activity_runtime.startup}
+        if action != "lookup":
+            self._maintenance.require_available()
         if self._periodic is not None:
             if action == "start":
                 return self._periodic.manual_activity(*args)
             if action == "startup":
                 raise ActivityError("periodic_coordinator_required")
-        return operations[action](*args)
+        if action in {"start", "startup"}:
+            return operations[action](*args)
+        with self._database.read():
+            return operations[action](*args)
 
     @property
     def activity_anchor_date(self) -> str:
@@ -413,3 +493,24 @@ class MarketData:
         if self._periodic is None or any(not self._writes.get(x, False) for x in indices):
             raise SnapshotError("periodic_disabled")
         return self._periodic.automatic(indices, config_id, instance)
+
+    def etf_flow(self, action: str, *args, **kwargs):
+        """ETF公开用例门面；读取不触发其他业务更新，所有写入共享本根锁。"""
+        from pmi.market_data.etf_flow.model import FlowError
+        runtime = self._etf_runtime
+        if runtime is None:
+            raise FlowError("etf_disabled", 404)
+        operations = {"current": runtime.current, "view": runtime.view, "evidence": runtime.evidence,
+                      "start": runtime.start, "operation": runtime.operation}
+        self.check_location()
+        if action == "descriptor":
+            runtime.check()
+            return runtime.settings.public()
+        if action not in operations:
+            raise FlowError("etf_unknown_operation", 422)
+        if action != "operation":
+            self._maintenance.require_available()
+        if action == "start":
+            return operations[action](*args, **kwargs)
+        with self._database.read():
+            return operations[action](*args, **kwargs)

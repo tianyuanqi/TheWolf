@@ -1,8 +1,9 @@
 import type { components } from "../../../contracts/generated/http";
-import { IndexSeriesCalculations as validCalculations } from "../../../contracts/generated/validators.mjs";
+import { IndexSeriesCalculations as validCalculations, IndexSeriesOverviewCalculations as validOverviewCalculations } from "../../../contracts/generated/validators.mjs";
 import { comparePrice, validDay, type SeriesSnapshot } from "./indexSeriesTypes";
 
 export type Calculations = components["schemas"]["IndexSeriesCalculations"];
+export type OverviewCalculations = components["schemas"]["IndexSeriesOverviewCalculations"];
 export type CalculationSeries = Calculations["daily"];
 export type CalculationScalar = components["schemas"]["IndexSeriesCalculationScalar"];
 export type Frequency = CalculationSeries["frequency"];
@@ -17,11 +18,15 @@ export const INCOMPLETE_REASONS = {
   window_start_truncated: "历史窗口起点截断", period_in_progress: "周期尚未结束", calendar_unknown: "周期日历未覆盖",
 };
 
-/** 验证既有结果的结构、归属、参数及原值；不重算收益、均线或周月聚合。 */
-export function parseCalculations(value: unknown, snapshot: SeriesSnapshot): Calculations {
-  if (!validCalculations(value) || value.snapshot_id !== snapshot.snapshot_id
-      || value.index_id !== snapshot.instrument.id || value.anchor_date !== snapshot.window.anchor_date
-      || value.calendar_version !== snapshot.calendar_version) throw new Error("计算结果与当前价格快照不符");
+function checkHeader(value: OverviewCalculations, snapshot: SeriesSnapshot) {
+  if (value.snapshot_id !== snapshot.snapshot_id || value.index_id !== snapshot.instrument.id
+      || value.anchor_date !== snapshot.window.anchor_date || value.calendar_version !== snapshot.calendar_version) {
+    throw new Error("计算结果与当前价格快照不符");
+  }
+}
+
+type CalculationInput = Pick<SeriesSnapshot, "calendar_dates" | "storage_decimals" | "instrument" | "snapshot_id"> & { window: Pick<SeriesSnapshot["window"], "end"> };
+function scalarChecks(snapshot: CalculationInput) {
   const dates = new Set(snapshot.calendar_dates);
   const point = new RegExp(`^[0-9]+\\.[0-9]{${snapshot.storage_decimals}}$`);
   function checkRef(ref: CalculationScalar["input_ref"], end: string) {
@@ -40,6 +45,36 @@ export function parseCalculations(value: unknown, snapshot: SeriesSnapshot): Cal
       throw new Error("计算结果的公式、参数、单位或缺失原因不符");
     }
   }
+  return { dates, point, checkRef, checkScalar };
+}
+
+function checkPerformance(value: Pick<OverviewCalculations, "performance">, snapshot: CalculationInput, checkScalar: ReturnType<typeof scalarChecks>["checkScalar"]) {
+  for (const [key, period] of [["day_5", "5"], ["day_20", "20"], ["day_60", "60"], ["year_1", "1y"]] as const) {
+    checkScalar(value.performance[key], "daily", period, period === "1y" ? "natural-year-close-pct-v1" : "trading-window-close-pct-v1",
+      snapshot.window.end, "%", period === "1y" ? "missing_year_baseline" : "insufficient_samples");
+  }
+}
+
+/** 范围概况沿用同一套公式、单位、缺失原因与固定输入校验。 */
+export function checkStoredPerformance(value: components["schemas"]["StoredPriceOverview"]): void {
+  const input = { calendar_dates: value.bars.map(row => row.trade_date), storage_decimals: value.storage_decimals,
+    instrument: value.instrument, snapshot_id: value.snapshot_id, window: { end: value.source_coverage.end } };
+  checkPerformance(value, input, scalarChecks(input).checkScalar);
+}
+
+/** 概况仅核对实际返回的四项比较；原引用、单位、公式和缺失检查与full共用。 */
+export function parseOverviewCalculations(value: unknown, snapshot: SeriesSnapshot): OverviewCalculations {
+  if (!validOverviewCalculations(value)) throw new Error("概况计算结构无效");
+  checkHeader(value, snapshot);
+  checkPerformance(value, snapshot, scalarChecks(snapshot).checkScalar);
+  return value;
+}
+
+/** 验证既有完整结果；逐周期原值、均线可用性、单日摘要检查全部保留。 */
+export function parseCalculations(value: unknown, snapshot: SeriesSnapshot): Calculations {
+  if (!validCalculations(value)) throw new Error("完整计算结构无效");
+  checkHeader(value, snapshot);
+  const { dates, point, checkRef, checkScalar } = scalarChecks(snapshot);
   for (const frequency of FREQUENCIES) {
     const series = value[frequency];
     if (series.frequency !== frequency || !series.rows.length || series.ma_availability.length !== MA_PERIODS.length
@@ -76,10 +111,7 @@ export function parseCalculations(value: unknown, snapshot: SeriesSnapshot): Cal
     }
   }
   if (value.daily.rows.at(-1)!.change_pct.value !== snapshot.summary.daily_change_pct) throw new Error("最新涨跌与同快照摘要不一致");
-  for (const [key, period] of [["day_5", "5"], ["day_20", "20"], ["day_60", "60"], ["year_1", "1y"]] as const) {
-    checkScalar(value.performance[key], "daily", period, period === "1y" ? "natural-year-close-pct-v1" : "trading-window-close-pct-v1",
-      snapshot.window.end, "%", period === "1y" ? "missing_year_baseline" : "insufficient_samples");
-  }
+  checkPerformance(value, snapshot, checkScalar);
   return value;
 }
 

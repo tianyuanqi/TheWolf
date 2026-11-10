@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from sqlite_fixture import initialize
+from http_test_support import disk
 
 from jsonschema import Draft202012Validator
 
@@ -79,7 +81,7 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
         return Draft202012Validator({**self.schemas, "$ref": "#/$defs/" + name})
 
     def test_current_structure_excludes_retired_contracts_and_resources_match(self):
-        self.assertEqual(self.spec["info"]["version"], "2.0.0")
+        self.assertEqual(self.spec["info"]["version"], "3.0.0")
         self.assertNotIn("/api/slice", self.spec["paths"])
         self.assertNotIn("/api/indices/000300", self.spec["paths"])
         self.assertNotIn("OperationKind", self.spec["components"]["schemas"])
@@ -125,7 +127,7 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
     def test_descriptor_ready_and_catalog_validate_without_creating_data(self):
         from pmi.service_config import ServiceConfig
         with tempfile.TemporaryDirectory(prefix="thewolf-series-contract-") as directory:
-            root = Path(directory).resolve()
+            root = Path(directory).resolve(); initialize(root); before=disk(root)
             config = ServiceConfig(root, 18080, ("http://127.0.0.1:18081",),
                                    index_write_ids=(INDICES[3].index_id,))
             descriptor = config.public_index_descriptor()
@@ -137,7 +139,7 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
             catalog = config.market_data.index_catalog()
             self.assertEqual(response_value("IndexSeriesCatalog", catalog), catalog)
             self.assertEqual(catalog["indices"], [public_index(index, index.index_id == INDICES[3].index_id) for index in INDICES])
-            self.assertEqual(list(root.iterdir()), [])
+            self.assertEqual(disk(root),before)
         self.assertFalse(root.exists())
 
     def test_status_retains_every_mismatch_and_cannot_enter_legacy_operation(self):
@@ -171,7 +173,10 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
         for path in ("/api/index-series/session", "/api/index-series/catalog", "/api/index-series/operations/{request_id}"):
             self.assertLess(paths.index(path), dynamic)
         new_routes = {path: item for path, item in self.spec["paths"].items() if path.startswith("/api/index-series")}
-        self.assertEqual(len(new_routes), 9)
+        self.assertEqual(set(new_routes), {"/api/index-series/session", "/api/index-series/catalog", "/api/index-series/operations/{request_id}",
+            "/api/index-series/{index_id}", "/api/index-series/{index_id}/update", "/api/index-series/{index_id}/range",
+            "/api/index-series/{index_id}/snapshots/{snapshot_id}", "/api/index-series/{index_id}/snapshots/{snapshot_id}/evidence/{object_id}",
+            "/api/index-series/{index_id}/snapshots/{snapshot_id}/calculations", "/api/index-series/{index_id}/view"})
         for path, item in new_routes.items():
             self.assertEqual(item["options"]["responses"]["204"]["headers"]["Access-Control-Max-Age"]["schema"]["const"], "0")
             for method in ("get", "post"):
@@ -191,7 +196,7 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
     def test_assembled_read_errors_status_lookup_and_preflight_match_contract(self):
         from http_test_support import ReadClient
         with tempfile.TemporaryDirectory(prefix="thewolf-series-asgi-") as directory:
-            root = Path(directory).resolve()
+            root = Path(directory).resolve(); initialize(root); before=disk(root)
             client = ReadClient(root)
             client.headers["x-wolf-expected-config"] = client.config.index_config_id
             base = "/api/index-series/" + INDICES[3].index_id
@@ -222,7 +227,7 @@ class IndexSeriesHttpContractTests(unittest.TestCase):
             denied = client.request(base + "/update", "POST", headers={"content-type": "application/json"}, body=b"{}")
             self.assertEqual(denied.status, 403, denied.body)
             client.app.state.boundary.response("startIndexSeries", 403, denied.json())
-            self.assertEqual(list(root.iterdir()), [])
+            self.assertEqual(disk(root),before)
         self.assertFalse(root.exists())
 
     def test_old_view_cannot_enter_current_series_contract(self):

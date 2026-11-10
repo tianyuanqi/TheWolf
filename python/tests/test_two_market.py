@@ -16,6 +16,7 @@ from pmi.market_data.activity import calculations, fetch, two_market
 from pmi.market_data.activity.model import ActivityError, Options, Original, TWO_MARKET, TWO_POLICY, MARKET_MAX_BYTES, canonical, digest
 from pmi.market_data.index_history_calendar import complete_window, SHANGHAI
 from test_market_activity import Client
+from sqlite_fixture import initialize as initialize_sqlite, set_activity_budget, activity_budget_bytes
 from test_index_series_contract import WINDOW
 from http_test_support import disk
 
@@ -38,10 +39,10 @@ class TwoMarketTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='wolf-s2-two-')
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()
-        self.price, self.activity = self.base/'price', self.base/'activity'
-        self.price.mkdir(); self.activity.mkdir()
-        self.ledger = self.base/'budget.json'
-        self.ledger.write_bytes(canonical({'cycle': 's2-test', 'attempts': 0, 'bytes': 0, 'limit_attempts': 2200, 'limit_bytes': 2200*MARKET_MAX_BYTES}))
+        self.price = self.activity = self.base/'data'
+        self.price.mkdir(); initialize_sqlite(self.price)
+        self.ledger = self.price/'facts.sqlite'
+        set_activity_budget(self.price, canonical({'cycle': 's2-test', 'attempts': 0, 'bytes': 0, 'limit_attempts': 2200, 'limit_bytes': 2200*MARKET_MAX_BYTES}))
 
     def client(self, **kwargs):
         client = Client(self.price, self.activity, write_series=(TWO_MARKET,), max_attempts=2200,
@@ -79,20 +80,20 @@ class TwoMarketTests(unittest.TestCase):
 
     def test_budget_first_window_bound_and_restart(self):
         client = self.client(); options = client.config.activity_options
-        before = self.ledger.read_bytes()
+        before = activity_budget_bytes(self.price)
         fetch.preflight(options, 1454, 1454*MARKET_MAX_BYTES)
         fetch.preflight(options, 2200, 2200*MARKET_MAX_BYTES)
-        self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(activity_budget_bytes(self.price), before)
         fetch.reserve(options, MARKET_MAX_BYTES)
         with self.assertRaises(ActivityError): fetch.preflight(options, 2200, 2200*MARKET_MAX_BYTES)
         restart = self.client().config.activity_options
-        self.assertEqual(json.loads(self.ledger.read_bytes())['attempts'], 1)
+        self.assertEqual(json.loads(activity_budget_bytes(self.price))['attempts'], 1)
         fetch.reserve(restart)
-        self.assertEqual(json.loads(self.ledger.read_bytes())['bytes'], MARKET_MAX_BYTES+1048576)
+        self.assertEqual(json.loads(activity_budget_bytes(self.price))['bytes'], MARKET_MAX_BYTES+1048576)
 
     def test_insufficient_ledger_zero_network_and_no_current(self):
         client = self.client(); rt = client.config.market_data._activity_runtime
-        self.ledger.write_bytes(canonical({'cycle':'s2-test','attempts':2199,'bytes':2199*MARKET_MAX_BYTES,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
+        set_activity_budget(self.price, canonical({'cycle':'s2-test','attempts':2199,'bytes':2199*MARKET_MAX_BYTES,'limit_attempts':2200,'limit_bytes':2200*MARKET_MAX_BYTES}))
         with patch.object(fetch, 'fetch', side_effect=AssertionError('必须零网络')) as network:
             result = rt.start(TWO_MARKET, 'budget-short', {'anchor_date':WINDOW.anchor_date,'expected_activity_id':None}, client.config.activity_config_id, client.app.state.boundary.instance)
         self.assertEqual(result['reason'], 'activity_budget_exhausted'); network.assert_not_called()
@@ -119,13 +120,13 @@ class TwoMarketTests(unittest.TestCase):
                     with self.assertRaisesRegex(ActivityError,'source_size_exceeded'):
                         fetch.fetch('szse-a-json',[WINDOW.end],options,Cancel())
                 self.assertEqual(opener.return_value.open.call_count,1)
-        self.assertEqual(json.loads(self.ledger.read_bytes())['bytes'],2*MARKET_MAX_BYTES)
-        cancel=Event();cancel.set();before=self.ledger.read_bytes()
+        self.assertEqual(json.loads(activity_budget_bytes(self.price))['bytes'],2*MARKET_MAX_BYTES)
+        cancel=Event();cancel.set();before=activity_budget_bytes(self.price)
         with patch.object(fetch,'build_opener') as opener:
             with self.assertRaisesRegex(ActivityError,'activity_cancelled'):
                 fetch.fetch('szse-a-json',[WINDOW.end],options,cancel)
             opener.assert_not_called()
-        self.assertEqual(self.ledger.read_bytes(),before)
+        self.assertEqual(activity_budget_bytes(self.price),before)
 
     def test_real_http_publish_replay_and_cross_anchor_reuse(self):
         client = self.client(); rt = client.config.market_data._activity_runtime

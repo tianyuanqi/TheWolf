@@ -7,6 +7,7 @@ import type { ConnectionDescriptor } from "./apiClient";
 import { OVERVIEW_INDICES, parseSeriesView, type OverviewIndexId, type SeriesSnapshot } from "./indexSeriesTypes";
 import { CALCULATION_VERSION, parseCalculations } from "./indexCalculationTypes";
 
+
 import type { Identity } from "./operationSession";
 
 export type IndexDescriptor = components["schemas"]["IndexSeriesDescriptor"];
@@ -79,6 +80,15 @@ export class IndexSeriesClient {
         || response.headers.get("X-Wolf-Instance") !== instance_id
         || response.headers.get("X-Wolf-Config") !== expected.config_id) throw new Error("指数服务实例或冻结配置不匹配，请重新连接");
     return new IndexSeriesClient(expected, instance_id);
+  }
+
+  async storedVersions(signal: AbortSignal): Promise<unknown> {
+    return this.read("/api/storage/versions", signal, 8000);
+  }
+
+  async storedView(id: OverviewIndexId, query: Record<string, string>, signal: AbortSignal): Promise<unknown> {
+    if (!OVERVIEW_INDICES.some(item => item.id === id)) throw new Error("未登记的总览指数");
+    return this.read(`/api/index-series/${encodeURIComponent(id)}/view?${new URLSearchParams(query)}`, signal, 30000, true);
   }
 
   /** 获取当前完整快照后，列表、迷你走势与详情共用该对象；交互不会重新读取current。 */

@@ -273,8 +273,21 @@
     "Boundary_00fad7bcb00c5730": {
       "type": "string"
     },
+    "Boundary_014d4e42502d79c7": {
+      "type": "string"
+    },
+    "Boundary_01f4375cc8701d2c": {
+      "type": "string"
+    },
+    "Boundary_021989856a1e8850": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_026fea92db315524": {
       "type": "string"
+    },
+    "Boundary_07cf60de2cb85c82": {
+      "$ref": "#/$defs/Day"
     },
     "Boundary_0c15899bea2aeb67": {
       "$ref": "#/$defs/PublicDigest"
@@ -282,6 +295,12 @@
     "Boundary_0c3acda7c4bdccce": {
       "const": "0",
       "type": "string"
+    },
+    "Boundary_0c920afe05b03279": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_0cf53b03801753c1": {
+      "$ref": "#/$defs/PublicDigest"
     },
     "Boundary_0d9829ac02f2632c": {
       "$ref": "#/$defs/ObjectId"
@@ -304,6 +323,10 @@
       ],
       "type": "string"
     },
+    "Boundary_135f6b868e1dcdb8": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_136f2e3b00d0bc4d": {
       "const": "0",
       "type": "string"
@@ -311,7 +334,16 @@
     "Boundary_138e71c8c58d5233": {
       "$ref": "#/$defs/ObjectId"
     },
+    "Boundary_1461aaac86f0fa3b": {
+      "type": "string"
+    },
     "Boundary_1489479c1adbcf8f": {
+      "type": "string"
+    },
+    "Boundary_16a047c4f04e5ec8": {
+      "enum": [
+        "GET"
+      ],
       "type": "string"
     },
     "Boundary_175eb0e67be246d0": {
@@ -339,6 +371,12 @@
       ],
       "type": "string"
     },
+    "Boundary_1c9aa2be3d28977a": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
     "Boundary_1d3438c7657eb46c": {
       "enum": [
         "sse:000001:price",
@@ -350,10 +388,20 @@
       ],
       "type": "string"
     },
+    "Boundary_1d5932ce8a2ba22f": {
+      "$ref": "#/$defs/Day"
+    },
     "Boundary_1eb2eeb1350634d8": {
       "enum": [
         "GET"
       ],
+      "type": "string"
+    },
+    "Boundary_1ec58e998e293935": {
+      "$ref": "#/$defs/Day"
+    },
+    "Boundary_1f2fff5c67e1d1f0": {
+      "minLength": 1,
       "type": "string"
     },
     "Boundary_2072e775805f94e7": {
@@ -368,12 +416,23 @@
     "Boundary_2271aceb51e8af5e": {
       "type": "string"
     },
+    "Boundary_2360753d0acaa079": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_23e8c6441b6ee7b6": {
       "minLength": 1,
       "type": "string"
     },
     "Boundary_248953e812f3fcc1": {
       "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_271f620478ac4f87": {
+      "type": "string"
+    },
+    "Boundary_28c272a897328847": {
+      "pattern": "^(none|(?:5|10|20|30|60|120|180|250)(?:,(?:5|10|20|30|60|120|180|250))*)$",
       "type": "string"
     },
     "Boundary_2c1925885ff6279a": {
@@ -395,6 +454,13 @@
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_2e7af05ebf0b25bc": {
+      "type": "string"
+    },
+    "Boundary_3056c9bba0c538db": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_3092bf8da43414e7": {
       "type": "string"
     },
@@ -403,6 +469,10 @@
       "type": "string"
     },
     "Boundary_30adc0024715d833": {
+      "type": "string"
+    },
+    "Boundary_31613db5b1d18164": {
+      "minLength": 1,
       "type": "string"
     },
     "Boundary_317a8751146f93e7": {
@@ -419,6 +489,29 @@
     "Boundary_3325a7c1a7fe9141": {
       "type": "string"
     },
+    "Boundary_34de94c80b1eaaa5": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_3600a258b17e73f8": {
+      "type": "string"
+    },
+    "Boundary_36089ef5e2bb4004": {
+      "type": "string"
+    },
+    "Boundary_36bd952c913e4826": {
+      "enum": [
+        "market-activity-calculations-v1",
+        "market-activity-calculations-sse-szse-v1"
+      ],
+      "type": "string"
+    },
+    "Boundary_38ebe138b735e1cb": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
     "Boundary_39821a260bf20c90": {
       "enum": [
         "GET",
@@ -433,18 +526,59 @@
       ],
       "type": "string"
     },
+    "Boundary_3b57088a50d0040e": {
+      "enum": [
+        "POST"
+      ],
+      "type": "string"
+    },
     "Boundary_402ef032da4eae58": {
       "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_40a86b6ec15fe71c": {
+      "type": "string"
+    },
+    "Boundary_417e65aadf4dca57": {
+      "enum": [
+        "GET"
+      ],
       "type": "string"
     },
     "Boundary_418da4d8470d5ed2": {
       "$ref": "#/$defs/RequestId"
     },
+    "Boundary_436084b579e073ac": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
     "Boundary_43c15723c074da16": {
       "type": "string"
     },
+    "Boundary_43feae6c102009f1": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_44dfa6b16ea3d305": {
+      "$ref": "#/$defs/PublicDigest"
+    },
     "Boundary_464bcd604570c3ee": {
       "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_46525c7904389024": {
+      "pattern": "^(none|(?:5|10|20|30|60|120|180|250)(?:,(?:5|10|20|30|60|120|180|250))*)$",
+      "type": "string"
+    },
+    "Boundary_46f351986e7a2890": {
+      "type": "string"
+    },
+    "Boundary_474418a9a7315521": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_4a5c2c64893beb45": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
     "Boundary_4bbd90e867efbdce": {
@@ -464,6 +598,12 @@
     "Boundary_4dad30944c8a2235": {
       "$ref": "#/$defs/RequestId"
     },
+    "Boundary_4dfad3302c4cb71f": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
     "Boundary_4ec3fe101d8a1cee": {
       "minLength": 1,
       "type": "string"
@@ -474,6 +614,10 @@
     },
     "Boundary_4fb840cc568b1625": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_510298dd1fc47ea0": {
+      "const": "0",
       "type": "string"
     },
     "Boundary_52623136a709df86": {
@@ -492,11 +636,28 @@
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_568efd2c6b74a85d": {
+      "type": "string"
+    },
+    "Boundary_57a3e2123844e71b": {
+      "type": "string"
+    },
     "Boundary_588e083a12e66e39": {
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_59700378bbbfdc10": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_59ecd2c6fd5600e2": {
+      "type": "string"
+    },
     "Boundary_5aeee1ef5afe33f1": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_5b1c90bb3219a7e0": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
@@ -511,8 +672,24 @@
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_5e78c22653a62c4d": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_5f5efff4e8c1fcc2": {
+      "$ref": "#/$defs/Day"
+    },
+    "Boundary_61de8b33379b5a1a": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
     "Boundary_62f085a720b3c32f": {
       "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_62fd4ae3a75f9ff7": {
+      "type": "string"
     },
     "Boundary_6315786f28aa42f6": {
       "const": "0",
@@ -526,7 +703,13 @@
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
+    "Boundary_67747ea5291ddbf4": {
+      "$ref": "#/$defs/ObjectId"
+    },
     "Boundary_68e6b3c153f17212": {
+      "type": "string"
+    },
+    "Boundary_6a62caff17576e24": {
       "type": "string"
     },
     "Boundary_6ae3d02d6ffd1527": {
@@ -544,6 +727,9 @@
     "Boundary_6d2fedfa9503fd5f": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
+    },
+    "Boundary_6e8466449840d186": {
+      "$ref": "#/$defs/PublicDigest"
     },
     "Boundary_6fae800cebb4ec44": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
@@ -576,18 +762,45 @@
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
+    "Boundary_74e197348f08a914": {
+      "enum": [
+        "original",
+        "current"
+      ],
+      "type": "string"
+    },
     "Boundary_7522d49a52233b65": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_752954a472658add": {
       "minLength": 1,
       "type": "string"
     },
     "Boundary_75312d9d315abc8b": {
       "type": "string"
     },
+    "Boundary_76a4df8500450ba7": {
+      "type": "string"
+    },
     "Boundary_76d5ba62815ef2b6": {
+      "type": "string"
+    },
+    "Boundary_77ab2aba8de414dd": {
       "type": "string"
     },
     "Boundary_786cd342324853b4": {
       "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_7898925e585589db": {
+      "type": "string"
+    },
+    "Boundary_78b24a17616d6f0b": {
+      "type": "string"
+    },
+    "Boundary_79d0866fdfa5676e": {
+      "const": "0",
       "type": "string"
     },
     "Boundary_79ff9719ebad8c6d": {
@@ -600,6 +813,10 @@
     },
     "Boundary_7bce636fdf768b47": {
       "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_7cca88240cf5cef9": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
     },
     "Boundary_7cfa0b3358071400": {
       "enum": [
@@ -617,10 +834,21 @@
     "Boundary_7e303c3ea60cc0a3": {
       "$ref": "#/$defs/ObjectId"
     },
+    "Boundary_7e5d964046d65304": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_8153200e48fbc49e": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_819058b9d9fcedbe": {
       "type": "string"
     },
     "Boundary_830c490aa9d91239": {
+      "type": "string"
+    },
+    "Boundary_83de8918594d498e": {
       "type": "string"
     },
     "Boundary_84d17f63d724010c": {
@@ -652,10 +880,29 @@
     "Boundary_8c62c7eae52feebc": {
       "type": "string"
     },
+    "Boundary_8c6cb58eb8c106d2": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_8c9be877a642d912": {
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "type": "string"
+    },
+    "Boundary_8d3209182b019c81": {
+      "type": "string"
+    },
     "Boundary_8e19db85143f41c5": {
       "enum": [
         "GET"
       ],
+      "type": "string"
+    },
+    "Boundary_8ee0bd70682d5c2d": {
+      "minLength": 1,
       "type": "string"
     },
     "Boundary_8efed99ab9075771": {
@@ -671,7 +918,15 @@
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_908537dbd8a63c76": {
+      "const": "0",
+      "type": "string"
+    },
     "Boundary_9196bd3eb30c544a": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_91a71f8843f2715f": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
@@ -697,6 +952,10 @@
       "type": "string"
     },
     "Boundary_96bd5e04f8e52efc": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_97624f1bae9e3adc": {
       "minLength": 1,
       "type": "string"
     },
@@ -726,6 +985,10 @@
     "Boundary_9e13c6a7c270faea": {
       "type": "string"
     },
+    "Boundary_9e9dc704a6341c1b": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_9f14eee6b7a796eb": {
       "type": "string"
     },
@@ -735,6 +998,27 @@
     },
     "Boundary_a00fb8eceb0f74b0": {
       "const": "600",
+      "type": "string"
+    },
+    "Boundary_a10f22931971e030": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+      "type": "string"
+    },
+    "Boundary_a32ed8bfb2e00530": {
+      "type": "string"
+    },
+    "Boundary_a395628783bd39a8": {
+      "type": "string"
+    },
+    "Boundary_a3a9b16296bc81ad": {
+      "enum": [
+        "sse:000001:price",
+        "szse:399001:price",
+        "szse:399006:price",
+        "sse:000688:price",
+        "cn-a-turnover",
+        "cn-a-turnover-sse-szse"
+      ],
       "type": "string"
     },
     "Boundary_a70b31730c038fd0": {
@@ -756,8 +1040,23 @@
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
+    "Boundary_abe069f1eb7a2b8c": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_abfa0dd75475a31d": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
     "Boundary_acc085f0e4bc6cce": {
       "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_ae36493c8e75bb78": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_aff136d4146b17b9": {
       "type": "string"
     },
     "Boundary_b02395a0669b2f93": {
@@ -766,6 +1065,9 @@
     },
     "Boundary_b0c84b963acae0d0": {
       "type": "string"
+    },
+    "Boundary_b15f1db13ea09a39": {
+      "$ref": "#/$defs/IndexSeriesId"
     },
     "Boundary_b18426d749d30a96": {
       "type": "string"
@@ -785,6 +1087,13 @@
       "const": "0",
       "type": "string"
     },
+    "Boundary_b46d36124fa14573": {
+      "enum": [
+        "overview",
+        "range"
+      ],
+      "type": "string"
+    },
     "Boundary_b47da80d0a1770a3": {
       "type": "string"
     },
@@ -792,6 +1101,10 @@
       "$ref": "#/$defs/IndexSeriesId"
     },
     "Boundary_b5ac16f60a3f1be8": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_b63a90d447cdb379": {
       "const": "0",
       "type": "string"
     },
@@ -817,8 +1130,15 @@
       "const": "0",
       "type": "string"
     },
+    "Boundary_ba06fdf389d9dd55": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_ba1cfc9e6820962a": {
       "$ref": "#/$defs/IndexSeriesOperationKind"
+    },
+    "Boundary_ba5d62dd2aec0115": {
+      "type": "string"
     },
     "Boundary_ba95be738649f2cb": {
       "type": "string"
@@ -837,8 +1157,34 @@
       "minLength": 1,
       "type": "string"
     },
+    "Boundary_bca24c105017718f": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_bdd4311bda7f424c": {
+      "type": "string"
+    },
+    "Boundary_be23b993438040ef": {
+      "type": "string"
+    },
+    "Boundary_bf1e8cddbffd2742": {
+      "$ref": "#/$defs/Day"
+    },
     "Boundary_bf2d4a23bc21e9f5": {
       "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_bf84d6ace5d7bdfe": {
+      "enum": [
+        "overview",
+        "range"
+      ],
+      "type": "string"
+    },
+    "Boundary_c00a645a33284e9f": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_c1a1a0ef63cf141b": {
       "type": "string"
     },
     "Boundary_c36ce0fe2c33cbf2": {
@@ -854,11 +1200,28 @@
       "maxLength": 160,
       "type": "string"
     },
+    "Boundary_c52a431ac297d474": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
     "Boundary_c561b2b2cc227432": {
       "const": "0",
       "type": "string"
     },
     "Boundary_c585431a23e2a89f": {
+      "type": "string"
+    },
+    "Boundary_c6297d869bf93c1d": {
+      "enum": [
+        "volume",
+        "amount"
+      ],
+      "type": "string"
+    },
+    "Boundary_c728e7f022d8e70c": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       "type": "string"
     },
     "Boundary_c754c1576579b53c": {
@@ -881,6 +1244,10 @@
     "Boundary_ca9ad6b42ea83e60": {
       "$ref": "#/$defs/IndexSeriesId"
     },
+    "Boundary_ccb7944db08c4d4e": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_d12e57c7a7337021": {
       "type": "string"
     },
@@ -897,8 +1264,31 @@
       ],
       "type": "string"
     },
+    "Boundary_d7732fe9bfc70879": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "Boundary_d9a56786a1b70049": {
+      "const": "0",
+      "type": "string"
+    },
+    "Boundary_da784ddaf00a0a04": {
+      "type": "string"
+    },
     "Boundary_dbcbe72f463588cb": {
       "$ref": "#/$defs/IndexSeriesId"
+    },
+    "Boundary_dbf301bdfaece81e": {
+      "$ref": "#/$defs/PublicDigest"
+    },
+    "Boundary_deab64be69e448da": {
+      "$ref": "#/$defs/ObjectId"
+    },
+    "Boundary_dfeb01c64455b92a": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
     },
     "Boundary_e0fbd55bc4c1cbc9": {
       "$ref": "#/$defs/IndexSeriesId"
@@ -906,6 +1296,9 @@
     "Boundary_e20dee7504af54c5": {
       "const": "0",
       "type": "string"
+    },
+    "Boundary_e2c4bef3629a1425": {
+      "$ref": "#/$defs/ObjectId"
     },
     "Boundary_e35dac466507ce1f": {
       "type": "string"
@@ -928,6 +1321,9 @@
     "Boundary_e642d8cd59931ea6": {
       "$ref": "#/$defs/PublicInstanceId"
     },
+    "Boundary_e6d3afb0e4686b2e": {
+      "type": "string"
+    },
     "Boundary_e812aa7955f8c1a5": {
       "minLength": 1,
       "type": "string"
@@ -943,7 +1339,15 @@
       ],
       "type": "string"
     },
+    "Boundary_e93da67643154af5": {
+      "const": "0",
+      "type": "string"
+    },
     "Boundary_ea4d7527536e3b20": {
+      "type": "string"
+    },
+    "Boundary_ea7608245935c28b": {
+      "const": "index-price-calculations-v1",
       "type": "string"
     },
     "Boundary_ea9b174eb2de2c5b": {
@@ -952,8 +1356,16 @@
       ],
       "type": "string"
     },
+    "Boundary_eb9c1aad26d8535f": {
+      "minLength": 1,
+      "type": "string"
+    },
     "Boundary_ebba0f4688edf304": {
       "$ref": "#/$defs/PublicDigest"
+    },
+    "Boundary_ede2adb701640c13": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
     },
     "Boundary_eeb5bbdd9d50d5f6": {
       "minLength": 1,
@@ -970,6 +1382,25 @@
       "type": "string"
     },
     "Boundary_f0103c915354770f": {
+      "type": "string"
+    },
+    "Boundary_f0e89570063a3a07": {
+      "const": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "type": "string"
+    },
+    "Boundary_f0ed6cfccc9b1bb6": {
+      "enum": [
+        "GET"
+      ],
+      "type": "string"
+    },
+    "Boundary_f1510f3401f3e7ca": {
+      "enum": [
+        "20",
+        "60",
+        "120",
+        "260"
+      ],
       "type": "string"
     },
     "Boundary_f269ffa6eceea68e": {
@@ -993,6 +1424,10 @@
     "Boundary_f3c4af4b3f6b2016": {
       "$ref": "#/$defs/ObjectId"
     },
+    "Boundary_f3fb306f3e9d2011": {
+      "const": "0",
+      "type": "string"
+    },
     "Boundary_f40a9fb15e4cca6d": {
       "minLength": 1,
       "type": "string"
@@ -1010,6 +1445,14 @@
     "Boundary_f7228568626f27aa": {
       "type": "string"
     },
+    "Boundary_f7a68967c31559a4": {
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "type": "string"
+    },
     "Boundary_f811f75db20f44dd": {
       "minLength": 1,
       "type": "string"
@@ -1020,6 +1463,9 @@
     },
     "Boundary_fa5dfee1c24b7ada": {
       "const": "0",
+      "type": "string"
+    },
+    "Boundary_fa65fed496e3e872": {
       "type": "string"
     },
     "Boundary_fb2628d743dbe048": {
@@ -1075,6 +1521,858 @@
       ],
       "type": "object"
     },
+    "CompactActivityCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "comparisons": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "day_20": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_5": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_60": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "year_1": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "day_5",
+                "day_20",
+                "day_60",
+                "year_1"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/CompactActivityDefinition"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "enum": [
+                  "volume",
+                  "amount"
+                ],
+                "type": "string"
+              },
+              "frequency": {
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly"
+                ],
+                "type": "string"
+              },
+              "ma_availability": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "period": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "required_count": {
+                      "type": "integer"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "available",
+                    "sample_count",
+                    "required_count",
+                    "reason"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "change_pct": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    },
+                    "end": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "ma": {
+                      "items": {
+                        "$ref": "#/$defs/CompactActivityScalar"
+                      },
+                      "type": "array"
+                    },
+                    "period_end": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "period_start": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    },
+                    "start": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "total": {
+                      "$ref": "#/$defs/CompactActivityScalar"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end",
+                    "period_start",
+                    "period_end",
+                    "sample_count",
+                    "total",
+                    "change_pct",
+                    "ma"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "frequency",
+              "field",
+              "rows",
+              "ma_availability"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "formula_version",
+        "pit_grade",
+        "series",
+        "comparisons",
+        "definitions"
+      ],
+      "type": "object"
+    },
+    "CompactActivityDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "frequency": {
+              "type": "string"
+            },
+            "operation": {
+              "type": "string"
+            },
+            "period": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "field",
+            "frequency",
+            "operation",
+            "period"
+          ],
+          "type": "object"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "formula_version",
+        "parameters"
+      ],
+      "type": "object"
+    },
+    "CompactActivityScalar": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "definition": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "type": "integer"
+        },
+        "end": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "incomplete_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "definition",
+        "value",
+        "reason",
+        "start",
+        "end",
+        "complete",
+        "incomplete_reasons"
+      ],
+      "type": "object"
+    },
+    "CompactIndexBar": {
+      "additionalProperties": false,
+      "properties": {
+        "change_pct": {
+          "$ref": "#/$defs/CompactIndexScalar"
+        },
+        "close": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "formula_version": {
+          "enum": [
+            "raw-daily-price-v1",
+            "calendar-ohlc-v1"
+          ],
+          "type": "string"
+        },
+        "high": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "incomplete_reasons": {
+          "items": {
+            "enum": [
+              "window_start_truncated",
+              "period_in_progress",
+              "calendar_unknown"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "type": "array"
+        },
+        "low": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "ma": {
+          "items": {
+            "$ref": "#/$defs/CompactIndexScalar"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "open": {
+          "maxLength": 45,
+          "pattern": "^[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+          "type": "string"
+        },
+        "period_end": {
+          "$ref": "#/$defs/Day"
+        },
+        "period_start": {
+          "$ref": "#/$defs/Day"
+        },
+        "sample_count": {
+          "type": "integer"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "period_start",
+        "period_end",
+        "start",
+        "end",
+        "open",
+        "high",
+        "low",
+        "close",
+        "sample_count",
+        "complete",
+        "incomplete_reasons",
+        "formula_version",
+        "change_pct",
+        "ma"
+      ],
+      "type": "object"
+    },
+    "CompactIndexCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "daily": {
+          "$ref": "#/$defs/CompactIndexSeries"
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/CompactIndexDefinition"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "monthly": {
+          "$ref": "#/$defs/CompactIndexSeries"
+        },
+        "performance": {
+          "additionalProperties": false,
+          "properties": {
+            "day_20": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "day_5": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "day_60": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "year_1": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            }
+          },
+          "required": [
+            "day_5",
+            "day_20",
+            "day_60",
+            "year_1"
+          ],
+          "type": "object"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "weekly": {
+          "$ref": "#/$defs/CompactIndexSeries"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "daily",
+        "weekly",
+        "monthly",
+        "performance",
+        "definitions"
+      ],
+      "type": "object"
+    },
+    "CompactIndexDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "formula_version": {
+          "enum": [
+            "adjacent-expected-close-pct-half-up-v1",
+            "period-close-pct-half-up-v1",
+            "trading-window-close-pct-v1",
+            "natural-year-close-pct-v1",
+            "close-sma-half-up-4-v1"
+          ],
+          "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/$defs/IndexSeriesCalculationParameters"
+        },
+        "unit": {
+          "enum": [
+            "%",
+            "点"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "formula_version",
+        "parameters"
+      ],
+      "type": "object"
+    },
+    "CompactIndexOverviewCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/CompactIndexDefinition"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "performance": {
+          "additionalProperties": false,
+          "properties": {
+            "day_20": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "day_5": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "day_60": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            },
+            "year_1": {
+              "$ref": "#/$defs/CompactIndexScalar"
+            }
+          },
+          "required": [
+            "day_5",
+            "day_20",
+            "day_60",
+            "year_1"
+          ],
+          "type": "object"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "performance",
+        "definitions"
+      ],
+      "type": "object"
+    },
+    "CompactIndexScalar": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31
+          ],
+          "type": "integer"
+        },
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "insufficient_samples",
+                "missing_previous_close",
+                "missing_year_baseline"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Day"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "pattern": "^-?[0-9]+\\.[0-9]{2}([0-9]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "definition",
+        "value",
+        "reason",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "CompactIndexSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "ma_availability": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesCalculationAvailability"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/CompactIndexBar"
+          },
+          "maxItems": 1100,
+          "type": "array"
+        }
+      },
+      "required": [
+        "frequency",
+        "ma_availability",
+        "rows"
+      ],
+      "type": "object"
+    },
     "CompletionBasis": {
       "additionalProperties": false,
       "properties": {
@@ -1125,6 +2423,2661 @@
     "Day": {
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$(?![\\s\\S])",
       "type": "string"
+    },
+    "EtfAdjustmentDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmation": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "confirmed_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "end": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "factor": {
+          "maxLength": 400,
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "normal",
+            "adjustment"
+          ],
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "$ref": "#/$defs/PublicDigest"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "start": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "tail": {
+          "maxLength": 400,
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end",
+        "factor",
+        "tail",
+        "confirmed_at",
+        "confirmation",
+        "source_ids"
+      ],
+      "type": "object"
+    },
+    "EtfAdmission": {
+      "additionalProperties": false,
+      "properties": {
+        "checked_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "end": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "first_qualified_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "input_version": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "member_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "required_days": {
+          "minimum": 321,
+          "type": "integer"
+        },
+        "start": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "member_id",
+        "first_qualified_at",
+        "checked_at",
+        "start",
+        "end",
+        "required_days",
+        "input_version"
+      ],
+      "type": "object"
+    },
+    "EtfBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "published_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "report_date": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "report_date",
+        "published_date",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "EtfCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "incoming": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lower": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "negative_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "negative_ratio": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outgoing": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "positive_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "positive_ratio": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "standard_deviation": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "insufficient",
+            "parameters_pending",
+            "evaluated"
+          ],
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "upper": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "mean",
+        "standard_deviation",
+        "upper",
+        "lower",
+        "positive_ratio",
+        "negative_ratio",
+        "threshold",
+        "positive_count",
+        "negative_count",
+        "denominator",
+        "state",
+        "reason",
+        "incoming",
+        "outgoing"
+      ],
+      "type": "object"
+    },
+    "EtfContext": {
+      "additionalProperties": false,
+      "properties": {
+        "indices": {
+          "items": {
+            "$ref": "#/$defs/EtfIndexContext"
+          },
+          "type": "array"
+        },
+        "market": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfMarketContext"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "indices",
+        "market",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "EtfCurrent": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configuration_pending": {
+          "type": "boolean"
+        },
+        "configuration_reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initialized": {
+          "type": "boolean"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/EtfMember"
+          },
+          "type": "array"
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfOperation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan": {
+          "$ref": "#/$defs/EtfPlan"
+        },
+        "pool_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "rule_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "selection_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "server_day": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unresolved": {
+          "items": {
+            "$ref": "#/$defs/EtfUnresolved"
+          },
+          "type": "array"
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfUsage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "write_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "selection_at",
+        "end",
+        "server_day",
+        "configuration_pending",
+        "configuration_reason",
+        "members",
+        "pool_version",
+        "rule_version",
+        "initialized",
+        "write_enabled",
+        "blocked_reason",
+        "usage",
+        "plan",
+        "operation",
+        "unresolved"
+      ],
+      "type": "object"
+    },
+    "EtfDataStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "complete_amount_through": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "history_first": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "history_last": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "input_basis": {
+          "enum": [
+            "recorded_inputs",
+            "posthoc_inputs"
+          ],
+          "type": "string"
+        },
+        "original_recorded": {
+          "type": "boolean"
+        },
+        "parameters_confirmed": {
+          "type": "boolean"
+        },
+        "required_days": {
+          "minimum": 321,
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "unrecorded",
+            "insufficient",
+            "parameters_pending",
+            "abnormal_subscription",
+            "abnormal_redemption",
+            "not_triggered"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "input_basis",
+        "evidence_version",
+        "history_first",
+        "history_last",
+        "original_recorded",
+        "parameters_confirmed",
+        "required_days",
+        "complete_amount_through"
+      ],
+      "type": "object"
+    },
+    "EtfDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "configuration_hash": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "3.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "endpoint": {
+          "pattern": "^http://127\\.0\\.0\\.1:[1-9][0-9]{0,4}$",
+          "type": "string"
+        },
+        "etf_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "evidence_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "feature_version": {
+          "const": "etf-flow-v1",
+          "type": "string"
+        },
+        "grant_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity_version": {
+          "const": "wolf-etf-flow-config-v1",
+          "type": "string"
+        },
+        "refresh_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "write_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "endpoint",
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "data_scope_id",
+        "feature_version",
+        "identity_version",
+        "etf_scope_id",
+        "config_id",
+        "configuration_hash",
+        "evidence_version",
+        "write_enabled",
+        "grant_id",
+        "refresh_revision"
+      ],
+      "type": "object"
+    },
+    "EtfDisclosure": {
+      "additionalProperties": false,
+      "properties": {
+        "holders": {
+          "items": {
+            "$ref": "#/$defs/EtfHolder"
+          },
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "knowledge": {
+          "enum": [
+            "later_comparison",
+            "published_by_evaluation_day"
+          ],
+          "type": "string"
+        },
+        "known_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "member_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "note": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "publication_unknown": {
+          "type": "boolean"
+        },
+        "published_date": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "report_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "state": {
+          "enum": [
+            "disclosed",
+            "not_disclosed"
+          ],
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "member_id",
+        "report_date",
+        "published_date",
+        "source_id",
+        "locator",
+        "state",
+        "holders",
+        "note",
+        "url",
+        "retrieved_at",
+        "known_date",
+        "knowledge",
+        "publication_unknown"
+      ],
+      "type": "object"
+    },
+    "EtfError": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            "message": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "type": "object"
+    },
+    "EtfEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "active_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "c1": {
+          "$ref": "#/$defs/EtfCondition"
+        },
+        "c2": {
+          "$ref": "#/$defs/EtfCondition"
+        },
+        "calculated_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "exclusions": {
+          "items": {
+            "$ref": "#/$defs/EtfExclusion"
+          },
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_version": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "mode": {
+          "enum": [
+            "original",
+            "current"
+          ],
+          "type": "string"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "pool_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "ready_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "result_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "rule_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "selection_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "insufficient",
+            "parameters_pending",
+            "abnormal_subscription",
+            "abnormal_redemption",
+            "not_triggered"
+          ],
+          "type": "string"
+        },
+        "valid_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "valid_ids": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "result_id",
+        "date",
+        "state",
+        "amount",
+        "partial",
+        "active_count",
+        "ready_count",
+        "valid_count",
+        "valid_ids",
+        "exclusions",
+        "c1",
+        "c2",
+        "pool_version",
+        "rule_version",
+        "input_version",
+        "calculated_at",
+        "selection_at",
+        "group_id",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "EtfEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "knowledge": {
+          "enum": [
+            "later_comparison",
+            "published_by_evaluation_day"
+          ],
+          "type": "string"
+        },
+        "known_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "marker_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "marker_kind": {
+          "enum": [
+            "occurrence",
+            "announcement"
+          ],
+          "type": "string"
+        },
+        "member_ids": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "occurred_end": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occurred_start": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publication_unknown": {
+          "type": "boolean"
+        },
+        "published_date": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retrieved_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "subjects": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "member_ids",
+        "occurred_start",
+        "occurred_end",
+        "published_date",
+        "source_id",
+        "locator",
+        "description",
+        "subjects",
+        "marker_date",
+        "marker_kind",
+        "url",
+        "retrieved_at",
+        "known_date",
+        "knowledge",
+        "publication_unknown"
+      ],
+      "type": "object"
+    },
+    "EtfEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "object_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/EtfSource"
+          },
+          "type": "array"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/PublicDigest"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "object_id",
+        "bytes",
+        "references"
+      ],
+      "type": "object"
+    },
+    "EtfExclusion": {
+      "additionalProperties": false,
+      "properties": {
+        "member_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "reason": {
+          "pattern": "^[a-z_]{1,100}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "member_id",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "EtfGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "member_ids": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "member_ids"
+      ],
+      "type": "object"
+    },
+    "EtfHolder": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "classification_basis": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "percentage": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shares": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "shares",
+        "percentage",
+        "classification",
+        "classification_basis"
+      ],
+      "type": "object"
+    },
+    "EtfIndexContext": {
+      "additionalProperties": false,
+      "properties": {
+        "calculated_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "formula_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "index_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "input_basis": {
+          "const": "posthoc_context",
+          "type": "string"
+        },
+        "return_1": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_5": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/PublicDigest"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "date",
+        "return_1",
+        "return_5",
+        "input_basis",
+        "calculated_at"
+      ],
+      "type": "object"
+    },
+    "EtfMarketContext": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "calculated_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "formula_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "input_basis": {
+          "const": "posthoc_context",
+          "type": "string"
+        },
+        "ratio_20": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope_label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "series_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "turnover": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "formula_version",
+        "date",
+        "scope_label",
+        "turnover",
+        "ratio_20",
+        "input_basis",
+        "calculated_at"
+      ],
+      "type": "object"
+    },
+    "EtfMember": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/EtfBasis"
+        },
+        "code": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "disabled_date": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "exchange": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "group": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "index_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manager": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tracking_index": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "manager",
+        "exchange",
+        "tracking_index",
+        "index_id",
+        "group",
+        "enabled_date",
+        "disabled_date",
+        "basis"
+      ],
+      "type": "object"
+    },
+    "EtfMemberPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "adjustment_detail": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfAdjustmentDetail"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metrics": {
+          "$ref": "#/$defs/EtfMetrics"
+        },
+        "source_ids": {
+          "items": {
+            "$ref": "#/$defs/PublicDigest"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "metrics",
+        "source_ids",
+        "adjustment_detail"
+      ],
+      "type": "object"
+    },
+    "EtfMemberView": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "admission": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfAdmission"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "amount_20": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "amount_5": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "$ref": "#/$defs/EtfBasis"
+        },
+        "code": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "disabled_date": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "exchange": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "group": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "group_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "index_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_basis": {
+          "enum": [
+            "recorded_inputs",
+            "posthoc_inputs"
+          ],
+          "type": "string"
+        },
+        "input_selected_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "input_version": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "manager": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "metrics": {
+          "$ref": "#/$defs/EtfMetrics"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/EtfMemberPoint"
+          },
+          "type": "array"
+        },
+        "tracking_index": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "manager",
+        "exchange",
+        "tracking_index",
+        "index_id",
+        "group",
+        "enabled_date",
+        "disabled_date",
+        "basis",
+        "group_id",
+        "active",
+        "admission",
+        "reason",
+        "metrics",
+        "amount_5",
+        "amount_20",
+        "series",
+        "input_basis",
+        "input_version",
+        "input_selected_at"
+      ],
+      "type": "object"
+    },
+    "EtfMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "adjustment": {
+          "type": "boolean"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "change_rate": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "close": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparable_previous": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nav": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "net_assets": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "premium": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shares": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "turnover": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "turnover_ratio": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "shares",
+        "comparable_previous",
+        "delta",
+        "change_rate",
+        "amount",
+        "nav",
+        "close",
+        "turnover",
+        "volume",
+        "net_assets",
+        "premium",
+        "turnover_ratio",
+        "date",
+        "adjustment",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "EtfOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "created_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "expected_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "lease_closed": {
+          "type": "boolean"
+        },
+        "operation_key": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "plan_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recovered_from_instance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicInstanceId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recovery_required": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "serving_config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "serving_instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "interrupted"
+          ],
+          "type": "string"
+        },
+        "updated_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "config_id",
+        "instance_id",
+        "operation_key",
+        "plan_id",
+        "expected_snapshot_id",
+        "state",
+        "reason",
+        "snapshot_id",
+        "created_at",
+        "updated_at",
+        "batch_id",
+        "lease_closed",
+        "recovered_from_instance",
+        "serving_instance_id",
+        "serving_config_id",
+        "recovery_required"
+      ],
+      "type": "object"
+    },
+    "EtfPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "cached_request_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "end": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "member_ids": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "request_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reserved_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "member_ids",
+        "request_count",
+        "cached_request_count",
+        "reserved_bytes"
+      ],
+      "type": "object"
+    },
+    "EtfPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "cumulative": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "evaluation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfEvaluation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "unrecorded",
+            "insufficient",
+            "parameters_pending",
+            "abnormal_subscription",
+            "abnormal_redemption",
+            "not_triggered"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "state",
+        "evaluation",
+        "cumulative"
+      ],
+      "type": "object"
+    },
+    "EtfPool": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "confirmed_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "effective_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "hash": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "hash",
+        "effective_date",
+        "confirmed_at",
+        "change"
+      ],
+      "type": "object"
+    },
+    "EtfReady": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "configuration_hash": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "contract_version": {
+          "const": "3.0.0",
+          "type": "string"
+        },
+        "data_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "etf_scope_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "evidence_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "feature_version": {
+          "const": "etf-flow-v1",
+          "type": "string"
+        },
+        "grant_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity_version": {
+          "const": "wolf-etf-flow-config-v1",
+          "type": "string"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "refresh_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_id": {
+          "const": "thewolf-local-service",
+          "type": "string"
+        },
+        "service_version": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "const": "ready",
+          "type": "string"
+        },
+        "write_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "service_id",
+        "service_version",
+        "contract_version",
+        "contract_sha256",
+        "data_scope_id",
+        "feature_version",
+        "identity_version",
+        "etf_scope_id",
+        "config_id",
+        "configuration_hash",
+        "evidence_version",
+        "write_enabled",
+        "grant_id",
+        "refresh_revision",
+        "status",
+        "instance_id"
+      ],
+      "type": "object"
+    },
+    "EtfRule": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmation": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "direction_ratio": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effective_date": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min_in": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min_out": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "streak_days": {
+          "anyOf": [
+            {
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "window": {
+          "minimum": 2,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "effective_date",
+        "confirmed_at",
+        "confirmation",
+        "window",
+        "k",
+        "min_in",
+        "min_out",
+        "direction_ratio",
+        "streak_days"
+      ],
+      "type": "object"
+    },
+    "EtfSource": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "object_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "original_unit": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "precision": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publisher": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "retrieved_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_id",
+        "publisher",
+        "channel",
+        "url",
+        "retrieved_at",
+        "published_at",
+        "locator",
+        "original_unit",
+        "precision"
+      ],
+      "type": "object"
+    },
+    "EtfStreak": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "days": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "subscription",
+                "redemption"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "parameters_pending",
+            "insufficient",
+            "not_met",
+            "met"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "direction",
+        "days",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "EtfSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_20": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "amount_5": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evaluation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EtfEvaluation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "streak": {
+          "$ref": "#/$defs/EtfStreak"
+        }
+      },
+      "required": [
+        "evaluation",
+        "amount_5",
+        "amount_20",
+        "streak"
+      ],
+      "type": "object"
+    },
+    "EtfUnresolved": {
+      "additionalProperties": false,
+      "properties": {
+        "config_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/PublicInstanceId"
+        },
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "config_id",
+        "instance_id"
+      ],
+      "type": "object"
+    },
+    "EtfUpdateBody": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_id": {
+          "$ref": "#/$defs/PublicDigest"
+        }
+      },
+      "required": [
+        "expected_snapshot_id",
+        "plan_id"
+      ],
+      "type": "object"
+    },
+    "EtfUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "actual_bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expires_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "grant_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "max_bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_requests": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "requests": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reserved_bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unknown_attempts": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "grant_id",
+        "requests",
+        "reserved_bytes",
+        "actual_bytes",
+        "unknown_attempts",
+        "max_requests",
+        "max_bytes",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "EtfView": {
+      "additionalProperties": false,
+      "properties": {
+        "calculated_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context": {
+          "$ref": "#/$defs/EtfContext"
+        },
+        "data_status": {
+          "$ref": "#/$defs/EtfDataStatus"
+        },
+        "disclosures": {
+          "items": {
+            "$ref": "#/$defs/EtfDisclosure"
+          },
+          "type": "array"
+        },
+        "end": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/EtfEvent"
+          },
+          "type": "array"
+        },
+        "formula_version": {
+          "const": "etf-flow-v1",
+          "type": "string"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicDigest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/EtfGroup"
+          },
+          "type": "array"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/EtfEvaluation"
+          },
+          "type": "array"
+        },
+        "input_version": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/EtfMemberView"
+          },
+          "type": "array"
+        },
+        "mode": {
+          "enum": [
+            "original",
+            "current"
+          ],
+          "type": "string"
+        },
+        "period": {
+          "enum": [
+            20,
+            60,
+            120,
+            260
+          ],
+          "type": "integer"
+        },
+        "pool": {
+          "$ref": "#/$defs/EtfPool"
+        },
+        "pool_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "rule": {
+          "$ref": "#/$defs/EtfRule"
+        },
+        "rule_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "etf-flow-view-v2",
+          "type": "string"
+        },
+        "selected_member_ids": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "selection_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$",
+          "type": "string"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/EtfPoint"
+          },
+          "type": "array"
+        },
+        "server_day": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/PublicDigest"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/EtfSource"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "$ref": "#/$defs/EtfSummary"
+        }
+      },
+      "required": [
+        "schema_version",
+        "snapshot_id",
+        "formula_version",
+        "mode",
+        "end",
+        "period",
+        "group_id",
+        "selection_at",
+        "selected_member_ids",
+        "pool_version",
+        "rule_version",
+        "input_version",
+        "calculated_at",
+        "server_day",
+        "groups",
+        "members",
+        "summary",
+        "series",
+        "history",
+        "disclosures",
+        "events",
+        "sources",
+        "context",
+        "data_status",
+        "rule",
+        "pool"
+      ],
+      "type": "object"
     },
     "Evidence": {
       "additionalProperties": false,
@@ -1510,7 +5463,15 @@
                 "index_series_evidence_not_found",
                 "index_range_invalid",
                 "coverage_insufficient",
-                "calculation_parameters_invalid"
+                "calculation_parameters_invalid",
+                "range_parameters_invalid",
+                "range_coverage_insufficient",
+                "storage_publication_not_found",
+                "storage_observation_not_member",
+                "storage_activity_binding_invalid",
+                "storage_quarantined",
+                "storage_integrity_check_due",
+                "storage_maintenance_failed"
               ],
               "type": "string"
             },
@@ -1960,6 +5921,22 @@
       ],
       "type": "object"
     },
+    "IndexSeriesCombinedView": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "$ref": "#/$defs/CompactIndexCalculations"
+        },
+        "view": {
+          "$ref": "#/$defs/IndexSeriesView"
+        }
+      },
+      "required": [
+        "view",
+        "calculations"
+      ],
+      "type": "object"
+    },
     "IndexSeriesComparisonFields": {
       "additionalProperties": false,
       "properties": {
@@ -2048,7 +6025,7 @@
           "$ref": "#/$defs/PublicDigest"
         },
         "contract_version": {
-          "const": "2.0.0",
+          "const": "3.0.0",
           "type": "string"
         },
         "data_scope_id": {
@@ -2150,7 +6127,15 @@
                 "index_series_invalid",
                 "index_series_evidence_not_found",
                 "index_range_invalid",
-                "coverage_insufficient"
+                "coverage_insufficient",
+                "range_parameters_invalid",
+                "range_coverage_insufficient",
+                "storage_publication_not_found",
+                "storage_observation_not_member",
+                "storage_activity_binding_invalid",
+                "storage_quarantined",
+                "storage_integrity_check_due",
+                "storage_maintenance_failed"
               ],
               "type": "string"
             },
@@ -2510,6 +6495,87 @@
       ],
       "type": "object"
     },
+    "IndexSeriesOverviewCalculations": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "performance": {
+          "additionalProperties": false,
+          "properties": {
+            "day_20": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_5": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_60": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "year_1": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            }
+          },
+          "required": [
+            "day_5",
+            "day_20",
+            "day_60",
+            "year_1"
+          ],
+          "type": "object"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "performance"
+      ],
+      "type": "object"
+    },
+    "IndexSeriesOverviewView": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "$ref": "#/$defs/CompactIndexOverviewCalculations"
+        },
+        "view": {
+          "$ref": "#/$defs/IndexSeriesView"
+        }
+      },
+      "required": [
+        "view",
+        "calculations"
+      ],
+      "type": "object"
+    },
     "IndexSeriesPoint": {
       "description": "官方原值以十进制字符串保留两位或四位；深圳四位值仅核验时HALF_UP到两位，不改写存储或计算输入。",
       "pattern": "^(?:0|[1-9][0-9]*)\\.[0-9]{2}(?:[0-9]{2})?$(?![\\s\\S])",
@@ -2713,7 +6779,7 @@
           "$ref": "#/$defs/PublicDigest"
         },
         "contract_version": {
-          "const": "2.0.0",
+          "const": "3.0.0",
           "type": "string"
         },
         "data_scope_id": {
@@ -3399,6 +7465,16 @@
         }
       ]
     },
+    "IndexSeriesViewResponse": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IndexSeriesCombinedView"
+        },
+        {
+          "$ref": "#/$defs/IndexSeriesOverviewView"
+        }
+      ]
+    },
     "IndexSeriesWindow": {
       "additionalProperties": false,
       "properties": {
@@ -3856,6 +7932,26 @@
       ],
       "type": "object"
     },
+    "MarketActivityCombinedView": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "$ref": "#/$defs/CompactActivityCalculations"
+        },
+        "current": {
+          "$ref": "#/$defs/MarketActivityCurrent"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/MarketActivitySnapshot"
+        }
+      },
+      "required": [
+        "current",
+        "snapshot",
+        "calculations"
+      ],
+      "type": "object"
+    },
     "MarketActivityCurrent": {
       "additionalProperties": false,
       "properties": {
@@ -3963,7 +8059,7 @@
           "$ref": "#/$defs/PublicDigest"
         },
         "contract_version": {
-          "const": "2.0.0",
+          "const": "3.0.0",
           "type": "string"
         },
         "data_scope_id": {
@@ -5148,7 +9244,7 @@
           "$ref": "#/$defs/PublicDigest"
         },
         "contract_version": {
-          "const": "2.0.0",
+          "const": "3.0.0",
           "type": "string"
         },
         "data_scope_id": {
@@ -5661,6 +9757,95 @@
         }
       ]
     },
+    "MarketVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "etf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredVersion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "indices": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "activity": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StoredVersion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "index_id": {
+                "$ref": "#/$defs/IndexSeriesId"
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StoredVersion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "index_id",
+              "price",
+              "activity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "markets": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "activity": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StoredVersion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "series_id": {
+                "$ref": "#/$defs/MarketActivitySeriesId"
+              }
+            },
+            "required": [
+              "series_id",
+              "activity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "store_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "store_id",
+        "indices",
+        "markets",
+        "etf"
+      ],
+      "type": "object"
+    },
     "ObjectId": {
       "description": "内容或观察SHA-256；不是job ID或Git提交。",
       "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
@@ -5846,7 +10031,7 @@
           "$ref": "#/$defs/PublicDigest"
         },
         "contract_version": {
-          "const": "2.0.0",
+          "const": "3.0.0",
           "type": "string"
         },
         "data_scope_id": {
@@ -6019,6 +10204,1023 @@
         "close",
         "locator",
         "raw_values"
+      ],
+      "type": "object"
+    },
+    "StorageStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "full_due": {
+          "type": "boolean"
+        },
+        "last_full": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_structure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quarantined": {
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "structure_due": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "quarantined",
+        "reason",
+        "last_structure",
+        "last_full",
+        "structure_due",
+        "full_due",
+        "available"
+      ],
+      "type": "object"
+    },
+    "StoredActivityRange": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "activity_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "comparison": {
+                  "const": "exact_available_values_match",
+                  "type": "string"
+                },
+                "price_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "relation": {
+                  "enum": [
+                    "same_source_object",
+                    "different_source_objects"
+                  ],
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version",
+                "price_object_id",
+                "activity_object_id",
+                "relation",
+                "comparison"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calculation_input_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "volume",
+            "amount"
+          ],
+          "type": "string"
+        },
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "ma_periods": {
+          "items": {
+            "enum": [
+              5,
+              10,
+              20,
+              30,
+              60,
+              120,
+              180,
+              250
+            ],
+            "type": "integer"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "navigation_periods": {
+          "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。",
+          "items": {
+            "$ref": "#/$defs/StoredDateRange"
+          },
+          "maxItems": 1100,
+          "minItems": 1,
+          "type": "array"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requested_range": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "returned_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "$ref": "#/$defs/StoredActivitySeries"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        },
+        "source_coverage": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "source_policy_version": {
+          "type": "string"
+        },
+        "source_revision_relation": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "source_scope": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservedSource"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "formula_version",
+        "pit_grade",
+        "observation_id",
+        "anchor_date",
+        "calendar_version",
+        "source_policy_version",
+        "source_coverage",
+        "requested_range",
+        "returned_range",
+        "calculation_input_range",
+        "sources",
+        "frequency",
+        "ma_periods",
+        "field",
+        "series",
+        "source_scope",
+        "source_revision_relation",
+        "binding",
+        "navigation_periods"
+      ],
+      "type": "object"
+    },
+    "StoredActivitySeries": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "enum": [
+            "volume",
+            "amount"
+          ],
+          "type": "string"
+        },
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "ma_availability": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": "integer"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "required_count": {
+                "type": "integer"
+              },
+              "sample_count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "period",
+              "available",
+              "sample_count",
+              "required_count",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "change_pct": {
+                "$ref": "#/$defs/MarketActivityScalar"
+              },
+              "end": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "ma": {
+                "items": {
+                  "$ref": "#/$defs/MarketActivityScalar"
+                },
+                "type": "array"
+              },
+              "period_end": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "period_start": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "sample_count": {
+                "type": "integer"
+              },
+              "start": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "total": {
+                "$ref": "#/$defs/MarketActivityScalar"
+              }
+            },
+            "required": [
+              "start",
+              "end",
+              "period_start",
+              "period_end",
+              "sample_count",
+              "total",
+              "change_pct",
+              "ma"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "frequency",
+        "field",
+        "rows",
+        "ma_availability"
+      ],
+      "type": "object"
+    },
+    "StoredActivityView": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StoredActivityRange"
+        },
+        {
+          "$ref": "#/$defs/StoredMarketOverview"
+        }
+      ]
+    },
+    "StoredDateRange": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/Day"
+        },
+        "start": {
+          "$ref": "#/$defs/Day"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "StoredMarketOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "anchor_date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "activity_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "comparison": {
+                  "const": "exact_available_values_match",
+                  "type": "string"
+                },
+                "price_object_id": {
+                  "$ref": "#/$defs/ObjectId"
+                },
+                "relation": {
+                  "enum": [
+                    "same_source_object",
+                    "different_source_objects"
+                  ],
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version",
+                "price_object_id",
+                "activity_object_id",
+                "relation",
+                "comparison"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calculation_input_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "comparisons": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "day_20": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_5": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "day_60": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                },
+                "year_1": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseline": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "comparison": {
+                      "$ref": "#/$defs/MarketActivityScalar"
+                    },
+                    "sample_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "baseline",
+                    "comparison",
+                    "sample_count"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "day_5",
+                "day_20",
+                "day_60",
+                "year_1"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formula_version": {
+          "enum": [
+            "market-activity-calculations-v1",
+            "market-activity-calculations-sse-szse-v1"
+          ],
+          "type": "string"
+        },
+        "navigation_periods": {
+          "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。",
+          "items": {
+            "$ref": "#/$defs/StoredDateRange"
+          },
+          "maxItems": 1100,
+          "minItems": 1,
+          "type": "array"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "price_snapshot_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requested_range": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "returned_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "$ref": "#/$defs/StoredActivitySeries"
+        },
+        "series_id": {
+          "enum": [
+            "sse:000001:price",
+            "szse:399001:price",
+            "szse:399006:price",
+            "sse:000688:price",
+            "cn-a-turnover",
+            "cn-a-turnover-sse-szse"
+          ],
+          "type": "string"
+        },
+        "source_coverage": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "source_policy_version": {
+          "type": "string"
+        },
+        "source_revision_relation": {
+          "const": "unknown",
+          "type": "string"
+        },
+        "source_scope": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/MarketActivityObservedSource"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "series_id",
+        "activity_id",
+        "price_snapshot_id",
+        "formula_version",
+        "pit_grade",
+        "observation_id",
+        "anchor_date",
+        "calendar_version",
+        "source_policy_version",
+        "source_coverage",
+        "requested_range",
+        "returned_range",
+        "calculation_input_range",
+        "sources",
+        "series",
+        "comparisons",
+        "source_scope",
+        "source_revision_relation",
+        "binding",
+        "navigation_periods"
+      ],
+      "type": "object"
+    },
+    "StoredPriceOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "bars": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "close": {
+                "$ref": "#/$defs/IndexSeriesPoint"
+              },
+              "high": {
+                "$ref": "#/$defs/IndexSeriesPoint"
+              },
+              "low": {
+                "$ref": "#/$defs/IndexSeriesPoint"
+              },
+              "open": {
+                "$ref": "#/$defs/IndexSeriesPoint"
+              },
+              "trade_date": {
+                "$ref": "#/$defs/Day"
+              }
+            },
+            "required": [
+              "trade_date",
+              "open",
+              "high",
+              "low",
+              "close"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "calculation_input_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "instrument": {
+          "$ref": "#/$defs/IndexSeriesInstrument"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "observed_at": {
+          "type": "string"
+        },
+        "performance": {
+          "additionalProperties": false,
+          "properties": {
+            "day_20": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_5": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "day_60": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            },
+            "year_1": {
+              "$ref": "#/$defs/IndexSeriesCalculationScalar"
+            }
+          },
+          "required": [
+            "day_5",
+            "day_20",
+            "day_60",
+            "year_1"
+          ],
+          "type": "object"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "requested_range": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "returned_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source_coverage": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "source_policy_version": {
+          "$ref": "#/$defs/IndexSeriesSourcePolicy"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesRetrievalSource"
+          },
+          "type": "array"
+        },
+        "storage_decimals": {
+          "enum": [
+            2,
+            4
+          ],
+          "type": "integer"
+        },
+        "summary": {
+          "$ref": "#/$defs/IndexSeriesSummary"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/IndexSeriesVerification"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "storage_decimals",
+        "verification",
+        "observation_id",
+        "source_coverage",
+        "requested_range",
+        "returned_range",
+        "calculation_input_range",
+        "sources",
+        "instrument",
+        "source_policy_version",
+        "summary",
+        "performance",
+        "observed_at",
+        "bars"
+      ],
+      "type": "object"
+    },
+    "StoredPriceRange": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_date": {
+          "$ref": "#/$defs/Day"
+        },
+        "calculation_input_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar_version": {
+          "const": "cn-indices-sse-szse-2023-2026-v1",
+          "type": "string"
+        },
+        "formula_version": {
+          "const": "index-price-calculations-v1",
+          "type": "string"
+        },
+        "frequency": {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly"
+          ],
+          "type": "string"
+        },
+        "index_id": {
+          "$ref": "#/$defs/IndexSeriesId"
+        },
+        "ma_periods": {
+          "items": {
+            "enum": [
+              5,
+              10,
+              20,
+              30,
+              60,
+              120,
+              180,
+              250
+            ],
+            "type": "integer"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "navigation_periods": {
+          "description": "固定发布全覆盖的实际周期起止日，仅日期导航，不含范围外行情值。",
+          "items": {
+            "$ref": "#/$defs/StoredDateRange"
+          },
+          "maxItems": 1100,
+          "minItems": 1,
+          "type": "array"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "pit_grade": {
+          "const": "latest_only",
+          "type": "string"
+        },
+        "requested_range": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "returned_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoredDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series": {
+          "$ref": "#/$defs/IndexSeriesCalculationSeries"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source_coverage": {
+          "$ref": "#/$defs/StoredDateRange"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/IndexSeriesRetrievalSource"
+          },
+          "type": "array"
+        },
+        "storage_decimals": {
+          "enum": [
+            2,
+            4
+          ],
+          "type": "integer"
+        },
+        "unit": {
+          "const": "点",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/IndexSeriesVerification"
+        }
+      },
+      "required": [
+        "index_id",
+        "snapshot_id",
+        "formula_version",
+        "calendar_version",
+        "anchor_date",
+        "pit_grade",
+        "unit",
+        "storage_decimals",
+        "verification",
+        "observation_id",
+        "source_coverage",
+        "requested_range",
+        "returned_range",
+        "calculation_input_range",
+        "sources",
+        "frequency",
+        "ma_periods",
+        "series",
+        "navigation_periods"
+      ],
+      "type": "object"
+    },
+    "StoredPriceView": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StoredPriceOverview"
+        },
+        {
+          "$ref": "#/$defs/StoredPriceRange"
+        }
+      ]
+    },
+    "StoredVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "binding": {
+          "type": "string"
+        },
+        "first_observation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publication_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "source_coverage": {
+          "$ref": "#/$defs/StoredDateRange"
+        }
+      },
+      "required": [
+        "publication_id",
+        "observation_id",
+        "first_observation_id",
+        "source_coverage",
+        "binding"
       ],
       "type": "object"
     },

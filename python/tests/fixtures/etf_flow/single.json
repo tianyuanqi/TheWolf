@@ -1,0 +1,8 @@
+{
+  "format": "etf-flow-config-v1",
+  "pool_versions": [{
+    "version": "test-pool-1", "effective_date": "2025-01-02", "confirmed_at": "2025-01-02T08:00:00+08:00", "confirmation": "隔离测试确认，不是真实加池", "change": "单只隔离样本",
+    "members": [{"id":"lab-fund-a","code":"LAB-A","name":"隔离样本甲","manager":"虚构管理人","exchange":"上海证券交易所","tracking_index":"虚构指数甲","index_id":null,"group":"自定义实验组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-A.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"虚构测试资料，禁止用作真实证据"}}]
+  }],
+  "rule_versions": [{"version":"test-rule-1","effective_date":"2025-01-02","confirmed_at":"2025-01-02T08:00:00+08:00","confirmation":"隔离测试参数，不适用于正式金融判断","window":3,"k":"2","min_in":"40","min_out":"40","direction_ratio":"0.8","streak_days":3}]
+}

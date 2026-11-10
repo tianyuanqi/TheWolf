@@ -113,7 +113,7 @@ def load_spec(path: Path) -> dict:
     """按显式协议版本选择解析，未知版本或缺失C扩展不能降级。"""
     value = yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueLoader)
     version = value.get("info", {}).get("version")
-    if version in {"1.0.0", "1.1.0", "2.0.0"}:
+    if version in {"1.0.0", "1.1.0", "2.0.0", "3.0.0"}:
         from projection import load_target
         return load_target(path)
     if version != "0.1.4" or "x-wolf-transport" in value:

@@ -10,13 +10,14 @@ const app=path.resolve(import.meta.dirname,'..');
 const require=createRequire(path.join(app,'src/activityClient.ts'));
 const fixture=JSON.parse(readFileSync(process.env.WOLF_ACTIVITY_FIXTURE,'utf8'));
 const id='sse:000001:price', bundle=fixture.bundles[id], instance='00000000-0000-4000-8000-000000000000';
+const query={activity_id:bundle.current.activity_id,observation_id:bundle.current.observation_id,price_snapshot_id:bundle.price.snapshot_id,start:bundle.snapshot.window.start,end:bundle.snapshot.window.end,field:'amount',frequency:'daily',ma:'5',formula_version:bundle.calculations.formula_version};
 function harness() {
   const queue=[],calls=[],cache={};
   function load(name) {
     if(cache[name])return cache[name];
     const module={exports:{}};
     const source=ts.transpileModule(readFileSync(path.join(app,'src',name+'.ts'),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
-    vm.runInNewContext(source,{module,exports:module.exports,URL,AbortController,AbortSignal,DOMException,structuredClone,
+    vm.runInNewContext(source,{module,exports:module.exports,URL,URLSearchParams,AbortController,AbortSignal,DOMException,structuredClone,
       fetch:async(url,options)=>{calls.push({url,options});assert.ok(queue.length,'无预定响应');return queue.shift()();},
       require:request=>request.startsWith('./')?load(request.slice(2)):require(request)});
     return cache[name]=module.exports;
@@ -31,12 +32,12 @@ function harness() {
 }
 test('十进制显示不丢精度，真零和缺失区分',()=>{
   const {types}=harness();
-  for(const [value,field,result] of [['123000000.00','amount','1.23'],['0','volume','0'],[null,'amount','暂无数据'],['1234567890123456789012345.1234','amount','12,345,678,901,234,567.890123451234'],['10000.0001','volume','1.00000001']])assert.equal(types.activityText(value,field),result);
+  for(const [value,field,result] of [['123000000.00','amount','1'],['0','volume','0'],[null,'amount','暂无数据'],['1234567890123456789012345.1234','amount','12,345,678,901,234,568'],['10000.0001','volume','1.00000001']])assert.equal(types.activityText(value,field),result);
 });
 test('生产门禁、撤回优先，无current请求且无写入',async()=>{
   for(const mutate of [v=>v.policy.sources.forEach(r=>r.admitted=false),v=>v.blocked_series=[{series_id:id,evidence_id:'a'.repeat(64),reason:'source_withdrawn'}]]){
     const h=harness(),expected=structuredClone(fixture.descriptor);mutate(expected);const client=await h.connect(expected);
-    await assert.rejects(client.load(id,bundle.snapshot.anchor_date,bundle.price,undefined,new AbortController().signal));assert.equal(h.calls.length,1);
+    await assert.rejects(client.storedView(id,query,new AbortController().signal));assert.equal(h.calls.length,1);
   }
 });
 test('真实服务四指数和全市场输出均通过归属检查',()=>{
@@ -46,12 +47,15 @@ test('真实服务四指数和全市场输出均通过归属检查',()=>{
     types.parseActivityCalculations(b.calculations,snapshot);
   }
 });
-test('current→固定快照→计算，固定P/A查询且只读',async()=>{
+test('范围入口固定版本、观察和日期参数，单次只读请求',async()=>{
   const h=harness(),client=await h.connect();
-  for(const value of [bundle.current,bundle.snapshot,bundle.calculations])h.queue.push(()=>h.response(value));
-  const value=await client.load(id,bundle.snapshot.anchor_date,bundle.price,undefined,new AbortController().signal);
-  assert.equal(value.snapshot.activity_id,bundle.current.activity_id);
-  assert.equal(h.calls.length,4);assert.ok(h.calls[1].url.endsWith('price_snapshot_id='+bundle.price.snapshot_id));
+  h.queue.push(()=>h.response(bundle.current));
+  const value=await client.storedView(id,query,new AbortController().signal);
+  assert.equal(value.activity_id,bundle.current.activity_id);
+  assert.equal(h.calls.length,2);
+  const sent=new URL(h.calls[1].url);
+  assert.equal(decodeURIComponent(sent.pathname),'/api/market-activity/'+id+'/view');
+  assert.deepEqual(Object.fromEntries(sent.searchParams),query);
   assert.ok(h.calls.every(c=>!c.options.body && !c.options.method && c.options.credentials==='omit' && c.options.redirect==='error'));
 });
 test('不接受外层/嵌套引用、单位、参数、缺失、周期和可用性错配',()=>{
@@ -67,17 +71,13 @@ test('不接受外层/嵌套引用、单位、参数、缺失、周期和可用�
     const value=structuredClone(bundle.snapshot);change(value);assert.throws(()=>types.parseActivitySnapshot(value,id,bundle.current.activity_id,bundle.snapshot.anchor_date,bundle.price));
   }
 });
-test('current错配、固定响应错配、连接失配及迟到正文均拒绝',async()=>{
-  for(const mutate of [v=>v.price_snapshot_id='0'.repeat(64),v=>v.anchor_date='2025-01-01',v=>v.series_id='cn-a-turnover']){
-    const h=harness(),client=await h.connect(),current=structuredClone(bundle.current);mutate(current);h.queue.push(()=>h.response(current));
-    await assert.rejects(client.load(id,bundle.snapshot.anchor_date,bundle.price,undefined,new AbortController().signal));assert.equal(h.calls.length,2);
-  }
+test('连接失配及取消后的迟到正文均拒绝',async()=>{
   const h=harness(),client=await h.connect();
   h.queue.push(()=>h.response(bundle.current,200,'0'.repeat(64)));
-  await assert.rejects(client.load(id,bundle.snapshot.anchor_date,bundle.price,undefined,new AbortController().signal),/身份改变/);
+  await assert.rejects(client.storedView(id,query,new AbortController().signal),/身份改变/);
   const late=harness(),c=await late.connect(),controller=new AbortController();let resolve;
   late.queue.push(()=>({ok:true,headers:new Headers({'Content-Type':'application/json','X-Wolf-Config':fixture.descriptor.config_id,'X-Wolf-Instance':instance}),json:()=>new Promise(done=>resolve=done)}));
-  const pending=c.load(id,bundle.snapshot.anchor_date,bundle.price,undefined,controller.signal);
+  const pending=c.storedView(id,query,controller.signal);
   await new Promise(done=>setImmediate(done));controller.abort();resolve(bundle.current);await assert.rejects(pending,/取消/);
 });
 
@@ -87,7 +87,7 @@ test('固定源精度及单一市场准入缺口不能被数值响应掩盖',()=
   for(const mutate of [v=>v.rows[0].amount.source_quantum='0.001',v=>v.rows[0].volume.raw_unit='手',v=>v.sources[0].source='other']){
     const value=structuredClone(bundle.snapshot);mutate(value);assert.throws(()=>types.checkActivityPolicy(value,fixture.descriptor));
   }
-  const descriptor=structuredClone(fixture.descriptor);descriptor.policy.sources.find(r=>r.series==='bse').admitted=false;
+  const descriptor=structuredClone(fixture.descriptor);descriptor.policy.sources.filter(r=>['bse','bse-a-json'].includes(r.series)).forEach(r=>r.admitted=false);
   assert.match(types.activityGate(descriptor,'cn-a-turnover'),/未准入/);
   const market=fixture.bundles['cn-a-turnover'], invalid=structuredClone(market.calculations);
   const missing=invalid.series[0].rows.find(row=>row.total.value===null);missing.total.value='300000000.00';missing.total.reason=null;

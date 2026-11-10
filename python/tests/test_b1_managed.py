@@ -1,6 +1,8 @@
 """B1配置、拒绝与真实自有进程生命周期；只用本次临时空根。"""
 import fcntl, json, os, signal, socket, subprocess, tempfile, time, unittest, selectors
 from pathlib import Path
+from sqlite_fixture import initialize
+from http_test_support import disk
 from pmi.managed_config import parse, service_arguments
 from pmi.managed_runtime import remove_tree
 REPO=Path(__file__).resolve().parents[2]
@@ -14,12 +16,14 @@ class ConfigTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='wolf-b1-config-',dir='/private/tmp');self.root=Path(self.temp.name)
         for name in ('data','runtime','activity','ledger'):(self.root/name).mkdir(mode=0o700)
+        initialize(self.root/'data')
+        self.before_data=disk(self.root/'data')
         self.value=dict(python=str(REPO/'python/.venv/bin/python'),data_root=str(self.root/'data'),runtime_base=str(self.root/'runtime'),service_port=18080,browser_port=18081)
     def tearDown(self):self.temp.cleanup()
     def test_zero_defaults_and_no_side_effect(self):
         value,config,_=parse(json.dumps(self.value),REPO)
         self.assertEqual(config.index_write_ids,());self.assertEqual(config.public_index_descriptor()['policy']['network']['max_attempts'],0)
-        self.assertEqual(list((self.root/'data').iterdir()),[]);self.assertEqual(list((self.root/'runtime').iterdir()),[])
+        self.assertEqual(disk(self.root/'data'),self.before_data);self.assertEqual(list((self.root/'runtime').iterdir()),[])
         self.assertIn('--index-max-attempts',service_arguments(value))
     def test_duplicate_unknown_boolean_budget_and_startup_subset(self):
         with self.assertRaises(ValueError):parse(json.dumps(self.value|{'slice_write':False}),REPO)
@@ -32,7 +36,7 @@ class ConfigTests(unittest.TestCase):
         (self.root/'link').symlink_to(self.root/'data')
         with self.assertRaises(ValueError):parse(json.dumps(self.value|{'data_root':str(self.root/'link')}),REPO)
     def test_activity_does_not_admit_sources(self):
-        act=dict(root=str(self.root/'activity'),write_series=['sse:000001:price'],blocked_series=[],budget_ledger=None,budget_cycle='test',max_attempts=0,max_bytes=0)
+        act=dict(root=str(self.root/'data'),write_series=['sse:000001:price'],blocked_series=[],budget_ledger=None,budget_cycle='test',max_attempts=0,max_bytes=0)
         _,config,_=parse(json.dumps(self.value|{'activity':act}),REPO)
         _,readonly,_=parse(json.dumps(self.value|{'activity':act|{'write_series':[]}}),REPO)
         self.assertEqual(config.public_activity_descriptor()['policy']['sources'],readonly.public_activity_descriptor()['policy']['sources'])
@@ -51,6 +55,8 @@ class LifecycleTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='wolf-b1-life-',dir='/private/tmp');self.root=Path(self.temp.name);self.children=[];self.streams=[]
         for name in ('data','runtime'):(self.root/name).mkdir(mode=0o700)
+        initialize(self.root/'data')
+        self.before_data=disk(self.root/'data')
         self.value=dict(python=str(REPO/'python/.venv/bin/python'),data_root=str(self.root/'data'),runtime_base=str(self.root/'runtime'),service_port=port(),browser_port=port())
     def launch(self, ready=True):
         path=self.root/'config.json';path.write_text(json.dumps(self.value));stream=(self.root/f'log-{len(self.children)}').open('w');self.streams.append(stream)

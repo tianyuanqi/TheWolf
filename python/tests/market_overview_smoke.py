@@ -21,8 +21,8 @@ from test_index_series_runtime import state
 from pmi.market_data import MarketData
 from pmi.market_data.index_catalog import INDICES
 from pmi.market_data.index_series_contract import build_manifest
-from pmi.market_data import index_series_store as store
-from pmi.market_data.writer_lock import writer_lock
+from pmi.market_data.storage import index_store as store
+from sqlite_fixture import initialize, price_writer as writer_lock
 from pmi.service_config import ServiceConfig
 
 REPO = Path(__file__).resolve().parents[2]
@@ -62,13 +62,14 @@ def main():
         raise ValueError("必须显式提供本次独占的/private/tmp规范目录")
     root = Path(tempfile.mkdtemp(prefix="overview-", dir=parent))
     data = root / "synthetic-data"; data.mkdir()
+    initialize(data)
     for index in INDICES:
         if index.index_id not in IDS:
             continue
         items = varied_originals(index)
         with writer_lock(data):
             store.prepare_directories(data, index)
-            store.publish(data, index, WINDOW, build_manifest(index, WINDOW, items), items, state(index))
+            store.publish(data, index, WINDOW, build_manifest(index, WINDOW, items), items, state(index, "fixture-" + index.index_id.replace(":", "-")))
     before = disk(data)
     backend, frontend = port(), port()
     while backend == frontend:
@@ -173,6 +174,8 @@ def main():
         stop(vite); stop(service)
         assert before == disk(data)
         empty = root / "empty-data"; empty.mkdir()
+        initialize(empty)
+        empty_before = disk(empty)
         empty_config = ServiceConfig(empty, backend, (env["WOLF_UI_ORIGIN"],))
         (root / "legacy.json").write_text(json.dumps(empty_config.public_descriptor()))
         (root / "index.json").write_text(json.dumps(empty_config.public_index_descriptor()))
@@ -185,7 +188,7 @@ def main():
         vite = start("legacy-only-vite", vite_command); wait_ready(frontend, "/__wolf/config")
         assert request(frontend, "/__wolf/index-config")[0] == 404
         browser_case("missing-config")
-        record["empty_data_unchanged"] = disk(empty) == {}
+        record["empty_data_unchanged"] = disk(empty) == empty_before
         assert record["empty_data_unchanged"]
         stop(vite); stop(service)
         with (root / "browser-scope.log").open("wb") as log:

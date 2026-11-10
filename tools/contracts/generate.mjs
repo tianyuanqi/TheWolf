@@ -20,7 +20,9 @@ const source = JSON.parse(fs.readFileSync(spec, "utf8"));
 const ast = await openapiTS(pathToFileURL(spec));
 fs.writeFileSync(path.join(output, "http.d.ts"), "/** 自动生成：只修改 contracts/openapi.yaml，禁止手工修补。 */\n" + astToString(ast));
 const ajv = new Ajv2020({ strict: true, allErrors: true, coerceTypes: false,
-  useDefaults: false, removeAdditional: false, code: { source: true, esm: true }, formats: { binary: true } });
+  // 复用同一Schema的校验函数，避免每个引用重复展开为巨量浏览器源码。
+  inlineRefs: false, useDefaults: false, removeAdditional: false,
+  code: { source: true, esm: true }, formats: { binary: true } });
 ajv.addSchema(bundle, "wolf");
 const exports = {};
 for (const name of Object.keys(bundle.$defs).sort()) {

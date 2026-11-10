@@ -12,6 +12,7 @@ from pmi.market_data.periodic_budget import PeriodicOptions, BudgetError, initia
 from pmi.market_data.index_history_calendar import SHANGHAI, complete_window
 from pmi.periodic_scheduler import Scheduler
 from test_periodic_budget import Clock
+from sqlite_fixture import initialize as initialize_sqlite
 
 
 class SchedulerTests(unittest.TestCase):
@@ -45,8 +46,8 @@ class SchedulerTests(unittest.TestCase):
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='wolf-periodic-runtime-', dir='/private/tmp')
-        self.root = Path(self.temp.name); self.price = self.root/'price'; self.act = self.root/'activity'
-        self.price.mkdir(); self.act.mkdir(); initialize(self.price, self.act)
+        self.root = Path(self.temp.name); self.price = self.act = self.root/'data'
+        self.price.mkdir(); initialize_sqlite(self.price); initialize(self.price, self.act)
         self.data = MarketData(self.price, {x: True for x in INDEX_IDS}, activity_options=ActivityOptions(self.act), periodic_options=PeriodicOptions())
         self.clock = Clock(); self.data._periodic.budget.clock = self.clock
     def tearDown(self):
@@ -54,11 +55,11 @@ class RuntimeTests(unittest.TestCase):
 
     def test_unknown_year_no_fetch_and_get_no_writes(self):
         self.clock.set('2027-01-02T07:00:00')
-        before = (self.price/'overview-periodic-ledger.json').read_bytes()
+        before = (self.price/'facts.sqlite').read_bytes()
         with patch('pmi.market_data.index_series_fetch.fetch_bounded', side_effect=AssertionError('network forbidden')):
             self.data.periodic_check(INDEX_IDS, 'c', 'i')
         self.assertEqual(self.data.periodic_status()['reason'], 'calendar_uncovered')
-        self.assertEqual(before, (self.price/'overview-periodic-ledger.json').read_bytes())
+        self.assertEqual(before, (self.price/'facts.sqlite').read_bytes())
 
     def test_covered_holiday_zero_requests_and_restart_dedupe(self):
         calls = []
@@ -152,10 +153,11 @@ class RuntimeTests(unittest.TestCase):
             MarketData(self.price, {}, activity_options=ActivityOptions(self.act, write_series=('unknown-market',)), periodic_options=PeriodicOptions())
 
     def test_missing_ledger_constructor_never_creates(self):
-        (self.price/'overview-periodic-ledger.json').unlink()
-        with self.assertRaises(FileNotFoundError):
+        (self.price/'facts.sqlite').unlink()
+        from pmi.market_data import StorageError
+        with self.assertRaisesRegex(StorageError, 'not_initialized'):
             MarketData(self.price, {}, activity_options=ActivityOptions(self.act), periodic_options=PeriodicOptions())
-        self.assertFalse((self.price/'overview-periodic-ledger.json').exists())
+        self.assertFalse((self.price/'facts.sqlite').exists())
 
 
 class FullBatchTests(unittest.TestCase):
@@ -164,7 +166,7 @@ class FullBatchTests(unittest.TestCase):
         from pmi.market_data.activity.model import TWO_MARKET
         with tempfile.TemporaryDirectory(prefix='wolf-periodic-chain-',dir='/private/tmp') as folder:
             root=Path(folder);seed(root)
-            data=MarketData(root/'data',{x:True for x in INDEX_IDS},activity_options=ActivityOptions(root/'activity',write_series=(*INDEX_IDS,TWO_MARKET),startup_series=(*INDEX_IDS,TWO_MARKET)),periodic_options=PeriodicOptions())
+            data=MarketData(root/'data',{x:True for x in INDEX_IDS},activity_options=ActivityOptions(root/'data',write_series=(*INDEX_IDS,TWO_MARKET),startup_series=(*INDEX_IDS,TWO_MARKET)),periodic_options=PeriodicOptions())
             clock=Clock('2026-10-30T07:00:00');data._periodic.budget.clock=clock
             try:
                 with transport(data):data.periodic_check(INDEX_IDS,'config','instance')
@@ -198,7 +200,7 @@ class HttpBoundaryTests(unittest.TestCase):
         from http_test_support import ReadClient, disk
         from pmi.market_data.activity.model import TWO_MARKET
         with tempfile.TemporaryDirectory(prefix='wolf-periodic-http-',dir='/private/tmp') as folder:
-            root=Path(folder); price=root/'data';act=root/'activity';price.mkdir();act.mkdir();initialize(price,act)
+            root=Path(folder); price=act=root/'data';price.mkdir();initialize_sqlite(price);initialize(price,act)
             config=ServiceConfig(price,18080,('http://127.0.0.1:18081',),index_write_ids=(INDEX_IDS[0],),activity_options=ActivityOptions(act,write_series=(TWO_MARKET,)),periodic_options=PeriodicOptions())
             client=ReadClient.__new__(ReadClient);client.config=config;client.app=create_app(config)
             client.headers={'host':config.authority,'origin':config.allowed_origins[0],'x-wolf-client':'1','x-wolf-expected-instance':client.app.state.boundary.instance,'x-wolf-expected-config':config.index_config_id}
@@ -221,10 +223,12 @@ class HttpBoundaryTests(unittest.TestCase):
 
 
 class ActivityLockTests(unittest.TestCase):
-    def test_periodic_writer_waits_for_reader_and_can_cancel(self):
-        from pmi.market_data.activity.store import Store
+    def test_periodic_writer_waits_for_other_writer_and_can_cancel(self):
+        from pmi.market_data.storage.activity_store import Store
+        from sqlite_fixture import initialize
         from pmi.market_data.activity.model import ActivityError
         with tempfile.TemporaryDirectory(prefix='wolf-periodic-lock-', dir='/private/tmp') as name:
+            initialize(Path(name))
             store=Store(Path(name)); cancel=threading.Event(); entered=threading.Event(); attempted=threading.Event(); failures=[]
             with store.lock(write=True): pass
             def writer():
@@ -232,11 +236,11 @@ class ActivityLockTests(unittest.TestCase):
                 try:
                     with store.lock(write=True,cancel=cancel):entered.set()
                 except ActivityError as error:failures.append(error.code)
-            with store.lock(write=False):
+            with store.lock(write=True):
                 worker=threading.Thread(target=writer);worker.start();self.assertTrue(attempted.wait(1))
                 worker.join(.1);self.assertFalse(entered.is_set())
             worker.join(2);self.assertTrue(entered.is_set());self.assertEqual(failures,[])
             entered.clear();attempted.clear()
-            with store.lock(write=False):
+            with store.lock(write=True):
                 worker=threading.Thread(target=writer);worker.start();self.assertTrue(attempted.wait(1));cancel.set();worker.join(2)
             self.assertFalse(worker.is_alive());self.assertFalse(entered.is_set());self.assertEqual(failures,['activity_cancelled'])

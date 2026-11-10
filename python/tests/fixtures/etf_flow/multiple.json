@@ -1,0 +1,22 @@
+{
+  "format":"etf-flow-config-v1",
+  "pool_versions":[{
+    "version":"test-many-1","effective_date":"2025-01-02","confirmed_at":"2025-01-02T08:00:00+08:00","confirmation":"隔离测试确认","change":"四只、两个自定义组",
+    "members":[
+      {"id":"lab-fund-a","code":"LAB-A","name":"隔离样本甲","manager":"虚构管理人甲","exchange":"上海证券交易所","tracking_index":"虚构指数甲","index_id":null,"group":"自定义实验组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-A.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-b","code":"LAB-B","name":"隔离样本乙","manager":"虚构管理人乙","exchange":"上海证券交易所","tracking_index":"虚构指数乙","index_id":null,"group":"跨指数观察组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-B.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-c","code":"LAB-C","name":"隔离样本丙","manager":"虚构管理人甲","exchange":"上海证券交易所","tracking_index":"虚构指数丙","index_id":null,"group":"跨指数观察组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-C.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-d","code":"LAB-D","name":"隔离样本丁","manager":"虚构管理人乙","exchange":"上海证券交易所","tracking_index":"虚构指数甲","index_id":null,"group":"自定义实验组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-D.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}}
+    ]
+  },{
+    "version":"test-many-2","effective_date":"2026-11-04","confirmed_at":"2026-11-04T08:00:00+08:00","confirmation":"隔离测试新增确认","change":"仅配置追加第五只",
+    "members":[
+      {"id":"lab-fund-a","code":"LAB-A","name":"隔离样本甲","manager":"虚构管理人甲","exchange":"上海证券交易所","tracking_index":"虚构指数甲","index_id":null,"group":"自定义实验组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-A.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-b","code":"LAB-B","name":"隔离样本乙","manager":"虚构管理人乙","exchange":"上海证券交易所","tracking_index":"虚构指数乙","index_id":null,"group":"跨指数观察组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-B.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-c","code":"LAB-C","name":"隔离样本丙","manager":"虚构管理人甲","exchange":"上海证券交易所","tracking_index":"虚构指数丙","index_id":null,"group":"跨指数观察组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-C.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-d","code":"LAB-D","name":"隔离样本丁","manager":"虚构管理人乙","exchange":"上海证券交易所","tracking_index":"虚构指数甲","index_id":null,"group":"自定义实验组","enabled_date":"2025-01-02","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-D.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}},
+      {"id":"lab-fund-e","code":"LAB-E","name":"隔离样本戊","manager":"虚构管理人丙","exchange":"上海证券交易所","tracking_index":"虚构指数丁","index_id":null,"group":"可追加观察组","enabled_date":"2026-11-04","disabled_date":null,"basis":{"url":"https://www.sse.com.cn/test-fixture/LAB-E.pdf","report_date":"2024-12-31","published_date":"2025-01-02","locator":"仅测试"}}
+    ]
+  }],
+  "rule_versions":[{"version":"test-rule-1","effective_date":"2025-01-02","confirmed_at":"2025-01-02T08:00:00+08:00","confirmation":"仅测试确认","window":3,"k":"2","min_in":"40","min_out":"40","direction_ratio":"0.8","streak_days":3}]
+}

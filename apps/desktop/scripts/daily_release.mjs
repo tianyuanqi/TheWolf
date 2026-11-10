@@ -17,7 +17,8 @@ export function dailyRelease(repo, args) {
   if (pointer.version !== 1 || Object.keys(pointer).sort().join() !== 'config,manifest_sha256,release,version'
       || typeof pointer.config !== 'string' || !isAbsolute(pointer.config) || resolve(pointer.config) !== pointer.config) throw Error('固定版本指向无效');
   if (pointer.config !== args[1]) return;
-  const base = resolve(repo, '.local-data/releases');
+  // 应用发布包不放进业务数据目录，避免与静态服务的数据禁读边界冲突。
+  const base = resolve(repo, '.local-releases');
   const release = pointer.release;
   if (typeof release !== 'string' || !isAbsolute(release) || realpathSync(release) !== release
       || !relative(base, release) || relative(base, release).startsWith('..') || isAbsolute(relative(base, release))) throw Error('固定版本目录无效');

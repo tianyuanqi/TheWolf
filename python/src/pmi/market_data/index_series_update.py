@@ -17,8 +17,8 @@ from pmi.market_data.index_catalog import IndexDefinition
 from pmi.market_data.index_history_calendar import FrozenWindow, validate_window
 from pmi.market_data.index_series_contract import Original, SourceMismatch, SourceNotReady, build_manifest, canonical, digest
 from pmi.market_data.index_series_fetch import FetchInterrupted, NetworkBudget, fetch_bounded
-from pmi.market_data import index_series_store as store
-from pmi.market_data.writer_lock import writer_lock
+from pmi.market_data.storage import index_store as store
+from pmi.market_data.storage.tasks import Task
 
 ACTIVE = store.ACTIVE
 _LOGGER = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ def perform_update(parent: Path, index: IndexDefinition, window: FrozenWindow, s
                 guard()
             # 即使随后身份、日历、精度不合格，已完整收到的原件也保留。
             object_id = store.write_object(root, original.content)
-            store.append_record(root / "index-v2-original-observations.jsonl", {
+            store.record_original(parent, index, {
                 "index_id": index.index_id, "job_id": state["job_id"], "source": source,
                 "url": original.url, "object_id": object_id, "started_at": original.started_at,
                 "completed_at": original.completed_at, "published_at": None})
@@ -170,7 +170,8 @@ def perform_update(parent: Path, index: IndexDefinition, window: FrozenWindow, s
         notices.send(completed)
         return completed
     except Exception as error:
-        if isinstance(error, store.PublicationUncertain):
+        from .storage.database import CommitUncertain
+        if isinstance(error, (store.PublicationUncertain, CommitUncertain)):
             # 建名/替换已发生，但同步或最终身份未获确认。库中 job 不能在
             # 本请求的通用兜底中把这种不确定性改成 completed。
             notices.unknown()
@@ -214,69 +215,72 @@ def start_update(parent: Path, index: IndexDefinition, window: FrozenWindow, *, 
             guard()
         store.reject_sidecars(parent, index)
         lock = ExitStack()
-        lock.enter_context(writer_lock(parent))
+        task = Task.acquire(parent, budget.lease.task if budget.lease else None)
+        lock.callback(task.close)
         try:
-            if guard:
-                guard()
-            store.reject_sidecars(parent, index)
-            root = store.prepare_directories(parent, index)
-            if remember_locations:
-                remember_locations()
-            if guard:
-                guard()
-            store.recover_locked(parent, index, guard=guard)
-            previous = store.read_snapshot_locked(parent, index)
-            if only_missing and previous and set(window.dates) <= set(previous["calendar_dates"]):
-                lock.close()
-                return {"index_id": index.index_id, "stage": "completed", "result": "already_covered"}
-            if previous and (window.end < previous["window"]["end"] or window.anchor_date < previous["window"]["anchor_date"]):
-                raise SnapshotError("stale_window")
-            previous_state = store.raw_status(parent, index)
-            store.committed_job_locked(parent, index, previous_state.get("job_id"))
-            last_success = store.latest_success_at_locked(parent, index)
-            state = {**store.idle_state(index), "job_id": uuid.uuid4().hex, "trigger": trigger, "stage": "preparing",
-                     "started_at": _now(), "target_start": window.start, "target_end": window.end,
-                     "previous_snapshot_id": previous["snapshot_id"] if previous else None,
-                     "last_success_at": last_success, "message": "正在准备指数完整三年窗口"}
-            notices = _Notifications(notify, uncertain, state["job_id"])
-            lock.enter_context(activity(root, index.index_id, state["job_id"]))
-            store.save_status(parent, index, state)
-            initial = deepcopy(state)
-            if accepted:
-                try:
-                    accepted(deepcopy(initial), False)
-                except BaseException:
-                    notices.unknown()
-                    raise
-
-            def worker() -> None:
-                try:
-                    perform_update(parent, index, window, state, budget=budget, stop=runtime.stop,
-                                   fetch=fetch, guard=guard, checkpoint=checkpoint, notifications=notices)
-                except BaseException as error:
-                    _LOGGER.error("index series worker outcome unknown index=%s job=%s error_type=%s", index.index_id, state["job_id"], type(error).__name__)
-                    notices.unknown()
-                finally:
+            with task.use():
+                if guard:
+                    guard()
+                store.reject_sidecars(parent, index)
+                root = store.prepare_directories(parent, index)
+                if remember_locations:
+                    remember_locations()
+                if guard:
+                    guard()
+                store.recover_locked(parent, index, guard=guard)
+                previous = store.read_snapshot_locked(parent, index)
+                if only_missing and previous and set(window.dates) <= set(previous["calendar_dates"]):
                     lock.close()
+                    return {"index_id": index.index_id, "stage": "completed", "result": "already_covered"}
+                if previous and (window.end < previous["window"]["end"] or window.anchor_date < previous["window"]["anchor_date"]):
+                    raise SnapshotError("stale_window")
+                previous_state = store.raw_status(parent, index)
+                store.committed_job_locked(parent, index, previous_state.get("job_id"))
+                last_success = store.latest_success_at_locked(parent, index)
+                state = {**store.idle_state(index), "job_id": uuid.uuid4().hex, "trigger": trigger, "stage": "preparing",
+                         "started_at": _now(), "target_start": window.start, "target_end": window.end,
+                         "previous_snapshot_id": previous["snapshot_id"] if previous else None,
+                         "last_success_at": last_success, "message": "正在准备指数完整三年窗口"}
+                notices = _Notifications(notify, uncertain, state["job_id"])
+                lock.enter_context(activity(root, index.index_id, state["job_id"]))
+                store.save_status(parent, index, state)
+                initial = deepcopy(state)
+                if accepted:
+                    try:
+                        accepted(deepcopy(initial), False)
+                    except BaseException:
+                        notices.unknown()
+                        raise
 
-            thread = threading.Thread(target=worker, name="index-series-" + state["job_id"], daemon=True)
-            runtime.threads.append(thread)
-            try:
-                if runtime.stop.is_set():
-                    raise FetchInterrupted("runtime_closed")
-                thread.start()
-            except Exception:
-                runtime.threads.remove(thread)
-                state.update(stage="failed", result="failed", finished_at=_now(), message="后台任务未启动，旧快照保留")
+                def worker() -> None:
+                    try:
+                        with task.use():
+                            perform_update(parent, index, window, state, budget=budget, stop=runtime.stop,
+                                           fetch=fetch, guard=guard, checkpoint=checkpoint, notifications=notices)
+                    except BaseException as error:
+                        _LOGGER.error("index series worker outcome unknown index=%s job=%s error_type=%s", index.index_id, state["job_id"], type(error).__name__)
+                        notices.unknown()
+                    finally:
+                        lock.close()
+
+                thread = threading.Thread(target=worker, name="index-series-" + state["job_id"], daemon=True)
+                runtime.threads.append(thread)
                 try:
-                    if guard:
-                        guard()
-                    store.save_status(parent, index, state)
-                    notices.send(state)
+                    if runtime.stop.is_set():
+                        raise FetchInterrupted("runtime_closed")
+                    thread.start()
                 except Exception:
-                    notices.unknown()
-                lock.close()
-            return initial
+                    runtime.threads.remove(thread)
+                    state.update(stage="failed", result="failed", finished_at=_now(), message="后台任务未启动，旧快照保留")
+                    try:
+                        if guard:
+                            guard()
+                        store.save_status(parent, index, state)
+                        notices.send(state)
+                    except Exception:
+                        notices.unknown()
+                    lock.close()
+                return initial
         except BaseException:
             lock.close()
             raise

@@ -12,6 +12,7 @@ import re
 from pmi.market_data import MarketData
 from pmi.market_data import ActivityOptions, ACTIVITY_SERIES
 from pmi.market_data.periodic_budget import PeriodicOptions
+from pmi.market_data import EtfOptions
 
 SERVICE_ID = "thewolf-local-service"
 SERVICE_VERSION = "0.1.0"
@@ -37,6 +38,7 @@ class ServiceConfig:
     index_max_bytes: int = field(default=16 * 1024 * 1024, kw_only=True)
     activity_options: ActivityOptions | None = field(default=None, kw_only=True)
     periodic_options: PeriodicOptions | None = field(default=None, kw_only=True)
+    etf_options: EtfOptions | None = field(default=None, kw_only=True)
     market_data: MarketData = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -61,7 +63,9 @@ class ServiceConfig:
         object.__setattr__(self, "startup_index_ids", tuple(sorted(self.startup_index_ids)))
         object.__setattr__(self, "market_data", MarketData(self.data_root,
             {key: True for key in self.index_write_ids},
-            index_max_attempts=self.index_max_attempts, index_max_bytes=self.index_max_bytes, activity_options=self.activity_options, periodic_options=self.periodic_options))
+            index_max_attempts=self.index_max_attempts, index_max_bytes=self.index_max_bytes, activity_options=self.activity_options, periodic_options=self.periodic_options,
+            etf_options=self.etf_options, etf_connection_id=digest({"authority": self.authority,
+                "allowed_origins": list(self.allowed_origins), "data_root": str(self.data_root), "contract_major": 3})))
 
     def check_location(self) -> None:
         """委托数据层复核冻结定位，不在HTTP配置层拼接业务路径。"""
@@ -83,14 +87,14 @@ class ServiceConfig:
     @property
     def config_id(self) -> str:
         return digest({"identity_format": IDENTITY_FORMAT, "data_scope_id": self.data_scope_id,
-                       "backend_authority": self.authority,
-                       "allowed_origins": list(self.allowed_origins), "contract_major": 2})
+                       "storage": self.market_data.storage_identity, "backend_authority": self.authority,
+                       "allowed_origins": list(self.allowed_origins), "contract_major": 3})
 
     def public_descriptor(self) -> dict:
         """从同一计算器给浏览器受控预期，不输出根路径或接纳ready自证。"""
         raw = files("pmi.http_contract").joinpath("openapi.resource").read_bytes()
         return {"endpoint": "http://" + self.authority, "service_id": SERVICE_ID,
-                "service_version": SERVICE_VERSION, "contract_version": "2.0.0",
+                "service_version": SERVICE_VERSION, "contract_version": "3.0.0",
                 "contract_sha256": hashlib.sha256(raw).hexdigest(),
                 "identity_format": IDENTITY_FORMAT, "data_scope_id": self.data_scope_id,
                 "config_id": self.config_id}
@@ -100,8 +104,8 @@ class ServiceConfig:
         """新指数特性单独绑定权限、补齐和预算；绑定当前协议主版本。"""
         return digest({"identity_format": "wolf-index-config-v2", "data_scope_id": self.data_scope_id,
                        "write_indices": list(self.index_write_ids), "startup_indices": list(self.startup_index_ids),
-                       "policy": self.market_data.index_policy, "backend_authority": self.authority,
-                       "allowed_origins": list(self.allowed_origins), "contract_major": 2})
+                       "policy": self.market_data.index_policy, "storage": self.market_data.storage_identity, "backend_authority": self.authority,
+                       "allowed_origins": list(self.allowed_origins), "contract_major": 3})
 
     def public_index_descriptor(self) -> dict:
         """生成新特性可信本地连接描述；不以服务ready替代调用者的预期。"""
@@ -124,8 +128,8 @@ class ServiceConfig:
                        "write_series": sorted(self.activity_options.write_series), "startup_series": sorted(self.activity_options.startup_series),
                        "blocked_series": [{"series_id": s, "evidence_id": e, "reason": "source_withdrawn"}
                                           for s, e in sorted(self.activity_options.blocked_series)],
-                       "policy": self.activity_options.policy(), "backend_authority": self.authority,
-                       "allowed_origins": list(self.allowed_origins), "contract_major": 2})
+                       "policy": self.activity_options.policy(), "storage": self.market_data.storage_identity, "backend_authority": self.authority,
+                       "allowed_origins": list(self.allowed_origins), "contract_major": 3})
 
     def public_activity_descriptor(self) -> dict:
         """受控启动配置生成独立预期；不能从ready学习根、权限或预算。"""
@@ -142,3 +146,17 @@ class ServiceConfig:
             "blocked_series": [{"series_id": s, "evidence_id": e, "reason": "source_withdrawn"}
                                for s, e in sorted(self.activity_options.blocked_series)],
             "policy": self.activity_options.policy()}
+
+    @property
+    def etf_config_id(self) -> str:
+        """ETF独立身份；不改变既有主连接、指数和量额摘要算法。"""
+        if self.etf_options is None:
+            return digest({"identity_format": "wolf-etf-flow-config-v1", "enabled": False})
+        return self.market_data.etf_flow("descriptor")["config_id"]
+
+    def public_etf_descriptor(self) -> dict:
+        """从可信本地配置生成预期；服务ready不能自行授予来源或写权限。"""
+        etf = self.market_data.etf_flow("descriptor")
+        old = self.public_descriptor()
+        return {key: old[key] for key in ("endpoint", "service_id", "service_version", "contract_version",
+                                         "contract_sha256", "data_scope_id")} | etf

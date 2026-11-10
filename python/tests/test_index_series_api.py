@@ -12,7 +12,7 @@ from unittest.mock import patch
 from pmi.api import create_app
 from pmi.market_data import MarketData, SnapshotError
 from pmi.market_data.index_catalog import INDICES
-from pmi.market_data.writer_lock import writer_lock
+from sqlite_fixture import price_writer as writer_lock, initialize as initialize_sqlite
 from pmi.service_config import ServiceConfig
 from http_test_support import ReadClient, disk
 from test_index_series_contract import NOW, originals
@@ -59,6 +59,7 @@ class IndexSeriesAPITests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
+        initialize_sqlite(self.root)
 
     def client(self, *args, **kwargs):
         client = SeriesClient(self.root, *args, **kwargs)
@@ -169,7 +170,7 @@ class IndexSeriesAPITests(unittest.TestCase):
                 reply = offline.request(f"/api/index-series/{index_id}/range?start={start}&end={end}&fields=close&snapshot_id={snapshot['snapshot_id']}")
                 self.assertEqual(reply.status, 200, reply.body)
                 self.assertEqual([r["values"]["close"] for r in reply.json()["rows"]], [r["close"] for r in snapshot["bars"][-3:]])
-                self.assertEqual(offline.request(f"/api/index-series/{index_id}/range?start=2023-01-01&end={end}").status, 409)
+                self.assertEqual(offline.request(f"/api/index-series/{index_id}/range?start=2023-01-01&end={end}").status, 422)
                 other = next(key for key in views if key != index_id)
                 self.assertEqual(offline.request(f"/api/index-series/{other}/snapshots/{snapshot['snapshot_id']}").status, 404)
         self.assertEqual(disk(self.root), before)
@@ -189,32 +190,25 @@ class IndexSeriesAPITests(unittest.TestCase):
             self.assertEqual(client.config.market_data.status(ids[1])["stage"], "idle")
 
     def test_publication_uncertainty_stays_unknown_after_status_and_duplicate_post(self):
-        from pmi.market_data import index_series_store as store
+        from pmi.market_data.storage import database as storage
         index_id, other = INDICES[0].index_id, INDICES[3].index_id
         client = self.client((index_id, other))
         with sources():
             self.assertEqual(client.post(index_id, "initial-publication").status, 202)
             self.assertEqual(client.finish(index_id, "initial-publication")["state"], "completed")
-        target = store.index_root(self.root, INDICES[0])
-        real_replace, real_sync = store.os.replace, store.sync_directory
-        replaced, failed = [], []
-        notifications = []
+        real_commit = storage._commit
+        failed, notifications = [], []
         real_notify = client.app.state.updates._series_notify
-        def replace(source, destination, *args, **kwargs):
-            result = real_replace(source, destination, *args, **kwargs)
-            if Path(destination) == target / "index-v2.sqlite":
-                replaced.append(True)
-            return result
-        def sync(path):
-            if replaced and not failed and path == target:
+        def commit(connection):
+            published = connection.execute("SELECT count(*) FROM operation WHERE domain_id='price-v2' AND state='completed'").fetchone()[0]
+            real_commit(connection)
+            if published == 2 and not failed:
                 failed.append(True)
-                raise OSError("synthetic publication directory sync failure")
-            return real_sync(path)
+                raise OSError('synthetic lost COMMIT acknowledgement')
         def notify(code, state):
             notifications.append((code, state["stage"]))
             return real_notify(code, state)
-        with sources() as fetches, patch.object(store.os, "replace", side_effect=replace), \
-                patch.object(store, "sync_directory", side_effect=sync), \
+        with sources() as fetches, patch.object(storage, "_commit", side_effect=commit), \
                 patch.object(client.app.state.updates, "_series_notify", side_effect=notify):
             accepted = client.post(index_id, "uncertain-publication")
             self.assertEqual(accepted.status, 202, accepted.body)
@@ -225,7 +219,7 @@ class IndexSeriesAPITests(unittest.TestCase):
             self.assertNotIn((index_id, "completed"), notifications)
             self.assertEqual(len(fetches), 2)
             self.assertEqual(len(failed), 1)
-            self.assertEqual(len(list(target.glob(".index-v2-stage-*"))), 1)
+            self.assertFalse((self.root / "facts.sqlite-journal").exists())
             # A readable committed job cannot retroactively certify this request's durability.
             status = client.request(f"/api/index-series/{index_id}/update")
             self.assertEqual(status.status, 200, status.body)

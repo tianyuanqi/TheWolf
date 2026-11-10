@@ -32,7 +32,7 @@ REPO=Path(__file__).resolve().parents[2]
 def seed(root):
     """在隔离根直接保存已验证结构的旧三市输入，用于新增一日真实调用链。"""
     seed_base(root)
-    data=MarketData(root/'data',{},activity_options=Options(root/'activity'))
+    data=MarketData(root/'data',{},activity_options=Options(root/'data'))
     try:
         rt=data._activity_runtime;window=complete_window(datetime.fromisoformat('2026-10-29T07:00:00+08:00'))
         with rt.store.lock(write=True):
@@ -126,7 +126,7 @@ else:raise RuntimeError('invalid test invocation')
     from pmi.market_data.activity.model import INDEX_IDS,TWO_MARKET
     config=dict(python=str(wrapper),data_root=str(root/'data'),runtime_base=str(root/'runtime'),service_port=port(),browser_port=port(),
        index=dict(write_ids=list(INDEX_IDS),startup_ids=list(INDEX_IDS),max_attempts=0,max_bytes=0),
-       activity=dict(root=str(root/'activity'),write_series=[*INDEX_IDS,TWO_MARKET,MARKET],startup_series=[*INDEX_IDS,TWO_MARKET,MARKET],blocked_series=[],budget_ledger=None,budget_cycle='fixture',max_attempts=0,max_bytes=0),
+       activity=dict(root=str(root/'data'),write_series=[*INDEX_IDS,TWO_MARKET,MARKET],startup_series=[*INDEX_IDS,TWO_MARKET,MARKET],blocked_series=[],budget_ledger=None,budget_cycle='fixture',max_attempts=0,max_bytes=0),
        periodic=dict(daily_requests=80,daily_bytes=33554432,monthly_requests=500,monthly_bytes=536870912))
     (root/'config.json').write_text(json.dumps(config));(root/'config.json').chmod(0o600)
     env={k:v for k,v in os.environ.items() if not k.startswith('WOLF_') and k not in ('PYTHONHOME','PYTHONPYCACHEPREFIX','NODE_OPTIONS','NODE_COMPILE_CACHE')}

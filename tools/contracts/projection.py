@@ -13,7 +13,7 @@ FORMAT = "wolf-operations/C-target/1"
 EXTENSIONS = ("x-wolf-transport", "x-wolf-operation-semantics", "x-wolf-disabled-routes")
 ALLOWED = {"type", "properties", "required", "additionalProperties", "items", "enum",
            "const", "anyOf", "oneOf", "$ref", "pattern", "minItems", "maxItems",
-           "description", "format", "minLength", "maxLength"}
+           "description", "format", "minLength", "maxLength", "minimum"}
 
 
 def digest(value: object) -> str:
@@ -113,7 +113,7 @@ def schema_locations(spec: dict) -> dict[str, dict]:
 def load_target(path: Path) -> dict:
     """校验完整原目标，不改写源，不回退B扩展。"""
     spec = legacy.yaml.load(path.read_text(encoding="utf-8"), Loader=legacy.UniqueLoader)
-    if spec["info"]["version"] not in {"1.0.0", "1.1.0", "2.0.0"} or any(k not in spec for k in EXTENSIONS):
+    if spec["info"]["version"] not in {"1.0.0", "1.1.0", "2.0.0", "3.0.0"} or any(k not in spec for k in EXTENSIONS):
         raise ValueError("C格式/版本/扩展缺失")
     if "x-wolf-current-transport" in spec or "x-wolf-coverage" in spec:
         raise ValueError("C目标混入B扩展")

@@ -45,7 +45,7 @@ try {
       assert.equal(await page.getByRole('alert').count(), 0);
       await screenshot('overview-empty.png');
     } else {
-      await page.getByText('指数连接未配置，请检查本地启动配置。', { exact: true }).waitFor();
+      await page.locator('.m-connection').getByText('指数连接未配置', { exact: true }).waitFor();
       assert.equal(apiCalls(), 0);
       assert.equal(await page.getByRole('button', { name: /沪深300资料|002245资料/ }).count(),0);
     }
@@ -65,12 +65,16 @@ try {
   assert.equal(await page.getByRole('button', { name: '月 K', exact: true }).isDisabled(), false);
   await screenshot('overview-light.png'); records.cases.push('four-real-index-snapshots-and-explicit-missing-values');
 
-  const count = apiCalls();
-  await page.getByRole('button', { name: /深证成指/ }).click();
+  const beforeSelection = apiCalls();
+  await page.getByRole('button', { name: /深证成指/ }).click(); await waitLoaded();
   await page.getByRole('heading', { name: '深证成指', exact: true }).waitFor();
+  await waitLoaded();
+  await page.locator('.m-price-chart canvas').waitFor();
+  const count = apiCalls();
+  assert.ok(count > beforeSelection, '首次选择需要取得所选范围，概况不能冒充图表');
   assert.ok((await readout()).includes(displayPrice(fixture.views['szse:399001:price'].snapshot.bars.at(-1).close)));
   await page.getByRole('group', { name: '观察窗口', exact: true }).getByRole('button', { name: '5 日', exact: true }).click();
-  await page.getByRole('group', { name: '图表显示范围', exact: true }).getByRole('button', { name: '3 月', exact: true }).click();
+  await page.getByRole('group', { name: '图表显示范围', exact: true }).getByRole('button', { name: '3 月', exact: true }).click(); await waitLoaded();
   const chart = page.getByRole('region', { name: '日K图表', exact: true });
   await chart.focus(); await page.keyboard.press('Home');
   const start = await page.getByLabel('显示区间开始日期', { exact: true }).inputValue();
@@ -84,17 +88,19 @@ try {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForFunction(last => document.querySelector('.m-readout strong').textContent !== last, fixture.views['szse:399001:price'].snapshot.bars.at(-1).trade_date);
   await page.mouse.wheel(0, -420);
-  await page.waitForFunction(before => document.querySelector('input[aria-label="显示区间开始日期"]').value !== before, start);
+  await page.waitForFunction(before => document.querySelector('input[aria-label="显示区间开始日期"]')?.value && document.querySelector('input[aria-label="显示区间开始日期"]').value !== before, start);
+  await waitLoaded();
   const zoomStart = await page.getByLabel('显示区间开始日期', { exact: true }).inputValue();
   await page.mouse.move(box.x + box.width * .5, box.y + box.height * .5); await page.mouse.down();
   await page.mouse.move(box.x + box.width * .75, box.y + box.height * .5, { steps: 12 }); await page.mouse.up();
-  await page.waitForFunction(before => document.querySelector('input[aria-label="显示区间开始日期"]').value !== before, zoomStart);
+  await page.waitForFunction(before => document.querySelector('input[aria-label="显示区间开始日期"]')?.value && document.querySelector('input[aria-label="显示区间开始日期"]').value !== before, zoomStart);
+  await waitLoaded();
   const full = fixture.views['szse:399001:price'].snapshot.bars;
   const first = full[full.length - 12], last = full.at(-1);
   await page.getByLabel('显示区间开始日期', { exact: true }).fill(first.trade_date);
   await page.getByLabel('显示区间结束日期', { exact: true }).fill(last.trade_date);
   assert.equal(await page.getByLabel('显示区间开始日期', { exact: true }).inputValue(), first.trade_date, '日期草稿不得被迟到拖动覆盖');
-  await page.getByRole('button', { name: '应用', exact: true }).click();
+  await page.getByRole('button', { name: '应用', exact: true }).click(); await waitLoaded();
   await page.waitForFunction(day => document.querySelector('.m-readout strong').textContent >= day, first.trade_date);
   const expectedHigh = full.slice(-12).reduce((a, b) => Number(b.high) > Number(a.high) ? b : a);
   const expectedLow = full.slice(-12).reduce((a, b) => Number(b.low) < Number(a.low) ? b : a);
@@ -104,7 +110,7 @@ try {
   await page.getByLabel('显示区间开始日期', { exact: true }).fill('2020-01-01');
   await page.getByRole('button', { name: '应用', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: '请选择已保存范围内' }).waitFor();
-  assert.equal(apiCalls(), count); records.cases.push('switch-window-precision-keyboard-wheel-drag-dates-extrema-zero-new-requests');
+  assert.ok(records.requests.some(x=>x.url.includes('detail=range')), '显示范围由明确范围请求取得'); records.cases.push('switch-window-precision-keyboard-wheel-drag-dates-extrema-explicit-ranges');
 
   await page.getByRole('button', { name: '均线设置', exact: false }).click();
   const panel = page.locator('#overview-ma-panel');
@@ -117,9 +123,9 @@ try {
     await page.getByRole('group', { name: '观察窗口', exact: true }).getByRole('button', { name: label, exact: true }).click();
     assert.ok((await summaryRow.locator('td').nth(2).innerText()).includes(calculation.performance[key].value + '%'));
   }
-  await page.getByRole('group', { name: '图表显示范围', exact: true }).getByRole('button', { name: '全部', exact: true }).click();
+  await page.getByRole('group', { name: '图表显示范围', exact: true }).getByRole('button', { name: '全部', exact: true }).click(); await waitLoaded();
   for (const [label, frequency, disabled] of [['周', 'weekly', 2], ['月', 'monthly', 4], ['日', 'daily', 0]]) {
-    await page.getByRole('button', { name: `${label} K`, exact: true }).click();
+    await page.getByRole('button', { name: `${label} K`, exact: true }).click(); await waitLoaded();
     const activeChart = page.getByRole('region', { name: `${label}K图表`, exact: true });
     await activeChart.focus(); await page.keyboard.press('End');
     const last = calculation[frequency].rows.at(-1);
@@ -144,16 +150,16 @@ try {
     await screenshot(`overview-${frequency}.png`);
   }
   await page.getByRole('button', { name: '均线设置', exact: false }).click();
-  await panel.getByRole('group', { name: '价格 · 日均线', exact: true }).getByLabel('MA10', { exact: true }).uncheck();
+  await panel.getByRole('group', { name: '价格 · 日均线', exact: true }).getByLabel('MA10', { exact: true }).uncheck(); await waitLoaded();
   assert.doesNotMatch(await page.locator('.m-ma-readout').innerText(), /MA10 /);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: /上证指数/ }).click();
+  await page.getByRole('button', { name: /上证指数/ }).click(); await waitLoaded();
   assert.doesNotMatch(await page.locator('.m-ma-readout').innerText(), /MA10 /);
-  await page.getByRole('button', { name: /深证成指/ }).click();
+  await page.getByRole('button', { name: /深证成指/ }).click(); await waitLoaded();
   assert.doesNotMatch(await page.locator('.m-ma-readout').innerText(), /MA10 /);
-  assert.equal(apiCalls(), count, '窗口、周期、均线、指数与范围选择不得发出新的读取');
+  assert.ok(records.requests.filter(x=>new URL(x.url).pathname.endsWith('/view')).every(x=>new URL(x.url).searchParams.has('snapshot_id')), '内容请求固定版本');
   records.cases.push('all-performance-windows-server-values-daily-weekly-monthly-ma-availability-incomplete-and-preference');
-  await page.getByLabel('指数K线副图', { exact: true }).selectOption('volume');
+  await page.getByLabel('指数K线副图', { exact: true }).selectOption('volume'); await waitLoaded();
   assert.ok((await page.locator('.m-activity-empty').innerText()).includes('VOL · 万股'));
   await page.getByRole('button', { name: '均线设置', exact: false }).click();
   await page.getByRole('heading', { name: '行情总览', exact: true }).click(); assert.equal(await panel.count(), 0);
@@ -161,13 +167,13 @@ try {
   await screenshot('overview-dark.png');
   await page.getByRole('checkbox', { name: '显示数据说明', exact: true }).check();
   assert.ok((await page.locator('.m-notes').innerText()).includes(fixture.views['szse:399001:price'].snapshot.snapshot_id));
-  await page.getByRole('button', { name: /沪深北三市合计/ }).click();
+  await page.getByRole('button', { name: /沪深北三市合计/ }).click(); await waitLoaded();
   await page.getByRole('heading', { name: '沪深北三市合计', exact: true }).waitFor();
   assert.ok((await page.locator('.m-empty').innerText()).includes('暂无数据'));
   assert.equal(await page.locator('.m-price-chart canvas').count(), 0);
   records.cases.push('folded-eight-ma-vol-unavailable-market-theme-and-provenance');
 
-  await page.getByRole('button', { name: /上证指数/ }).click();
+  await page.getByRole('button', { name: /上证指数/ }).click(); await waitLoaded();
   await page.setViewportSize({ width: 420, height: 900 });
   // ECharts通过ResizeObserver调整画布；等待实际布局完成，仍要求无横向溢出。
   await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth, null, { timeout: 5000 });
@@ -182,40 +188,42 @@ try {
   await screenshot('overview-420.png');
   await page.setViewportSize({ width: 1440, height: 1080 });
   await context.setOffline(true); await page.getByRole('button', { name: '重新读取', exact: true }).click();
-  await page.getByText('当前显示上次成功读取的快照；连接或读取完成前不代表最新数据。', { exact: true }).waitFor();
-  assert.ok((await readout()).includes(displayPrice(fixture.views['sse:000001:price'].snapshot.bars.at(-1).close)));
+  await page.locator('.m-table tbody tr').first().getByText(/上次数据/).waitFor();
+  assert.equal(await page.locator('.m-price-chart canvas').count(),0);
   await screenshot('overview-offline-preserved.png');
   await context.setOffline(false); await page.getByRole('button', { name: '重新读取', exact: true }).click(); await waitLoaded();
   records.cases.push('narrow-layout-and-offline-old-snapshot-preserved');
 
-  // 独立注入计算传输失败；原始价格仍经真实HTTP读取，不用旧计算填补。
-  await page.route('**/calculations?*', route => route.abort('failed'));
+  // 合并视图失败时必须保留同一旧价格/计算，不允许新价格配旧计算或部分成功。
+  const priorValues = await page.locator('.m-metric-value').allTextContents();
+  await page.route('**/api/index-series/*/view?*', route => route.abort('failed'));
   await page.getByRole('button', { name: '重新读取', exact: true }).click(); await waitLoaded();
-  assert.equal(await page.locator('.m-metric-value').count(), 4);
-  assert.equal(await page.getByRole('button', { name: '周 K', exact: true }).isDisabled(), true);
-  assert.match(await page.locator('.m-ma-readout').innerText(), /暂无数据/);
-  assert.doesNotMatch(await page.locator('.m-ma-readout').innerText(), /MA5 \d/);
-  assert.equal(await page.getByRole('alert').filter({ hasText: '计算结果暂无数据' }).count(), 4);
-  for (let i = 0; i < 4; i++) assert.equal(await page.locator('.m-table tbody tr').nth(i).locator('td').nth(2).innerText(), '暂无数据');
-  await page.unroute('**/calculations?*');
+  assert.deepEqual(await page.locator('.m-metric-value').allTextContents(), priorValues);
+  assert.equal(await page.locator('.m-price-chart canvas').count(),0);
+  for (let i = 0; i < 4; i++) assert.match(await page.locator('.m-table tbody tr').nth(i).innerText(), /上次数据/);
+  await page.unroute('**/api/index-series/*/view?*');
   await page.getByRole('button', { name: '重新读取', exact: true }).click(); await waitLoaded();
+  assert.doesNotMatch(await page.locator('.m-table tbody').innerText(), /上次数据/);
   assert.equal(await page.getByRole('button', { name: '周 K', exact: true }).isDisabled(), false);
-  records.cases.push('calculation-only-failure-keeps-raw-price-clears-all-derived-results-and-recovers');
+  records.cases.push('combined-view-failure-keeps-coherent-old-price-and-calculations-and-recovers');
 
   // 运行中移开已绑定的合成目录应安全报错，不能把资料损坏伪装为空库。
-  const original = path.join(process.env.WOLF_SYNTHETIC_DATA, 'indices/sse000688');
-  const held = path.join(output, 'held-synthetic-index');
+  const original = path.join(process.env.WOLF_SYNTHETIC_DATA, 'facts.sqlite');
+  const held = path.join(output, 'held-synthetic-sqlite');
   await rename(original, held); movedIndex = { original, held };
-  await page.reload(); await waitLoaded();
-  await page.getByRole('button', { name: /科创50/ }).click();
-  assert.ok((await page.locator('.m-empty').innerText()).includes('价格读取失败'));
+  await page.reload(); await page.locator('.m-connection [role=alert]').waitFor();
+  assert.equal(await page.locator('.m-price-chart canvas').count(),0);
   await screenshot('overview-invalid.png');
   await rename(held, original); movedIndex = undefined;
   await page.getByRole('button', { name: '重新读取', exact: true }).click(); await waitLoaded();
   await page.locator('.m-price-chart canvas').waitFor();
-  assert.equal(await page.locator('button:not([disabled])').filter({hasText:/沪深300资料|002245资料|大资金动向|标的查询/}).count(),0);
+  assert.equal(await page.locator('button:not([disabled])').filter({hasText:/沪深300资料|002245资料|标的查询/}).count(),0);
+  await page.getByRole('navigation',{name:'市场研究',exact:true}).getByRole('button',{name:'大资金动向',exact:true}).click();
+  await page.locator('.etf-app').getByRole('alert').filter({hasText:'未配置大资金动向服务'}).waitFor();
+  assert.equal(await page.locator('.etf-app').getByRole('button',{name:'更新数据',exact:true}).isDisabled(),true);
+  await page.locator('.etf-app').getByRole('button',{name:'行情总览',exact:true}).click();await waitLoaded();
   await page.reload(); await waitLoaded();
-  records.cases.push('actual-api-invalid-recovery-and-retired-entries-absent');
+  records.cases.push('actual-api-invalid-recovery-and-retired-entries-absent','unconfigured-etf-is-disabled-and-overview-still-works');
   assert.deepEqual(records.external_attempts, []); assert.deepEqual(records.page_errors, []);
   assert.ok(records.requests.every(value => value.method === 'GET'));
   records.passed = true;

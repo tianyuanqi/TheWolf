@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import fcntl
-import os
 from pathlib import Path
-import stat
 from threading import Event
 from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from pmi.market_data.read_only import checked_path
+from pmi.market_data.storage.database import Database
+from pmi.market_data.storage.tasks import task_writer
+from pmi.market_data.storage import state as states
+from contextlib import nullcontext
 from .model import ActivityError, MAX_BYTES, MARKET_MAX_BYTES, THREE_SOURCE_KEYS, Options, Original, canonical, load, rule
 from .sources import url, market_url
 from pmi.market_data.periodic_budget import Lease
@@ -23,48 +23,27 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def _budget(options: Options, attempts: int, count: int, *, write: bool) -> None:
-    """只使用显式已有账本；根／配置变化不清零，损坏失败关闭，无自动初始化。"""
-    path = options.budget_ledger
-    if path is None:
-        raise ActivityError('activity_budget_exhausted')
-    checked_path(path)
-    before = path.stat()
-    if (before.st_dev, before.st_ino) != options.ledger_identity:
+    """既有额度保存在同一库；只改已授权周期，不通过迁址初始化额度。"""
+    database = Database(options.root)
+    if options.budget_ledger != database.path:
         raise ActivityError('activity_budget_invalid')
-    fd = os.open(path, (os.O_RDWR if write else os.O_RDONLY) | os.O_NOFOLLOW | os.O_NONBLOCK)
-    try:
-        actual = os.fstat(fd)
-        if not stat.S_ISREG(actual.st_mode) or actual.st_nlink != 1 or (before.st_dev, before.st_ino) != (actual.st_dev, actual.st_ino):
-            raise ActivityError('activity_budget_invalid')
-        try:
-            fcntl.flock(fd, (fcntl.LOCK_EX if write else fcntl.LOCK_SH) | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise ActivityError('activity_busy') from error
-        raw = os.read(fd, 8193)
-        if len(raw) > 8192:
-            raise ActivityError('activity_budget_invalid')
-        ledger = load(raw)
-        if set(ledger) != {'cycle', 'attempts', 'bytes', 'limit_attempts', 'limit_bytes'} or ledger['cycle'] != options.budget_cycle:
-            raise ActivityError('activity_budget_invalid')
-        if any(type(ledger[k]) is not int or ledger[k] < 0 for k in ('attempts', 'bytes', 'limit_attempts', 'limit_bytes')):
-            raise ActivityError('activity_budget_invalid')
-        if ledger['attempts'] + attempts > min(options.max_attempts, ledger['limit_attempts']) or ledger['bytes'] + count > min(options.max_bytes, ledger['limit_bytes']):
-            raise ActivityError('activity_budget_exhausted')
-        if not write:
-            return
-        ledger['attempts'] += attempts
-        ledger['bytes'] += count
-        content = canonical(ledger)
-        os.lseek(fd, 0, os.SEEK_SET)
-        os.write(fd, content)
-        os.ftruncate(fd, len(content))
-        os.fsync(fd)
-        checked_path(path)
-        if (path.stat().st_dev, path.stat().st_ino) != (actual.st_dev, actual.st_ino):
-            raise ActivityError('activity_budget_invalid')
-    finally:
-        os.close(fd)
-
+    info = database.path.stat()
+    if (info.st_dev, info.st_ino) != options.ledger_identity:
+        raise ActivityError('activity_budget_invalid')
+    with (task_writer(options.root) if write else nullcontext()):
+        with (database.transaction() if write else database.read()) as connection:
+            ledger = states.read(connection, 'activity', 'network-budget')
+            if (not isinstance(ledger, dict) or set(ledger) != {'cycle', 'attempts', 'bytes', 'limit_attempts', 'limit_bytes'}
+                    or ledger['cycle'] != options.budget_cycle):
+                raise ActivityError('activity_budget_invalid')
+            if any(type(ledger[k]) is not int or ledger[k] < 0 for k in ('attempts', 'bytes', 'limit_attempts', 'limit_bytes')):
+                raise ActivityError('activity_budget_invalid')
+            if ledger['attempts'] + attempts > min(options.max_attempts, ledger['limit_attempts']) or ledger['bytes'] + count > min(options.max_bytes, ledger['limit_bytes']):
+                raise ActivityError('activity_budget_exhausted')
+            if write:
+                ledger['attempts'] += attempts
+                ledger['bytes'] += count
+                states.write(connection, 'activity', 'network-budget', ledger)
 
 
 def preflight(options: Options, attempts: int, count: int, lease: Lease | None = None) -> None:

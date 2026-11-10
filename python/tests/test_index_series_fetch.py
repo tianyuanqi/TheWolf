@@ -16,8 +16,11 @@ from pmi.market_data import SnapshotError
 from pmi.market_data.index_catalog import INDICES
 from pmi.market_data import index_series_fetch as fetch
 from pmi.market_data.index_series_contract import canonical
-from pmi.market_data.index_series_store import append_record, load_json
-from pmi.market_data.writer_lock import writer_lock
+from pmi.market_data.storage.index_store import record_network, load_json
+from pmi.market_data.storage import Database, StorageError
+from pmi.market_data.storage import state
+from pmi.market_data.storage.documents import Documents
+from sqlite_fixture import price_writer as writer_lock, initialize
 from test_index_series_contract import WINDOW
 
 
@@ -65,6 +68,7 @@ class FetchTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="wolf-series-fetch-test-")
         self.root = Path(self.temporary.name).resolve()
+        initialize(self.root)
         self.index = INDICES[0]
         self.stop = threading.Event()
 
@@ -91,7 +95,7 @@ class FetchTests(unittest.TestCase):
     def test_success_refunds_only_complete_body_failed_reserves_full(self):
         with writer_lock(self.root):
             entry = self.reserve()
-            append_record(self.root / "index-v2-network-ledger.jsonl", {
+            record_network(self.root, {
                 "event": "finished", "attempt_id": entry["attempt_id"], "index_id": self.index.index_id,
                 "job_id": "job", "source": entry["source"], "success": True, "charged_bytes": 10, "finished_at": fetch._now()})
             self.reserve(index=INDICES[3], budget=fetch.NetworkBudget(2, fetch.MAX_RESPONSE_BYTES + 10))
@@ -116,18 +120,16 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(len(fetch._entries(self.root)), 1)
 
     def test_invalid_ledger_and_symlink_fail_before_popen(self):
-        path = self.root / "index-v2-network-ledger.jsonl"
-        path.write_bytes(b'{"event":"attempt"}')
-        with writer_lock(self.root), patch.object(fetch.subprocess, "Popen") as process, self.assertRaisesRegex(SnapshotError, "incomplete_network_ledger"):
-            fetch.fetch_bounded(self.root, self.index, "csindex", WINDOW, "job", budget=fetch.NetworkBudget())
+        with writer_lock(self.root):
+            with Database(self.root).transaction() as connection:
+                state.write(connection, 'price-v2', 'legacy:slice-002245-sina/index-v2-network-ledger.jsonl', [{'event':'attempt'}])
+        with writer_lock(self.root), patch.object(fetch.subprocess, 'Popen') as process, self.assertRaisesRegex(SnapshotError, 'invalid_network_ledger'):
+            fetch.fetch_bounded(self.root, self.index, 'csindex', WINDOW, 'job', budget=fetch.NetworkBudget())
         process.assert_not_called()
-        path.unlink()
-        target = self.root / "target"
-        target.write_text("synthetic")
-        path.symlink_to(target)
-        with writer_lock(self.root), self.assertRaises(ValueError):
-            self.reserve()
-        self.assertEqual(target.read_text(), "synthetic")
+        path=self.root/'facts.sqlite'; target=self.root/'saved.sqlite';path.rename(target);path.symlink_to(target)
+        before=target.read_bytes()
+        with self.assertRaises(StorageError): self.reserve()
+        self.assertEqual(target.read_bytes(),before)
 
     def test_request_parameters_and_body_receipt(self):
         output = self.root / "output"
@@ -186,7 +188,7 @@ class FetchTests(unittest.TestCase):
                 fetch.fetch_bounded(self.root, self.index, "csindex", WINDOW, "job", budget=fetch.NetworkBudget())
         self.assertEqual(popen.call_count, 1)
         self.assertEqual(fetch._entries(self.root)[-1]["charged_bytes"], fetch.MAX_RESPONSE_BYTES)
-        self.assertNotIn("secret proxy", (self.root / "index-v2-network-ledger.jsonl").read_text())
+        self.assertNotIn("secret proxy", str(fetch._entries(self.root)))
 
     def test_parent_eof_reaps_real_non_network_child(self):
         process = subprocess.Popen([sys.executable, "-B", "-c",

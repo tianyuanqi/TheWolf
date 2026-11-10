@@ -33,3 +33,22 @@ test('旧未知不能覆盖本页精确终态，冲突带入仍拒绝',()=>{
  const unknown=load(),done=load();unknown.m.savePending(scope,first);done.m.savePending(scope,first);done.m.settle(scope,first,'completed');done.m.importBook(unknown.m.exportBook(scope),scope);
  assert.equal(done.m.readBook(scope).history.length,0);assert.equal(done.m.readBook(scope).settled[0].source,'local');
 });
+
+test('ETF记录固定原计划与CAS，跨ETF根接续拒绝且不授予普通写权限',()=>{
+ const a=load(),b=load(),s={...scope,operation:'etf.flow.update',target:'c'.repeat(64)};
+ const id={instance_id:first.instance_id,config_id:first.config_id,request_id:'etf-request:1',operation:s.operation,
+  parameters:{plan_id:'d'.repeat(64),expected_snapshot_id:null}};
+ a.m.savePending(s,id);b.m.importBook(a.m.exportBook(s),s);
+ assert.deepEqual(json(b.m.readBook(s).history[0]),id);assert.equal(b.m.needsExplicit(b.m.readBook(s)),true);
+ assert.throws(()=>b.m.importBook(a.m.exportBook(s),{...s,target:'e'.repeat(64)}));
+ for(const parameters of [{plan_id:'d'.repeat(64)},{...id.parameters,expected_snapshot_id:'invalid'},
+  {...id.parameters,members:[]}])assert.throws(()=>a.m.validIdentity({...id,parameters},s));
+});
+
+test('旧切片记录只保留原文导出，不成为ETF或总览的可操作作用域',()=>{
+ const {m,data}=load();const key=`wolf-update:${scope.endpoint}:${scope.data_scope_id}:slice.update`,text='old record, unchanged';
+ data.set(key,text);m.savePending(scope,first);
+ assert.deepEqual(json(m.allScopes()),[scope]);assert.deepEqual(json(m.retiredRecords()),[{key,text}]);
+ assert.equal(data.get(key),text);
+ assert.throws(()=>m.validScope({...scope,operation:'slice.update',target:'002245'}));
+});
